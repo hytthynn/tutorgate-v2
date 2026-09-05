@@ -1,4 +1,6 @@
 "use client";
+import { ValidatedForm, FieldError } from "./validated-form";
+import Link from "next/link";
 import { useFeedback } from "@/components/ui/toaster";
 import { Select } from "@/components/ui/select";
 import { useActionState, useState } from "react";
@@ -49,6 +51,7 @@ export function ApplicationForm({
     );
   return (
     <>
+      <div className="auth-heading"><span className="eyebrow">НАЧНЁМ ЗНАКОМСТВО</span><h1>Заявка в TutorGate</h1><p>Расскажите немного о себе.</p></div>
       <div className="role-tabs" role="tablist" aria-label="Тип заявки">
         <button
           type="button"
@@ -67,7 +70,7 @@ export function ApplicationForm({
           <BookOpen size={17} />Я репетитор
         </button>
       </div>
-      <form action={action} className="form-stack">
+      <ValidatedForm kind="application" action={action} className="form-stack">
         <input type="hidden" name="role" value={role} />
         <Field label="ФИО" name="full_name" error={state.errors?.full_name}>
           <input
@@ -119,11 +122,7 @@ export function ApplicationForm({
                 : "Пока нет доступных предметов. Попробуйте позже."}
             </p>
           )}
-          {state.errors?.subject_ids && (
-            <p className="field-error" role="alert">
-              {state.errors.subject_ids[0]}
-            </p>
-          )}
+          <FieldError name="subject_ids" error={state.errors?.subject_ids} />
         </fieldset>
         {role === "student" ? (
           <Field
@@ -171,11 +170,7 @@ export function ApplicationForm({
             <input name="privacy" type="checkbox" required />
             <span>Я согласен с обработкой персональных данных</span>
           </label>
-          {state.errors?.privacy && (
-            <p className="field-error" role="alert">
-              {state.errors.privacy[0]}
-            </p>
-          )}
+          <FieldError name="privacy" error={state.errors?.privacy} />
         </div>
         <Button
           disabled={!subjects.length}
@@ -187,7 +182,8 @@ export function ApplicationForm({
           Подать заявку
           <ArrowRight size={16} />
         </Button>
-      </form>
+      </ValidatedForm>
+      <div className="auth-bottom"><span>Уже есть аккаунт?</span><Link href="/login">Войти</Link></div>
     </>
   );
 }

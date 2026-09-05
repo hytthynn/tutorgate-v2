@@ -14,6 +14,11 @@ export interface ScheduleLesson {
   durationMinutes: number;
   color: LessonColor;
   completed: boolean;
+  inactiveReason?: "transferred" | "available_from" | null;
+  inactiveUntil?: string | null;
+  isTransferTarget?: boolean;
+  transferSourceId?: string | null;
+  transferSourceStartsAt?: string | null;
 }
 export interface ScheduleData {
   now: string;
@@ -24,6 +29,8 @@ export interface ScheduleData {
   students: { id: string; name: string }[];
   subjects: { id: string; name: string }[];
   assignments?: { studentId: string; subjectId: string }[];
+  studentAvailability?: AvailabilityRule[];
+  ownerId?: string;
 }
 export interface ScheduleResult {
   error?: string;
@@ -34,6 +41,16 @@ export interface ScheduleResult {
   ids?: string[];
   shifted?: boolean;
   requestedStart?: string;
+  lessons?: ScheduleLesson[];
+  rules?: AvailabilityRule[];
+  offset?: number;
+  before?: SignedSnapshot;
+  after?: SignedSnapshot;
+  replaceAll?: boolean;
+  createdIds?: string[];
 }
+export type AvailabilityRule = { studentId: string; availableFrom: string };
+export type SignedSnapshot = { payload: Record<string, unknown>; signature: string };
+export type HistoryEntry = { before: SignedSnapshot; after: SignedSnapshot; previous: ScheduleLesson[]; next: ScheduleLesson[]; oldRules: AvailabilityRule[]; newRules: AvailabilityRule[]; oldOffset: number; newOffset: number };
 
 export type SaveState = "saving" | "saved" | "error";

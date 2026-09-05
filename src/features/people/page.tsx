@@ -130,7 +130,7 @@ export async function PeoplePage({
                     <div>
                       <strong>{p.full_name}</strong>
                       {admin && p.role === "admin" && (
-                        <small>Администратор · Репетитор</small>
+                        <small>Администратор</small>
                       )}
                     </div>
                   </div>

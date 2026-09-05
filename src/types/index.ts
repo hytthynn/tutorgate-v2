@@ -18,4 +18,5 @@ export type ActionState = {
   errors?: Record<string, string[]>;
   success?: string;
   url?: string;
+  hourlyRate?: number;
 };

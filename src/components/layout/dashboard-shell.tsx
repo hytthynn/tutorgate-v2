@@ -26,10 +26,6 @@ export async function DashboardShell({
           </span>
         </div>
         <div className="dashboard-content">{children}</div>
-        <footer className="dashboard-footer">
-          <span>TutorGate</span>
-          <span>Пространство для роста.</span>
-        </footer>
       </main>
     </div>
   );

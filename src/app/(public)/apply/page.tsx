@@ -1,4 +1,4 @@
-import Link from "next/link";
+
 import { ApplicationForm } from "@/components/forms/application-form";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { missingSupabaseVariables } from "@/lib/env";
@@ -40,16 +40,7 @@ export default async function ApplyPage() {
   }
   return (
     <section className="auth-card application-card">
-      <div className="auth-heading">
-        <span className="eyebrow">НАЧНЁМ ЗНАКОМСТВО</span>
-        <h1>Заявка в TutorGate</h1>
-        <p>Расскажите немного о себе.</p>
-      </div>
       <ApplicationForm subjects={subjects} unavailable={unavailable} />
-      <div className="auth-bottom">
-        <span>Уже есть аккаунт?</span>
-        <Link href="/login">Войти</Link>
-      </div>
     </section>
   );
 }

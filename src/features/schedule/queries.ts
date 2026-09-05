@@ -2,7 +2,17 @@ import "server-only";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
 import { parseWeek } from "./time";
-import type { LessonColor, ScheduleData, ScheduleLesson } from "./types";
+import type { AvailabilityRule, LessonColor, ScheduleData, ScheduleLesson } from "./types";
+
+async function readAvailability(ownerId: string): Promise<AvailabilityRule[]> {
+  const db=await createClient(), rules:AvailabilityRule[]=[];
+  for(let page=0;;page++) {
+    const result=await db.from("tutor_student_availability").select("student_id,available_from").eq("tutor_id",ownerId).order("student_id").range(page*500,page*500+499);
+    if(result.error)throw new Error("Не удалось загрузить правила расписания.");
+    rules.push(...result.data.map(r=>({studentId:r.student_id,availableFrom:r.available_from})));
+    if(result.data.length<500)return rules;
+  }
+}
 
 export async function getScheduleOffset() {
   const user = await requireRole();
@@ -14,19 +24,20 @@ export async function getScheduleOffset() {
 export interface LessonRow {
   id: string; tutor_id: string; student_id: string; subject_id: string | null; subject_name_snapshot: string;
   starts_at: string; ends_at: string; duration_minutes: number; color: LessonColor; completed_at: string | null;
+  inactive_reason: ScheduleLesson["inactiveReason"]; inactive_until: string | null; is_transfer_target: boolean; transfer_source_id: string | null; transfer_source_starts_at: string | null;
 }
 export async function readLessons(start: string | null, end: string | null, filter: { tutorId?: string; studentId?: string; completed?: boolean }) {
   const db = await createClient();
   const rows: LessonRow[] = [];
   // PostgREST caps each response; never silently truncate a busy period.
   for (let page = 0; ; page++) {
-    let query = db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot")
+    let query = db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
       .order("starts_at").order("id").range(page * 500, page * 500 + 499);
     if (start) query = query.gt("ends_at", start);
     if (end) query = query.lt("starts_at", end);
     if (filter.tutorId) query = query.eq("tutor_id", filter.tutorId);
     if (filter.studentId) query = query.eq("student_id", filter.studentId);
-    if (filter.completed) query = query.not("completed_at", "is", null);
+    if (filter.completed) query = query.not("completed_at", "is", null).is("inactive_reason", null);
     const { data, error } = await query;
     if (error) throw new Error("Не удалось загрузить занятия.");
     rows.push(...(data as LessonRow[]));
@@ -69,7 +80,9 @@ export async function getSchedule(weekParam: unknown): Promise<ScheduleData> {
     profiles.push(...result.data); if (result.data.length < 500) break;
   }
   const studentIds = new Set(assignments.map(a => a.student_id));
-  return { now: now.toISOString(), role: user.role, week, offset, lessons,
+  const availability = await readAvailability(user.id);
+  return { now: now.toISOString(), role: user.role, week, offset, lessons, ownerId: user.id,
+    studentAvailability: availability,
     students: profiles.filter(p => p.role === "student" && studentIds.has(p.id)).map(p => ({ id: p.id, name: p.full_name })),
     assignments: assignments.map(a => ({ studentId: a.student_id, subjectId: a.subject_id })),
     subjects: subjects.flatMap(s => (Array.isArray(s.subjects) ? s.subjects : [s.subjects]).map(subject => ({ id: subject.id, name: subject.name }))),
@@ -89,6 +102,7 @@ export async function normalizeLessons(rows: LessonRow[]): Promise<ScheduleLesso
     studentName: names.get(l.id)?.student_name ?? "Ученик", tutorName: names.get(l.id)?.tutor_name ?? "Репетитор",
     subjectName: names.get(l.id)?.subject_name ?? l.subject_name_snapshot, startsAt: l.starts_at, endsAt: l.ends_at,
     durationMinutes: l.duration_minutes, color: l.color, completed: l.completed_at !== null,
+    inactiveReason: l.inactive_reason ?? null, inactiveUntil: l.inactive_until ?? null, isTransferTarget: l.is_transfer_target ?? false, transferSourceId: l.transfer_source_id ?? null, transferSourceStartsAt: l.transfer_source_starts_at ?? null,
   }));
 }
 export async function readScheduleUpdates(since: string) {
@@ -102,11 +116,11 @@ export async function readScheduleUpdates(since: string) {
   // Inclusive cursor plus a small overlap tolerates long-running cron transactions.
   const after = new Date(Date.parse(since)-10*60_000).toISOString();
   for (let page=0; ;page++) {
-    const result = await db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot")
+    const result = await db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
       .eq(user.role === "student" ? "student_id" : "tutor_id",user.id).gte("updated_at",after)
       .order("updated_at").order("id").range(page*500,page*500+499);
     if (result.error) throw new Error("Не удалось загрузить новые занятия.");
     rows.push(...result.data as LessonRow[]); if (result.data.length<500) break;
   }
-  return { lessons: await normalizeLessons(rows), cursor };
+  return { lessons: await normalizeLessons(rows), cursor, rules: user.role === "student" ? [] : await readAvailability(user.id), offset: await getScheduleOffset() };
 }

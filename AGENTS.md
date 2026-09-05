@@ -20,18 +20,21 @@ Server Components по умолчанию; клиентские — формы, 
 ## Расписание
 
 - Сохранять RLS, owner-checks, exclusion constraints и серверный magnet.
-- Клиентский preview учитывает только загруженные видимые занятия. Ответ `result.lesson` канонический.
+- Клиентский preview учитывает только загруженные видимые занятия. Ответ `result.lessons`/`rules`/`offset` канонический.
 - Snap 5 минут, полная длительность, при равенстве — позже, последний старт 23:55, окончание может пересечь полночь.
-- Создание только в текущей локальной неделе, drag не в будущую; offset = UTC+3+сохранённый сдвиг.
+- Обычное создание/paste только в текущей локальной неделе, drag не в будущую; dedicated transfer разрешён в текущую/следующую реальную неделю; offset = UTC+3+сохранённый сдвиг.
 - Неделя/день локальны через History API, CRUD календаря без refresh/revalidatePath.
 - SaveState включает все мутации, ошибку не сбрасывать простым закрытием диалога.
-- Rollover и исторические snapshots не менять в UI-пакетах.
+- Inactive не блокирует пересечения; active normal и coral конфликтуют только внутри своего класса, по tutor и student. Gray остаётся активным цветом.
+- Массовые команды атомарны, preview/сервер сохраняют общий delta. Inactive/coral не входят в мультивыделение.
+- Все мутации optimistic; undo/redo хранит подписанные сервером снимки затронутых данных в памяти текущей страницы и реально меняет БД.
+- Rollover пропускает transferred source, учитывает tutor/student availability; копия target теряет transfer marker.
 
 ## UI и тесты
 
 Warm mocha — tokens в globals.css; без gradients/glow/тяжёлых теней. Focus-visible, подписи иконок, responsive без horizontal overflow. Предметы без поиска; ученики/репетиторы searchable. Loading через общий Button; asChild только навигация. Ошибки полей inline, общие сообщения Toaster. Автофильтры используют replace, единый актуальный draft и debounce ФИО 300 мс.
 
-Добавлять регрессии. Не объявлять команду пройденной, если она не выполнялась. Текущее [ТЗ](docs/TZ_TutorGate_bugfixes_007.md), [проверки](docs/verification.md). История — только docs/archive.
+Добавлять регрессии. Не объявлять команду пройденной, если она не выполнялась. Текущее [ТЗ](docs/TZ_TutorGate_008_schedule_features_and_fixes.md), [проверки](docs/verification.md). История — только docs/archive.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

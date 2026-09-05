@@ -53,6 +53,7 @@ export async function TokenPage({
     );
   return (
     <section className="auth-card">
+      <AuthForm kind={kind} token={token}>
       <div className="auth-heading">
         <span className="eyebrow">
           {kind === "register" ? "ПОСЛЕДНИЙ ШАГ" : "ВОССТАНОВЛЕНИЕ ДОСТУПА"}
@@ -64,7 +65,7 @@ export async function TokenPage({
             : "Выберите пароль длиной не менее 8 символов."}
         </p>
       </div>
-      <AuthForm kind={kind} token={token} />
+      </AuthForm>
     </section>
   );
 }

@@ -5,6 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { saveLesson, patchLesson, scheduleError } from "./service";
 import { colorSchema, completedSchema, deleteSchema, moveSchema, offsetSchema } from "./validation";
 import type { ScheduleResult } from "./types";
+import { commandSchema } from "./validation";
+export async function scheduleCommandAction(input: unknown): Promise<ScheduleResult> {
+  const user = await requireRole();
+  try {
+    const command = commandSchema.parse(input);
+    if (user.role === "student" && command.kind !== "offset" && command.kind !== "restore") return { error: "Ученику доступен только просмотр расписания." };
+    const db = await createClient();
+    const { data, error } = await db.rpc("schedule_command", { p_command: command });
+    return error ? scheduleError(error) : data as ScheduleResult;
+  } catch (error) { return scheduleError(error); }
+}
 export async function createLessonAction(input: unknown) { return saveLesson(null, input); }
 export async function updateLessonAction(id: unknown, input: unknown) { return saveLesson(id, input); }
 export async function moveLessonAction(input: unknown): Promise<ScheduleResult> {

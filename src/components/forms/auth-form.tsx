@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm } from "./validated-form";
 import { useFeedback } from "@/components/ui/toaster";
 import { useActionState } from "react";
 import Link from "next/link";
@@ -28,9 +29,11 @@ const loadingLabels = { login: "Входим…", register: "Создаём ак
 export function AuthForm({
   kind,
   token = "",
+  children,
 }: {
   kind: keyof typeof actions;
   token?: string;
+  children?: React.ReactNode;
 }) {
   const [state, action, pending] = useActionState(
     actions[kind],
@@ -60,7 +63,7 @@ export function AuthForm({
       </div>
     );
   return (
-    <form action={action} className="form-stack">
+    <>{children}<ValidatedForm kind={kind} action={action} className="form-stack">
       {token && <input type="hidden" name="token" value={token} />}
       {(kind === "login" || kind === "register") && (
         <Field
@@ -153,6 +156,6 @@ export function AuthForm({
         {labels[kind]}
         <ArrowRight size={16} />
       </Button>
-    </form>
+    </ValidatedForm></>
   );
 }

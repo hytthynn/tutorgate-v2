@@ -19,6 +19,7 @@ export async function adminAction(
   const db = await createClient();
   const operation = form.get("operation");
   const values = Object.fromEntries(form);
+  let hourlyRate: number | undefined;
   try {
     let result: { error: { code?: string } | null };
     switch (operation) {
@@ -34,6 +35,7 @@ export async function adminAction(
       }
       case "rate": {
         const v = hourlyRateSchema.parse(values);
+        hourlyRate = v.hourly_rate;
         result = await db
           .from("app_settings")
           .update({ ...v, updated_by: admin.id })
@@ -94,6 +96,7 @@ export async function adminAction(
     revalidatePath("/tutor", "layout");
     revalidatePath("/apply");
     return {
+      hourlyRate,
       success:
         operation === "subject_remove" ? "Предмет удалён. История занятий сохранена." : operation === "assignment_remove"
           ? "Назначение снято."

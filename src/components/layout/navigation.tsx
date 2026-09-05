@@ -73,7 +73,7 @@ export function Navigation({ profile }: { profile: Profile }) {
         <strong>{profile.full_name}</strong>
         <small>{roleNames[profile.role]}</small>
       </span>
-      <form action={logoutAction}>
+      <form noValidate action={logoutAction}>
         <LogoutButton />
       </form>
     </div>

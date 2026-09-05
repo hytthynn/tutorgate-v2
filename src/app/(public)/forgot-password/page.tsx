@@ -5,6 +5,7 @@ export const metadata = { title: "Восстановление пароля" };
 export default function ForgotPage() {
   return (
     <section className="auth-card">
+      <AuthForm kind="forgot">
       <Link className="back-link" href="/login">
         <ArrowLeft size={14} />
         Ко входу
@@ -19,7 +20,7 @@ export default function ForgotPage() {
           восстановления.
         </p>
       </div>
-      <AuthForm kind="forgot" />
+      </AuthForm>
     </section>
   );
 }

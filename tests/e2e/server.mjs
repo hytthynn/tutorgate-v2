@@ -62,7 +62,7 @@ const monday = date => { const d = new Date(`${date}T00:00:00Z`); d.setUTCDate(d
 const week = monday(localDate(new Date()));
 const day = n => new Date(Date.parse(`${week}T00:00:00Z`)+n*86400000).toISOString().slice(0,10);
 const at = (n,time) => new Date(Date.parse(`${day(n)}T${time}:00Z`)-3*3600000).toISOString();
-function dto(l) { return { id:l.id,tutorId:l.tutor_id,studentId:l.student_id,subjectId:l.subject_id,studentName:profiles.find(p=>p.id===l.student_id)?.full_name,tutorName:profiles.find(p=>p.id===l.tutor_id)?.full_name,subjectName:subjects.find(s=>s.id===l.subject_id)?.name ?? l.subject_name_snapshot,startsAt:l.starts_at,endsAt:l.ends_at,durationMinutes:l.duration_minutes,color:l.color,completed:l.completed_at!==null }; }
+function dto(l) { return { id:l.id,tutorId:l.tutor_id,studentId:l.student_id,subjectId:l.subject_id,studentName:profiles.find(p=>p.id===l.student_id)?.full_name,tutorName:profiles.find(p=>p.id===l.tutor_id)?.full_name,subjectName:subjects.find(s=>s.id===l.subject_id)?.name ?? l.subject_name_snapshot,startsAt:l.starts_at,endsAt:l.ends_at,durationMinutes:l.duration_minutes,color:l.color,inactiveReason:l.inactive_reason??null,inactiveUntil:l.inactive_until??null,isTransferTarget:l.is_transfer_target??false,transferSourceId:l.transfer_source_id??null,transferSourceStartsAt:l.transfer_source_starts_at??null,completed:l.completed_at!==null }; }
 function magnet(candidate, offset) {
   const desired=Date.parse(candidate.starts_at), date=localDate(desired,offset);
   const midnight=Date.parse(`${date}T00:00:00Z`)-(3+offset)*3600000;
@@ -77,13 +77,14 @@ function magnet(candidate, offset) {
 const lessons = [];
 const notes = new Map();
 const preferences = new Map();
+const availability=[];
 let nextLesson = 100;
 const seedSubjects=structuredClone(subjects), seedTutorSubjects=structuredClone(tutorSubjects), seedAssignments=structuredClone(assignments);
 function resetSchedule() {
   subjects.splice(0,subjects.length,...structuredClone(seedSubjects));
   tutorSubjects.splice(0,tutorSubjects.length,...structuredClone(seedTutorSubjects));
   assignments.splice(0,assignments.length,...structuredClone(seedAssignments));
-  lessons.length = 0; notes.clear(); preferences.clear(); behaviors.clear(); actionCounts.clear(); nextLesson = 100;
+  lessons.length = 0; availability.length=0; notes.clear(); preferences.clear(); behaviors.clear(); actionCounts.clear(); nextLesson = 100;
   for (const [student, starts, duration] of [[4, at(0,"10:00"), 60], [5, at(0,"12:00"), 60], [4, at(6,"23:00"), 120]]) {
     const lesson = { id: id(nextLesson++), tutor_id: id(2), student_id: id(student), subject_id: id(student === 5 ? 11 : 10), subject_name_snapshot: "Математика", starts_at: starts, ends_at: new Date(Date.parse(starts) + duration * 60000).toISOString(), duration_minutes: duration, color: "default", completed_at: null, updated_at: new Date().toISOString() };
     lessons.push(lesson); notes.set(lesson.id, "PRIVATE_TUTOR_NOTE_секрет");
@@ -104,7 +105,7 @@ function matches(row, params) {
   });
 }
 function overlaps(candidate) {
-  return lessons.some((l) => l.id !== candidate.id && (l.tutor_id === candidate.tutor_id || l.student_id === candidate.student_id) && Date.parse(l.starts_at) < Date.parse(candidate.ends_at) && Date.parse(l.ends_at) > Date.parse(candidate.starts_at));
+  return lessons.some((l) => !l.inactive_reason && !candidate.inactive_reason && (l.color==="coral")===(candidate.color==="coral") && l.id !== candidate.id && (l.tutor_id === candidate.tutor_id || l.student_id === candidate.student_id) && Date.parse(l.starts_at) < Date.parse(candidate.ends_at) && Date.parse(l.ends_at) > Date.parse(candidate.starts_at));
 }
 const jwt = (uid) =>
   `${Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url")}.${Buffer.from(JSON.stringify({ sub: uid, email: "hidden_alias@internal.test", role: "authenticated", exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.fixture-signature`;
@@ -150,13 +151,53 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" }); res.end("true"); return;
   }
   if (req.method !== "GET" && !url.pathname.startsWith("/fixtures")) actionCounts.set(op, (actionCounts.get(op) ?? 0) + 1);
-  const behavior = behaviors.get(op);
+  const alias=op==="schedule_command"?({create:"save_schedule_lesson",edit:"save_schedule_lesson",move:"patch_schedule_lesson",color:"patch_schedule_lesson",completed:"patch_schedule_lesson",delete:"delete_schedule_lessons",offset:"user_schedule_preferences"}[args.p_command?.kind]):null;
+  if(alias)actionCounts.set(alias,(actionCounts.get(alias)??0)+1);
+  const behavior = behaviors.get(op)??behaviors.get(alias);
   if (behavior && req.method !== "GET") {
-    behaviors.delete(op);
+    behaviors.delete(op);if(alias)behaviors.delete(alias);
     await new Promise(resolve => setTimeout(resolve, behavior.delay));
     if (behavior.fail) { res.writeHead(500,{"Content-Type":"application/json"}); res.end(JSON.stringify({code:"P0001",message:"Fixture failure"})); return; }
   }
   if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
+  else if(op==="tutor_student_availability")value=availability.filter(r=>r.tutor_id===uid);
+  else if(op==="schedule_command"){
+    const c=args.p_command, original=structuredClone(lessons), oldNotes=new Map(notes), oldRules=structuredClone(availability),oldPreferences=new Map(preferences);
+    const snapshot=()=>({payload:{owner:uid,lessons:structuredClone(lessons.filter(l=>l.tutor_id===uid)),notes:Object.fromEntries([...notes].filter(([id])=>lessons.some(l=>l.id===id&&l.tutor_id===uid))),rules:structuredClone(availability.filter(r=>r.tutor_id===uid)),offset:preferences.get(uid)?.msk_offset_hours??0},signature:"a".repeat(64)});
+    const before=snapshot();let extra={};
+    const activity=l=>{if(l.inactive_reason!=="transferred"){const r=availability.find(r=>r.tutor_id===l.tutor_id&&r.student_id===l.student_id);l.inactive_reason=r&&localDate(l.starts_at,preferences.get(uid)?.msk_offset_hours??0)<r.available_from?"available_from":null;l.inactive_until=l.inactive_reason?r.available_from:null;}if(l.inactive_reason)l.completed_at=null;return l;};
+    const remove=ids=>{for(let i=lessons.length-1;i>=0;i--)if(ids.includes(lessons[i].id))lessons.splice(i,1);};
+    try{
+      const group=lessons.filter(l=>c.ids?.includes(l.id)&&l.tutor_id===uid);
+      if(c.ids&&group.length!==c.ids.length)throw {code:"42501"};
+      if(c.kind==="restore"){
+        const target=c.target.payload;const ownedIds=lessons.filter(l=>l.tutor_id===uid).map(l=>l.id);remove(ownedIds);lessons.push(...structuredClone(target.lessons));for(const id of ownedIds)notes.delete(id);for(const [id,note] of Object.entries(target.notes))notes.set(id,note);availability.splice(0,availability.length,...availability.filter(r=>r.tutor_id!==uid),...structuredClone(target.rules));preferences.set(uid,{user_id:uid,msk_offset_hours:target.offset});
+      }else if(c.kind==="delete"){remove(c.ids);for(const id of c.ids)notes.delete(id);}
+      else if(c.kind==="offset"){preferences.set(uid,{user_id:uid,msk_offset_hours:c.offset});lessons.filter(l=>l.tutor_id===uid).forEach(activity);}
+      else if(c.kind==="availability"){
+        for(let i=availability.length-1;i>=0;i--)if(availability[i].tutor_id===uid&&c.studentIds.includes(availability[i].student_id))availability.splice(i,1);
+        if(c.availableFrom)for(const student_id of new Set(c.studentIds))availability.push({tutor_id:uid,student_id,available_from:c.availableFrom});
+        lessons.filter(l=>l.tutor_id===uid).forEach(activity);
+      }else if(c.kind==="color"||c.kind==="completed"){
+        for(const l of group){if(l.inactive_reason)throw {code:"PT005"};if(c.kind==="color")l.color=c.color;else l.completed_at=c.completed?new Date().toISOString():null;}
+      }else if(c.kind==="create"||c.kind==="edit"){
+        const old=lessons.find(l=>l.id===c.id),offset=preferences.get(uid)?.msk_offset_hours??0;
+        const l=activity({...old,id:old?.id??id(nextLesson++),tutor_id:uid,student_id:c.studentId,subject_id:c.subjectChanged===false?old?.subject_id:c.subjectId,subject_name_snapshot:subjects.find(s=>s.id===c.subjectId)?.name??old?.subject_name_snapshot,starts_at:c.startsAt,duration_minutes:c.durationMinutes,color:old?.color??"default",completed_at:old?.completed_at??null});
+        const moved=magnet(l,offset);if(!moved)throw {code:"P0002"};if(old)Object.assign(old,moved);else lessons.push(moved);notes.set(moved.id,c.note);extra={lesson:dto(moved),requestedStart:c.startsAt,shifted:Date.parse(c.startsAt)!==Date.parse(moved.starts_at)};
+      }else if(["transfer","paste","move"].includes(c.kind)){
+        if(group.some(l=>l.inactive_reason))throw {code:"PT005"};if(c.kind==="transfer"&&group.some(l=>l.is_transfer_target))throw {code:"PT006"};
+        const anchor=Math.min(...group.map(l=>Date.parse(l.starts_at))),offset=preferences.get(uid)?.msk_offset_hours??0;
+        const copies=group.map(l=>activity({...l,id:c.kind==="move"?l.id:id(nextLesson++),starts_at:new Date(Date.parse(l.starts_at)+Date.parse(c.startsAt)-anchor).toISOString(),duration_minutes:c.durationMinutes??l.duration_minutes,completed_at:c.kind==="move"?l.completed_at:null,is_transfer_target:c.kind==="transfer"||c.kind==="move"&&l.is_transfer_target,transfer_source_id:c.kind==="transfer"?l.id:null,transfer_source_starts_at:c.kind==="transfer"?l.starts_at:null}));
+        for(let i=0;i<copies.length;i++){const l=copies[i];l.ends_at=new Date(Date.parse(l.starts_at)+l.duration_minutes*60000).toISOString();if(c.kind!=="move")notes.set(l.id,notes.get(group[i].id)??"");}
+        if(c.kind==="transfer")for(const l of group){l.inactive_reason="transferred";l.completed_at=null;}if(c.kind==="move")remove(c.ids);
+        const desired=Date.parse(copies[0].starts_at),candidate=magnet(copies[0],offset);if(!candidate)throw {code:"P0002"};const delta=Date.parse(candidate.starts_at)-desired;
+        for(const l of copies){l.starts_at=new Date(Date.parse(l.starts_at)+delta).toISOString();l.ends_at=new Date(Date.parse(l.ends_at)+delta).toISOString();lessons.push(l);}
+        extra={createdIds:copies.map(l=>l.id),shifted:delta!==0,...(copies.length===1&&c.kind==="move"?{lesson:dto(copies[0]),requestedStart:c.startsAt}:{})};
+      }
+      if(lessons.some(overlaps))throw {code:"23P01"};
+      value={...extra,before,after:snapshot(),replaceAll:profile?.role!=="student",lessons:lessons.filter(l=>l.tutor_id===uid).map(dto),rules:availability.filter(r=>r.tutor_id===uid).map(r=>({studentId:r.student_id,availableFrom:r.available_from})),offset:preferences.get(uid)?.msk_offset_hours??0};
+    }catch(error){lessons.splice(0,lessons.length,...original);notes.clear();for(const [id,note]of oldNotes)notes.set(id,note);availability.splice(0,availability.length,...oldRules);preferences.clear();for(const [id,p]of oldPreferences)preferences.set(id,p);status=409;value={code:error.code??"P0001"};}
+  }
   else if (op === "ensure_schedule_rollover") value=null;
   else if (op === "save_schedule_lesson" || op === "patch_schedule_lesson") {
     const old=args.p_id ? lessons.find(l=>l.id===args.p_id && l.tutor_id===uid) : null;
@@ -233,7 +274,7 @@ const server = http.createServer(async (req, res) => {
   else if (op === "session_write") {
     sessions.set(args.p_hash, args.p_cookies);
     value = null;
-  } else if (op === "lookup_alias") value = `${args.p_username}@internal.test`;
+  } else if (op === "lookup_alias") value = args.p_username==="fixture_new"?null:`${args.p_username}@internal.test`;
   else if (op === "rate_limit") value = true;
   else if (op === "bind_session") value = null;
   else if (op === "profiles")
@@ -265,6 +306,9 @@ const server = http.createServer(async (req, res) => {
         ? assignments
         : assignments.filter((a) => a.student_id === uid || a.tutor_id === uid);
   else if (op === "app_settings") value = [{ hourly_rate: 1500 }];
+  else if(op==="request_reset")value=null;
+  else if(op==="claim_reset")value=id(4);
+  else if(url.pathname.startsWith("/auth/v1/admin/users"))value={user:user(id(4))};
   else if (op === "token_status") value = args.p_hash ? "valid" : null;
   if(Array.isArray(value) && ["subjects","tutor_subjects","student_tutor_assignments","visible_profiles"].includes(op)) {
     value=value.filter(row=>matches(row,url.searchParams));

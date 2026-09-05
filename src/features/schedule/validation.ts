@@ -16,3 +16,20 @@ export const colorSchema = z.object({ id: z.uuid(), color: z.enum(lessonColors) 
 export const completedSchema = z.object({ id: z.uuid(), completed: z.boolean() });
 export const deleteSchema = z.array(z.uuid()).min(1).max(20000);
 export type LessonInput = z.infer<typeof lessonSchema>;
+const ids = z.array(z.uuid()).min(1).max(20000);
+const instant = z.iso.datetime({ offset: true });
+const signed = z.object({ payload: z.record(z.string(), z.unknown()), signature: z.string().regex(/^[a-f0-9]{64}$/) });
+export const commandSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("create"), id: z.null().optional(), ...lessonSchema.shape, startsAt: instant }),
+  z.object({ kind: z.literal("edit"), id: z.uuid(), ...lessonSchema.shape, startsAt: instant }),
+  z.object({ kind: z.literal("move"), ids, startsAt: instant }),
+  z.object({ kind: z.literal("transfer"), ids, startsAt: instant, durationMinutes: z.number().int().min(1).max(600).optional() }),
+  z.object({ kind: z.literal("paste"), ids, startsAt: instant }),
+  z.object({ kind: z.literal("color"), ids, color: z.enum(lessonColors) }),
+  z.object({ kind: z.literal("completed"), ids, completed: z.boolean() }),
+  z.object({ kind: z.literal("delete"), ids }),
+  z.object({ kind: z.literal("availability"), studentIds: ids, availableFrom: z.string().refine(validDate, "Укажите корректную дату.").nullable() }),
+  z.object({ kind: z.literal("offset"), offset: offsetSchema }),
+  z.object({ kind: z.literal("restore"), expected: signed, target: signed }),
+]);
+export type ScheduleCommand = z.infer<typeof commandSchema>;

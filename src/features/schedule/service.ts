@@ -9,6 +9,11 @@ import type { ScheduleResult } from "./types";
 export function scheduleError(error: unknown): ScheduleResult {
   if (error instanceof z.ZodError) return { errors: z.flattenError(error).fieldErrors as Record<string, string[]> };
   const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+  if (code === "PT005") return { error: "Это занятие неактивно и не может быть изменено." };
+  if (code === "PT006") return { error: "Перенесённое занятие нельзя переносить повторно." };
+  if (code === "PT007") return { error: "Выберите текущую или следующую неделю для переноса." };
+  if (code === "PT009") return { error: "Расписание изменилось в другом окне. История отмены больше не актуальна." };
+  if (code === "23P01" || code === "PT004") return { error: "Изменения создают пересечение занятий одного типа. Операция отменена." };
   if (code === "P0002") return { error: "В этот день нет свободного интервала такой длительности." };
   if (code === "PT001") return { errors: { date: ["Создавать занятия можно только в текущей неделе."] } };
   if (code === "PT002") return { error: "Будущая неделя заполняется автоматически после её начала." };

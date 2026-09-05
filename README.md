@@ -39,7 +39,7 @@ npm run test:e2e
 
 ## Документация
 
-- [Текущее ТЗ — пакет 007](docs/TZ_TutorGate_bugfixes_007.md)
+- [Текущее ТЗ — пакет 008](docs/TZ_TutorGate_008_schedule_features_and_fixes.md)
 - [Архитектура и инварианты расписания](docs/architecture.md)
 - [База данных](docs/database.md) · [Авторизация и Telegram](docs/auth-and-telegram.md)
 - [UI](docs/ui-guidelines.md) · [Решения](docs/decisions.md) · [Известные ограничения](docs/known-issues.md)

@@ -44,7 +44,7 @@ test("desktop calendar: CRUD, selection, menu, completion and bulk delete", asyn
   await a.click({ button: "right" });
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(page.getByText("Приостановить", { exact: true })).toHaveCount(0);
-  for (const name of ["Перенести…", "Заниматься с…", "Отчёт по ученику"]) await expect(page.getByRole("menuitem", { name: new RegExp(name) })).toBeDisabled();
+  for (const name of ["Отчёт по ученику"]) await expect(page.getByRole("menuitem", { name: new RegExp(name) })).toBeDisabled();
   await page.getByRole("menuitemradio", { name: "Голубой" }).click(); await settled(page);
   await expect(a).toHaveAttribute("data-color", "blue");
   await a.click({ button: "right" }); await page.getByRole("menuitem", { name: "Снять отметку" }).click(); await settled(page); await expect(a.getByTestId("lesson-completed")).toHaveCount(0);
@@ -195,7 +195,7 @@ test("touch drag, long press and mobile actions", async ({ browser }) => {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: moved.y + moved.height / 2 }] });
     await expect(page.getByRole("menu")).toBeVisible();
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await page.getByRole("menuitem", { name: "Отметить", exact: true }).tap(); await settled(page);
+    await page.getByRole("menuitem", { name: "Отметить проведёнными", exact: true }).tap(); await settled(page);
     await expect(a.getByTestId("lesson-completed")).toBeVisible();
   } finally { await context.close(); }
 });

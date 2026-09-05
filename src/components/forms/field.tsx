@@ -1,9 +1,10 @@
 "use client";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useFieldError } from "./validated-form";
 export function Field({
   label,
   name,
-  error,
+  error: serverError,
   hint,
   children,
 }: {
@@ -13,8 +14,16 @@ export function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  const error = useFieldError(name,serverError);
+  const ref=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    for(const control of ref.current?.querySelectorAll("input,button[role=combobox],textarea,select") ?? []) {
+      control.setAttribute("aria-invalid",String(!!error?.length));
+      if(error?.length)control.setAttribute("aria-describedby",`${name}-error`); else control.removeAttribute("aria-describedby");
+    }
+  },[error,name]);
   return (
-    <div className="field">
+    <div className="field" ref={ref}>
       <label htmlFor={name}>{label}</label>
       {children}
       {error?.[0] ? (

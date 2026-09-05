@@ -35,18 +35,11 @@ test("upgrade migration retains exclusion constraints and locks private helpers"
   assert.match(sql, /tutorgate-week-rollover/);
 });
 
-test("007 schedule uses local magnet, persistent status and conditional completion icon", async () => {
-  const calendar = await read("src/components/schedule/calendar.tsx");
-  assert.match(calendar, /nearestFreeStart\(desiredStart, source.durationMinutes, offset, busy\)/);
-  assert.match(calendar, /lessons.filter\(lesson => lesson.id !== source.id\)/);
-  assert.match(calendar, /g.target = startsAt \?\? undefined/);
-  assert.match(calendar, /noFreeInterval/);
-  assert.match(calendar, /role="status" aria-live="polite"/);
-  assert.match(calendar, /onSaveState=\{setSaveState\}/);
-  assert.match(calendar, /lesson.completed && <CircleCheck/);
-  assert.doesNotMatch(calendar, /visibility:|Все 24 часа/);
-  assert.match(await read("src/components/schedule/lesson-dialog.tsx"), /<form onSubmit=/);
-  assert.match(await read("src/components/schedule/lesson-dialog.tsx"), /onSaveState\?\.\("error"\)/);
+test("008 calendar uses atomic commands, group magnet and shared save state",async()=>{
+ const calendar=await read("src/components/schedule/calendar.tsx");
+ assert.match(calendar,/placeGroup/);assert.match(calendar,/scheduleCommandAction/);assert.match(calendar,/setSaveState\("error"\)/);
+ assert.match(calendar,/lesson.completed && <CircleCheck/);assert.match(calendar,/isMultiSelectable/);
+ assert.doesNotMatch(calendar,/localStorage|sessionStorage/);
 });
 test("007 auto filters replace URLs, debounce 300ms, and preserve server directory", async () => {
   const directory = await read("src/features/people/page.tsx");

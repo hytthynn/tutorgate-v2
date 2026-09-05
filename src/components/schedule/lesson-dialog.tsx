@@ -4,30 +4,32 @@ import { Select } from "@/components/ui/select";
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { createLessonAction, getLessonNoteAction, updateLessonAction } from "@/features/schedule/actions";
+import { getLessonNoteAction } from "@/features/schedule/actions";
 import { toast } from "@/components/ui/toaster";
 import { dayOptions, localParts } from "@/features/schedule/time";
-import { lessonSchema } from "@/features/schedule/validation";
-import type { ScheduleData, ScheduleLesson, ScheduleResult, SaveState } from "@/features/schedule/types";
+import { isInactive, statusLabel } from "@/features/schedule/operations";
+import { lessonSchema, type LessonInput } from "@/features/schedule/validation";
+import type { ScheduleData, ScheduleLesson, ScheduleResult } from "@/features/schedule/types";
 
-export function LessonDialog({ lesson, data, date, onClose, onSaved, onPending, onSaveState }: {
+export function LessonDialog({ lesson, draft, serverErrors, data, date, onClose, onSubmitLesson }: {
   lesson: ScheduleLesson | null; data: ScheduleData; date: string;
-  onPending?: (pending: boolean) => void;
-  onSaveState?: (state: SaveState) => void;
-  onClose: () => void; onSaved: (lesson: ScheduleLesson) => void;
+  draft?: LessonInput;
+  serverErrors?: Record<string,string[]>;
+  onClose: () => void; onSubmitLesson: (input: LessonInput) => Promise<boolean | undefined>;
 }) {
-  const [studentId, setStudentId] = useState(lesson?.studentId ?? "");
-  const [subjectChanged, setSubjectChanged] = useState(false);
+  const [studentId, setStudentId] = useState(draft?.studentId ?? lesson?.studentId ?? "");
+  const [subjectChanged, setSubjectChanged] = useState(draft?.subjectChanged ?? false);
   const noteElement = useRef<HTMLTextAreaElement>(null);
-  const readonly = data.role === "student";
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(Boolean(lesson && !readonly));
+  const studentViewer = data.role === "student";
+  const readonly = studentViewer || !!lesson && isInactive(lesson);
+  const [note, setNote] = useState(draft?.note ?? "");
+  const [loading, setLoading] = useState(Boolean(lesson && !studentViewer && !draft));
   const [noteFailed, setNoteFailed] = useState(false);
   const [pending, setPending] = useState(false);
   const locked = useRef(false);
-  const [result, setResult] = useState<ScheduleResult>({});
+  const [result, setResult] = useState<ScheduleResult>({errors:serverErrors});
   useEffect(() => {
-    if (!lesson || readonly) return;
+    if (!lesson || studentViewer || draft) return;
     let cancelled = false;
     getLessonNoteAction(lesson.id).then((response) => {
       if (cancelled) return;
@@ -36,12 +38,12 @@ export function LessonDialog({ lesson, data, date, onClose, onSaved, onPending, 
       if (!cancelled) { toast.error("Не удалось загрузить заметку. Откройте занятие ещё раз."); setNoteFailed(true); setLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [lesson, readonly]);
+  }, [lesson, studentViewer, draft]);
   useEffect(() => {
     const element = noteElement.current;
     if (element) { element.style.height = "88px"; element.style.height = `${Math.min(240, Math.max(88, element.scrollHeight))}px`; }
   }, [note]);
-  const start = lesson ? localParts(lesson.startsAt, data.offset) : { date, time: "12:00" };
+  const start = draft ? {date:draft.date,time:draft.time} : lesson ? localParts(lesson.startsAt, data.offset) : { date, time: "12:00" };
   const end = lesson ? localParts(lesson.endsAt, data.offset) : null;
   // Use onSubmit rather than a React form action: manual pending/status updates
   // must commit immediately, not be deferred inside the form action transition.
@@ -54,20 +56,16 @@ export function LessonDialog({ lesson, data, date, onClose, onSaved, onPending, 
       for (const issue of parsed.error.issues) (errors[String(issue.path[0])] ??= []).push(issue.message);
       setResult({ errors }); return;
     }
-    locked.current = true; onPending?.(true); onSaveState?.("saving"); setPending(true); setResult({});
-    try {
-      const response = await (lesson ? updateLessonAction(lesson.id, parsed.data) : createLessonAction(parsed.data));
-      if (response.lesson && !response.error && !response.errors) {
-        if (response.shifted && response.requestedStart) toast.info(`${localParts(response.requestedStart, data.offset).time} занято — занятие поставлено на ${localParts(response.lesson.startsAt, data.offset).time}.`);
-        else toast.success(lesson ? "Занятие обновлено." : "Занятие добавлено.");
-        onSaveState?.("saved"); onSaved(response.lesson);
-      } else { onSaveState?.("error"); setResult(response); toast.error(response.error ?? "Не удалось сохранить занятие. Проверьте параметры формы."); }
-    } catch { onSaveState?.("error"); toast.error("Не удалось сохранить занятие. Попробуйте ещё раз."); }
-    finally { locked.current = false; onPending?.(false); setPending(false); }
+    locked.current=true;setPending(true);
+    try { await onSubmitLesson(parsed.data); } finally {locked.current=false;setPending(false);}
   }
-  const error = (name: string) => result.errors?.[name] && <span className="form-error" role="alert">{result.errors[name].join(" ")}</span>;
+
+  const formRef=useRef<HTMLFormElement>(null);
+  useEffect(()=>{for(const element of formRef.current?.querySelectorAll<HTMLElement>("[name],button[role=combobox]")??[]){const name=element.getAttribute("name")??element.closest("label")?.querySelector("[name]")?.getAttribute("name")??"";element.setAttribute("aria-invalid",String(!!result.errors?.[name]?.length));if(result.errors?.[name]?.length)element.setAttribute("aria-describedby",name+"-error");else element.removeAttribute("aria-describedby");}},[result]);
+  function clearFieldError(name:string){setResult(current=>({...current,errors:{...current.errors,[name]:[]}}));}
+  const error = (name: string) => result.errors?.[name]?.length ? <span className="field-error" id={name+"-error"} role="alert">{result.errors[name].join(" ")}</span> : null;
   return <Dialog open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
-    <DialogContent className="lesson-dialog">
+    <DialogContent onCloseAutoFocus={event=>{event.preventDefault();document.querySelector<HTMLElement>(".schedule-grid")?.focus();}} className="lesson-dialog">
       <DialogTitle>{readonly ? "Подробности занятия" : lesson ? "Редактирование занятия" : "Добавить занятие"}</DialogTitle>
       <DialogDescription>{readonly ? "Информация о вашем занятии." : "Время указано в вашем сохранённом сдвиге МСК."}</DialogDescription>
       {readonly && lesson ? <dl className="lesson-details">
@@ -77,19 +75,20 @@ export function LessonDialog({ lesson, data, date, onClose, onSaved, onPending, 
         <dt>Начало</dt><dd>{start.time}</dd>
         <dt>Окончание</dt><dd>{end?.time}{end?.date !== start.date ? ` (${end?.date.split("-").reverse().join(".")})` : ""}</dd>
         <dt>Длительность</dt><dd>{lesson.durationMinutes} мин</dd>
-        <dt>Состояние</dt><dd>{lesson.completed ? "Проведено" : "Запланировано"}</dd>
-      </dl> : <form onSubmit={event => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="lesson-form">
-        <label>Ученик<Combobox aria-label="Ученик" name="studentId" value={studentId} onValueChange={setStudentId} required disabled={pending}>
+        <dt>Состояние</dt><dd>{statusLabel(lesson) || (lesson.completed ? "Проведено" : "Запланировано")}</dd>
+        {!studentViewer&&<><dt>Заметка</dt><dd>{loading?"Загрузка заметки…":noteFailed?"Не удалось загрузить заметку.":note||"Нет заметки"}</dd></>}
+      </dl> : <form ref={formRef} noValidate onChange={event=>{if(result.errors){const form=new FormData(event.currentTarget);const parsed=lessonSchema.safeParse({studentId:form.get("studentId"),subjectId:form.get("subjectId")==="__historical__"?null:form.get("subjectId"),subjectChanged:!lesson||subjectChanged,date:form.get("date"),time:form.get("time"),durationMinutes:Number(form.get("durationMinutes")),note:String(form.get("note")??"")});const errors:Record<string,string[]>={};if(!parsed.success)for(const issue of parsed.error.issues)(errors[String(issue.path[0])]??=[]).push(issue.message);setResult({errors});}}} onSubmit={event => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="lesson-form">
+        <label>Ученик<Combobox aria-label="Ученик" name="studentId" value={studentId} onValueChange={value=>{setStudentId(value);clearFieldError("studentId");}} required disabled={pending}>
           <option value="" disabled>Выберите ученика</option>
           {lesson && !data.students.some((s) => s.id === lesson.studentId) && <option value={lesson.studentId}>{lesson.studentName} — назначение снято</option>}
           {data.students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Combobox>{error("studentId")}</label>
         <div className="lesson-time-fields">
-          <label>День<Select aria-label="День" name="date" defaultValue={start.date} required disabled={pending}>{dayOptions(start.date).map(day => <option key={day.value} value={day.value}>{day.label}</option>)}</Select>{error("date")}</label>
+          <label>День<Select aria-label="День" name="date" onValueChange={()=>clearFieldError("date")} defaultValue={start.date} required disabled={pending}>{dayOptions(start.date).map(day => <option key={day.value} value={day.value}>{day.label}</option>)}</Select>{error("date")}</label>
           <label>Начало<input name="time" type="time" step="60" defaultValue={start.time} required disabled={pending} />{error("time")}</label>
         </div>
-        <label>Длительность, мин<input name="durationMinutes" type="number" min="1" max="600" step="1" defaultValue={lesson?.durationMinutes ?? 60} required disabled={pending} />{error("durationMinutes")}</label>
-        <label>Предмет<Select aria-label="Предмет" name="subjectId" defaultValue={lesson ? lesson.subjectId ?? "__historical__" : ""} onValueChange={() => setSubjectChanged(true)} required disabled={pending}>
+        <label>Длительность, мин<input name="durationMinutes" type="number" min="1" max="600" step="1" defaultValue={draft?.durationMinutes ?? lesson?.durationMinutes ?? 60} required disabled={pending} />{error("durationMinutes")}</label>
+        <label>Предмет<Select aria-label="Предмет" name="subjectId" defaultValue={draft ? draft.subjectId ?? "__historical__" : lesson ? lesson.subjectId ?? "__historical__" : ""} onValueChange={() => {setSubjectChanged(true);clearFieldError("subjectId");}} required disabled={pending}>
           <option value="" disabled>Выберите предмет</option>
           {lesson && !data.subjects.some((s) => s.id === lesson.subjectId && (!data.assignments || data.assignments.some(a => a.studentId === studentId && a.subjectId === s.id))) && <option value={lesson.subjectId ?? "__historical__"} disabled={subjectChanged}>{lesson.subjectName} — исторический предмет</option>}
           {data.subjects.filter(s => !data.assignments || data.assignments.some(a => a.studentId === studentId && a.subjectId === s.id)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}

@@ -36,3 +36,13 @@ Select/Combobox: case-insensitive поиск только для ученико�
 Button loading: Loader2.spin + disabled + aria-busy, понятный loadingText; icon-only заменяет иконку spinner и сохраняет accessible name. asChild не получает loading. Отмена/навигация/dialog triggers без spinner.
 
 Save status: постоянно видимые «Сохранено» (спокойный зелёный), «Сохранение…» (spinner), «Не сохранено» (danger); role=status, aria-live=polite, aria-atomic. Padding карточек 0 4px сохранён; CircleCheck присутствует только у проведённых занятий. Add tooltip только для прошлой/будущей недели. В кабинете ученика admin-tutor показывается без строки роли; sidebar не меняется.
+
+## Контракты 008
+
+Публичный header оставляет бренд; CTA и общие public/dashboard footers удалены. В списке людей admin viewer видит только «Администратор» под admin-профилем. Success публичного flow структурно заменяет heading/back-link/tabs/bottom внутри карточки.
+
+ValidatedForm использует те же Zod schemas, что actions, noValidate, inline Field/FieldError и повторную валидацию после первой попытки. Select сообщает изменения в общий validation context. Field связывает ошибку с control через aria-invalid/aria-describedby. Серверные ошибки исчезают после исправления поля. Ставка контролируемая; action возвращает нормализованную ставку. Date inputs и календарный indicator имеют cursor:text. Loading оставляет spinner, aria-busy, disabled, но не cursor:wait.
+
+Inactive lesson — серая поверхность с SVG-штриховкой, muted text, явный статус, без grab/selection; owner видит read-only детали и note, может удалить или отменить availability. Transfer target сохраняет собственный цвет, добавляет стрелку и синюю левую границу. Пересекающиеся day segments распределяются по lanes; все карточки доступны мышью, включая cross-midnight continuation. Student видит статусы и lanes без owner actions.
+
+Прямоугольник выбирает только active non-coral. ПКМ по выделенной карточке сохраняет группу; color/completed/delete/transfer/availability работают по всей группе. Ctrl+C/V используют внутренний clipboard и выбранную точку; Ctrl+Z/Shift+Z и toolbar реально восстанавливают серверные данные. Pending блокирует повторную мутацию, но optimistic изменение уже видно; ошибка откатывает всю группу.

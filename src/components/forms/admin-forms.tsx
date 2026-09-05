@@ -1,8 +1,9 @@
 "use client";
+import { ValidatedForm } from "./validated-form";
 import { toast } from "@/components/ui/toaster";
 import { Select } from "@/components/ui/select";
 import { useActionState, useState } from "react";
-import { useForm } from "react-hook-form";
+
 import { SlidersHorizontal, Plus, X, ArrowRight } from "lucide-react";
 import { adminAction } from "@/features/admin/actions";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ export function TutorSubjectsDialog({
       <DialogContent>
         <DialogTitle>Предметы репетитора</DialogTitle>
         <DialogDescription>{tutor.full_name}</DialogDescription>
-        <form action={action} className="form-stack">
+        <ValidatedForm  action={action} className="form-stack">
           <input type="hidden" name="operation" value="tutor_subjects" />
           <input type="hidden" name="tutor_id" value={tutor.id} />
           <div className="dialog-checklist">
@@ -95,7 +96,7 @@ export function TutorSubjectsDialog({
           <Button type="submit" loading={pending} loadingText="Сохраняем…">
             Сохранить изменения
           </Button>
-        </form>
+        </ValidatedForm>
       </DialogContent>
     </Dialog>
   );
@@ -149,7 +150,7 @@ export function AssignmentDialog({
             </div>
           ))}
         </div>
-        <form action={action} className="form-stack">
+        <ValidatedForm  action={action} className="form-stack">
           <input type="hidden" name="operation" value="assignment" />
           <input type="hidden" name="student_id" value={student.id} />
           <Field name="subject_id" label="Предмет" error={state.errors?.subject_id}>
@@ -201,7 +202,7 @@ export function AssignmentDialog({
             Назначить репетитора
             <ArrowRight size={15} />
           </Button>
-        </form>
+        </ValidatedForm>
       </DialogContent>
     </Dialog>
   );
@@ -212,7 +213,7 @@ function RemoveAssignment({ id }: { id: string }) {
     {} as ActionState,
   );
   return (
-    <form action={action}>
+    <ValidatedForm  action={action}>
       <input type="hidden" name="operation" value="assignment_remove" />
       <input type="hidden" name="id" value={id} />
       <Button
@@ -225,17 +226,21 @@ function RemoveAssignment({ id }: { id: string }) {
         <X size={15} />
       </Button>
       <Feedback state={state} />
-    </form>
+    </ValidatedForm>
   );
 }
 export function RateForm({ rate }: { rate: number }) {
+  const [value, setValue] = useState(String(rate));
   const [state, action, pending] = useActionState(
-    runAdminAction,
+    async (previous: ActionState, form: FormData) => {
+      const response=await runAdminAction(previous,form);
+      if(response.hourlyRate!==undefined&&response.success)setValue(String(response.hourlyRate));
+      return response;
+    },
     {} as ActionState,
   );
-  const { register } = useForm({ defaultValues: { hourly_rate: rate } });
   return (
-    <form action={action} className="form-stack">
+    <ValidatedForm  action={action} className="form-stack">
       <input type="hidden" name="operation" value="rate" />
       <Field
         name="hourly_rate"
@@ -250,7 +255,7 @@ export function RateForm({ rate }: { rate: number }) {
             max="1000000"
             step="0.01"
             required
-            {...register("hourly_rate")}
+            name="hourly_rate" value={value} onChange={e => setValue(e.target.value)}
           />
           <span>₽ / час</span>
         </div>
@@ -259,7 +264,7 @@ export function RateForm({ rate }: { rate: number }) {
       <Button loading={pending} loadingText="Сохраняем…" type="submit" className="align-start">
         Сохранить ставку
       </Button>
-    </form>
+    </ValidatedForm>
   );
 }
 export function AddSubjectForm() {
@@ -268,7 +273,7 @@ export function AddSubjectForm() {
     {} as ActionState,
   );
   return (
-    <form action={action} className="form-stack">
+    <ValidatedForm  action={action} className="form-stack">
       <input type="hidden" name="operation" value="subject_add" />
       <Field name="name" label="Новый предмет" error={state.errors?.name}>
         <div className="inline-form">
@@ -286,7 +291,7 @@ export function AddSubjectForm() {
         </div>
       </Field>
       <Feedback state={state} />
-    </form>
+    </ValidatedForm>
   );
 }
 export function RemoveSubject({ subject }: { subject: Subject }) {
@@ -310,14 +315,14 @@ export function RemoveSubject({ subject }: { subject: Subject }) {
         <DialogDescription>
           Предмет будет полностью удалён из текущих назначений и списков. История уже созданных занятий сохранится.
         </DialogDescription>
-        <form action={action} className="form-stack">
+        <ValidatedForm  action={action} className="form-stack">
           <input type="hidden" name="operation" value="subject_remove" />
           <input type="hidden" name="id" value={subject.id} />
           <Feedback state={state} />
           <Button type="submit" loading={pending} loadingText="Удаляем…" variant="destructive">
             Удалить предмет
           </Button>
-        </form>
+        </ValidatedForm>
       </DialogContent>
     </Dialog>
   );

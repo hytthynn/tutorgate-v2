@@ -7,7 +7,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { addDays, formatDay, weeksInMonth } from "@/features/schedule/time";
 const months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-export function ScheduleToolbar({ week, today, resetMonth, offset, editable, busy, onNavigate, onToday, onOffset, onAdd, onBindings }: {
+export function ScheduleToolbar({ week, today, resetMonth, offset, editable, busy, onNavigate, onToday, onOffset, onAdd, onBindings, canUndo=false, canRedo=false, onUndo, onRedo }: {
+  canUndo?: boolean; canRedo?: boolean; onUndo?: () => void; onRedo?: () => void;
   today: string; resetMonth: number;
   week: string; offset: number; editable: boolean; busy: boolean;
   onNavigate: (week: string) => void; onToday: () => void; onOffset: (offset: number) => void; onAdd: () => void; onBindings: () => void;
@@ -44,17 +45,17 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, editable, bus
       <Button variant="secondary" size="sm" disabled={busy} onClick={onToday}>Текущая</Button>
       <Button variant="secondary" size="sm" aria-label="Следующая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, 7))}><ChevronRight size={16} /></Button>
     </div>
-    {editable && <div className="schedule-controls-group schedule-edit-controls">
-      <Tooltip text="Бинды"><Button variant="ghost" size="sm" aria-label="Бинды" onClick={onBindings}><Keyboard size={16} /></Button></Tooltip>
-      <Tooltip text="Отменить — скоро"><Button variant="ghost" size="sm" disabled aria-label="Отменить — скоро"><Undo2 size={16} /></Button></Tooltip>
-      <Tooltip text="Вернуть — скоро"><Button variant="ghost" size="sm" disabled aria-label="Вернуть — скоро"><Redo2 size={16} /></Button></Tooltip>
-      {week === startOfWeek(today) ? (
+    <div className="schedule-controls-group schedule-edit-controls">
+      {editable&&<Tooltip text="Бинды"><Button variant="ghost" size="sm" aria-label="Бинды" onClick={onBindings}><Keyboard size={16} /></Button></Tooltip>}
+      <Tooltip text="Отменить"><Button variant="ghost" size="sm" disabled={busy||!canUndo} onClick={onUndo} aria-label="Отменить"><Undo2 size={16} /></Button></Tooltip>
+      <Tooltip text="Вернуть"><Button variant="ghost" size="sm" disabled={busy||!canRedo} onClick={onRedo} aria-label="Вернуть"><Redo2 size={16} /></Button></Tooltip>
+      {editable&&(week === startOfWeek(today) ? (
         <Button size="sm" disabled={busy} onClick={onAdd}><Plus size={16} />Добавить занятие</Button>
       ) : (
         <Tooltip text={week > startOfWeek(today) ? "Занятия будущей недели появятся автоматически в начале недели." : "Добавлять занятия можно только в текущей неделе."}>
           <Button size="sm" disabled onClick={onAdd}><Plus size={16} />Добавить занятие</Button>
         </Tooltip>
-      )}
-    </div>}
+      ))}
+    </div>
   </div>;
 }

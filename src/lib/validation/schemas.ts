@@ -99,16 +99,16 @@ export const subjectSchema = z.object({
     .max(80, "Не более 80 символов"),
 });
 export const hourlyRateSchema = z.object({
-  hourly_rate: z.coerce
-    .number()
+  hourly_rate: z.preprocess(v => v === "" || v === null ? NaN : v, z.coerce
+    .number({ error: "Введите ставку числом" })
     .min(0, "Ставка не может быть отрицательной")
     .max(1000000, "Не более 1 000 000 ₽")
-    .multipleOf(0.01, "Не более двух знаков после запятой"),
+    .multipleOf(0.01, "Не более двух знаков после запятой")),
 });
 export const assignmentSchema = z.object({
   student_id: z.uuid(),
-  subject_id: z.uuid(),
-  tutor_id: z.uuid(),
+  subject_id: z.uuid("Выберите предмет"),
+  tutor_id: z.uuid("Выберите репетитора"),
 });
 export const tutorSubjectsSchema = z.object({
   tutor_id: z.uuid(),

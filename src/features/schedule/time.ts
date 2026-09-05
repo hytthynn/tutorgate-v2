@@ -39,7 +39,7 @@ export function minutesFromMidnight(instant: string | number, offset: number): n
   const { time } = localParts(instant, offset);
   return Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 }
-export interface TimedLesson { startsAt: string; endsAt: string }
+export interface TimedLesson { startsAt: string; endsAt: string; inactiveReason?: string | null }
 export function splitLessonByLocalDays(lesson: TimedLesson, offset: number) {
   const segments: { date: string; startMinute: number; endMinute: number; minutes: number; continuation: boolean }[] = [];
   const start = Date.parse(lesson.startsAt), end = Date.parse(lesson.endsAt);
@@ -59,6 +59,7 @@ export function clipLessonToWeek(lesson: TimedLesson, week: string, offset: numb
 export function weeklySummary(lessons: TimedLesson[], week: string, offset: number) {
   const end = addDays(week, 7);
   return lessons.reduce((total, lesson) => {
+    if (lesson.inactiveReason) return total;
     const date = localParts(lesson.startsAt, offset).date;
     return { count: total.count + Number(date >= week && date < end), minutes: total.minutes + clipLessonToWeek(lesson, week, offset) };
   }, { count: 0, minutes: 0 });

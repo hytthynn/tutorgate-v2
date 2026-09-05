@@ -22,8 +22,8 @@ test("custom toolbar order, five years, icons and keyboard-accessible listbox",a
   const current=new Date(Date.now()+3*3600000).getUTCFullYear();
   expect(await page.getByRole("option").allTextContents()).toEqual(Array.from({length:5},(_,i)=>String(current-2+i)));
   await page.keyboard.press("Escape"); await expect(year).toBeFocused();
-  await expect(page.getByRole("button",{name:"Отменить — скоро",exact:true})).toBeDisabled();
-  await expect(page.getByRole("button",{name:"Вернуть — скоро",exact:true})).toBeDisabled();
+  await expect(page.getByRole("button",{name:"Отменить",exact:true})).toBeDisabled();
+  await expect(page.getByRole("button",{name:"Вернуть",exact:true})).toBeDisabled();
   await expect(page.getByRole("button",{name:"Бинды",exact:true}).locator("svg")).toBeVisible();
 });
 test("week navigation and creation preserve grid identity, no RSC GET or document refresh",async({page})=>{

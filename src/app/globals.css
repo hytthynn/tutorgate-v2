@@ -12,6 +12,8 @@
   --accent-hover: #dda667;
   --accent-foreground: #1b140e;
   --danger: #d9776a;
+  --lesson-gray: #a79e94;
+  --lesson-blue: #82abd1;
   --radius: 8px;
   color-scheme: dark;
 }
@@ -260,16 +262,6 @@ strong {
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
 }
-.header-link {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-.header-link:hover {
-  color: var(--foreground);
-}
 .public-main {
   flex: 1;
   display: flex;
@@ -378,20 +370,6 @@ strong {
 }
 .auth-bottom a:hover {
   color: var(--accent);
-}
-.public-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px 5%;
-  font-size: 11px;
-  color: #8d8073;
-  gap: 20px;
-}
-.public-footer > span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 .role-tabs {
   display: grid;
@@ -786,13 +764,6 @@ nav {
 .empty-large h2 {
   font-size: 20px;
   letter-spacing: -0.4px;
-}
-.dashboard-footer {
-  padding: 20px 36px;
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #7f7164;
 }
 .mobile-header {
   display: none;
@@ -1385,10 +1356,6 @@ nav {
   .dashboard-content {
     padding: 28px 20px 40px;
   }
-  .dashboard-footer {
-    padding: 20px;
-    font-size: 9px;
-  }
   .page-heading {
     margin-bottom: 23px;
   }
@@ -1577,22 +1544,8 @@ nav {
     height: 72px;
     padding: 0 22px;
   }
-  .header-link {
-    font-size: 11px;
-    gap: 5px;
-  }
   .public-main {
     padding: 36px 18px;
-  }
-  .public-footer {
-    padding: 20px 22px;
-    align-items: flex-start;
-    gap: 20px;
-    font-size: 10px;
-  }
-  .public-footer > span:last-child {
-    max-width: 145px;
-    align-items: flex-start;
   }
   .auth-card {
     padding: 26px 24px;
@@ -1614,11 +1567,6 @@ nav {
   }
 }
 @media (max-width: 400px) {
-  .header-link {
-    max-width: 110px;
-    text-align: right;
-    line-height: 1.5;
-  }
   .public-header .brand {
     font-size: 20px;
     gap: 7px;
@@ -1661,7 +1609,6 @@ nav {
 .dashboard-content:has(.schedule-page) { max-width: none; padding: 18px 24px 22px; flex: 1; min-height: 0; display: flex; }
 .dashboard-main:has(.schedule-page) { height: 100dvh; min-height: 0; }
 .dashboard-main:has(.schedule-page) .dashboard-topbar { flex: 0 0 48px; }
-.dashboard-main:has(.schedule-page) .dashboard-footer { display: none; }
 .schedule-page { width: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .schedule-page .page-heading { margin-bottom: 12px; flex-shrink: 0; }
 .schedule-page .page-heading h1 { font-size: 22px; }
@@ -1678,7 +1625,7 @@ nav {
 .schedule-save-status[data-state="error"] { color: var(--danger); }
 .schedule-save-status svg { flex-shrink: 0; }
 .directory-filters[aria-busy="true"] ~ .people-table { opacity: .55; }
-.button[aria-busy="true"] { cursor: wait; }
+
 .button .spin { flex-shrink: 0; }
 .schedule-mobile-day { display: none; }
 .schedule-day-headers { display: grid; grid-template-columns: 42px repeat(7, minmax(0, 1fr)); flex: 0 0 32px; font-size: 11px; }
@@ -1704,8 +1651,8 @@ nav {
 .schedule-lesson span { font-size: 9px; opacity: .9; }
 [data-color="green"] { --lesson-color: #78c9a2; }
 [data-color="coral"] { --lesson-color: #d98b7a; }
-[data-color="gray"] { --lesson-color: #a79e94; }
-[data-color="blue"] { --lesson-color: #82abd1; }
+[data-color="gray"] { --lesson-color: var(--lesson-gray); }
+[data-color="blue"] { --lesson-color: var(--lesson-blue); }
 .schedule-lesson.is-selected { outline: 2px solid #f2d2a8; outline-offset: -1px; z-index: 3; }
 .schedule-lesson.is-completed { background: color-mix(in srgb, var(--lesson-color) 10%, #251e18); }
 .schedule-lesson.is-dragging { opacity: .8; z-index: 5; cursor: grabbing; }
@@ -1729,8 +1676,8 @@ nav {
 .lesson-color-palette button { --lesson-color: #d39a59; background: var(--lesson-color); width: 28px; height: 28px; border-radius: 50%; border: 3px solid #251e18; }
 .lesson-color-palette button[data-color="green"] { --lesson-color: #78c9a2; }
 .lesson-color-palette button[data-color="coral"] { --lesson-color: #d98b7a; }
-.lesson-color-palette button[data-color="gray"] { --lesson-color: #a79e94; }
-.lesson-color-palette button[data-color="blue"] { --lesson-color: #82abd1; }
+.lesson-color-palette button[data-color="gray"] { --lesson-color: var(--lesson-gray); }
+.lesson-color-palette button[data-color="blue"] { --lesson-color: var(--lesson-blue); }
 .lesson-color-palette button[aria-checked="true"] { outline: 1px solid #f2e8dc; }
 .lesson-context-menu .lesson-delete { border-top: 1px solid var(--border); color: #e3a293; margin-top: 4px; }
 .schedule-bindings { margin-top: 18px; display: flex; flex-direction: column; gap: 12px; }
@@ -1813,3 +1760,9 @@ textarea { resize: none; font: inherit; }
 @media (max-width: 767px) {
   .schedule-toolbar .tg-select-trigger { padding-right: 7px; gap: 5px; }
 }
+
+input[type="date"], input[type="date"]::-webkit-calendar-picker-indicator { cursor: text; }
+/* Inactivity is independent of the lesson color. SVG hatch is a state indicator. */
+.schedule-lesson[data-inactive="true"] { --lesson-color: var(--lesson-gray); background-color: color-mix(in srgb, var(--lesson-gray) 16%, var(--surface-raised)); border-color: color-mix(in srgb, var(--lesson-gray) 50%, var(--surface-raised)); color: var(--muted-foreground); cursor: default; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-2 2L2-2M0 8L8 0M6 10L10 6' stroke='%2387796c' stroke-opacity='.22'/%3E%3C/svg%3E"); }
+.schedule-lesson[data-transfer="true"] { border-left: 3px solid var(--lesson-blue); }
+.schedule-lesson[data-inactive="true"].is-selected { outline: none; }

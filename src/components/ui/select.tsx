@@ -1,5 +1,6 @@
 "use client";
-import { Children, Fragment, isValidElement, useEffect, useLayoutEffect, useId, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
+import { Children, Fragment, useContext, isValidElement, useEffect, useLayoutEffect, useId, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
+import { ValidationContext } from "@/components/forms/validated-form";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search } from "lucide-react";
 
@@ -19,6 +20,7 @@ export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChang
 };
 /** Shared listbox. Option children are data only: no native select is rendered. */
 export function Select({ children, value, defaultValue, onValueChange, searchable = false, name, id, disabled, required, className, ...aria }: SelectProps) {
+  const validation=useContext(ValidationContext);
   const options = readOptions(children);
   const [internal, setInternal] = useState(String(defaultValue ?? options[0]?.value ?? ""));
   const selected = String(value ?? internal);
@@ -30,7 +32,7 @@ export function Select({ children, value, defaultValue, onValueChange, searchabl
   function close(returnFocus = true) { setOpen(false); setQuery(""); if (returnFocus) trigger.current?.focus(); }
   function choose(option: Option) {
     if (option.disabled) return;
-    setInternal(option.value); onValueChange?.(option.value); close();
+    setInternal(option.value); onValueChange?.(option.value); if(name)validation.fieldChanged?.(name,option.value); close();
   }
   function expand() {
     if (disabled) return;
