@@ -48,7 +48,13 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, editable, bus
       <Tooltip text="Бинды"><Button variant="ghost" size="sm" aria-label="Бинды" onClick={onBindings}><Keyboard size={16} /></Button></Tooltip>
       <Tooltip text="Отменить — скоро"><Button variant="ghost" size="sm" disabled aria-label="Отменить — скоро"><Undo2 size={16} /></Button></Tooltip>
       <Tooltip text="Вернуть — скоро"><Button variant="ghost" size="sm" disabled aria-label="Вернуть — скоро"><Redo2 size={16} /></Button></Tooltip>
-      <Tooltip text={week > startOfWeek(today) ? "Занятия будущей недели появятся автоматически в начале недели." : week < startOfWeek(today) ? "Добавлять занятия можно только в текущей неделе." : "Добавить занятие"}><Button size="sm" disabled={busy || week !== startOfWeek(today)} onClick={onAdd}><Plus size={16} />Добавить занятие</Button></Tooltip>
+      {week === startOfWeek(today) ? (
+        <Button size="sm" disabled={busy} onClick={onAdd}><Plus size={16} />Добавить занятие</Button>
+      ) : (
+        <Tooltip text={week > startOfWeek(today) ? "Занятия будущей недели появятся автоматически в начале недели." : "Добавлять занятия можно только в текущей неделе."}>
+          <Button size="sm" disabled onClick={onAdd}><Plus size={16} />Добавить занятие</Button>
+        </Tooltip>
+      )}
     </div>}
   </div>;
 }

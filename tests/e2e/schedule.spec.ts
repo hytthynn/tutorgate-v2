@@ -79,7 +79,6 @@ test("drag snaps, uses magnet on overlap, and refuses future-week edge drop", as
   await drag(page, a, 1, 14 * 60 + 30);
   await expect(a).toHaveAttribute("data-date", day(1));
   await drag(page, a, 0, 12 * 60 + 30);
-  await expect(page.locator(".tg-toast").filter({hasText: "занято — занятие поставлено"})).toBeVisible();
   await expect(a).toHaveAttribute("data-date", week);
   await expect(a).toContainText("13:00–14:00");
   const from = (await a.boundingBox())!, grid = (await page.locator(".schedule-grid").boundingBox())!;
@@ -88,7 +87,7 @@ test("drag snaps, uses magnet on overlap, and refuses future-week edge drop", as
   await expect(page).toHaveURL(new RegExp(`week=${day(7)}`));
   await page.mouse.move(grid.x + grid.width * .5 / 7, grid.y + grid.height * 15 / 24, { steps: 2 });
   await page.mouse.up(); await settled(page);
-  await expect(page.getByRole("alert")).toContainText("Будущая неделя заполняется автоматически");
+  await expect(page.getByRole("region", { name: "Уведомления" }).getByRole("alert")).toContainText("Будущая неделя заполняется автоматически");
   await expect(a).toHaveAttribute("data-date", week);
   await page.reload(); await expect(a).toHaveAttribute("data-date", week);
 });
@@ -211,7 +210,7 @@ test("admin calendar stays personal while statistics aggregate/filter teachers",
     await admin.goto(`/admin/statistics?period=custom&from=${day(0)}&to=${day(0)}&metric=hours`);
     await expect(admin.locator(".kpi-card").nth(1).locator("strong")).toContainText("1");
     await choose(admin,"Репетитор для статистики","Дмитрий Лебедев");
-    await admin.getByRole("button", { name: "Применить", exact: true }).click();
+    await expect(admin.getByRole("button", { name: "Применить", exact: true })).toHaveCount(0);
     await expect(admin.locator(".kpi-card").nth(1).locator("strong")).toHaveText("0ч");
   } finally { await admin.close(); }
 });

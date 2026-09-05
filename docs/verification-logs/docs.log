@@ -1,0 +1,5 @@
+
+> tutorgate@1.0.0 test:docs
+> node scripts/check-doc-links.mjs
+
+PASS: 21 Markdown files, 41 relative links; no broken links or duplicated active upgrade blocks.

@@ -1,3 +1,38 @@
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: eslint-plugin-import@2.32.0
+npm warn Found: eslint@10.10.0
+npm warn node_modules/eslint
+npm warn   dev eslint@"10.10.0" from the root project
+npm warn   11 more (@eslint-community/eslint-utils, @eslint/compat, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional eslint@"^8.40 || 9 || 10" from @eslint/compat@2.1.1
+npm warn node_modules/@eslint/compat
+npm warn   dev @eslint/compat@"2.1.1" from the root project
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: eslint-plugin-import@2.32.0
+npm warn Found: eslint@10.10.0
+npm warn node_modules/eslint
+npm warn   dev eslint@"10.10.0" from the root project
+npm warn   11 more (@eslint-community/eslint-utils, @eslint/compat, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer eslint@">=9.0.0" from eslint-config-next@16.3.4
+npm warn node_modules/eslint-config-next
+npm warn   dev eslint-config-next@"16.3.4" from the root project
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: eslint-plugin-import@2.32.0
+npm warn Found: eslint@undefined
+npm warn node_modules/eslint
+npm warn   dev eslint@"10.10.0" from the root project
+npm warn   1 more (eslint-import-resolver-typescript)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer eslint@"^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9" from eslint-plugin-import@2.32.0
+npm warn node_modules/eslint-config-next/node_modules/eslint-plugin-import
+npm warn   eslint-plugin-import@"^2.32.0" from eslint-config-next@16.3.4
+npm warn   node_modules/eslint-config-next
+npm warn   1 more (eslint-import-resolver-typescript)
 npm error code ENOTCACHED
-npm error request to https://registry.npmjs.org/zod-validation-error/-/zod-validation-error-4.0.2.tgz failed: cache mode is 'only-if-cached' but no cached response is available.
-npm error A complete log of this run can be found in: /home/vercel-sandbox/.npm/_logs/2026-09-05T13_17_48_265Z-debug-0.log
+npm error request to https://registry.npmjs.org/eslint failed: cache mode is 'only-if-cached' but no cached response is available.
+npm error A complete log of this run can be found in: /home/vercel-sandbox/.npm/_logs/2026-09-05T14_36_39_949Z-debug-0.log

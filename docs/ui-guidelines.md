@@ -22,11 +22,17 @@ Geist через next/font, кириллица и latin. Body 14px; подпис
 
 Dialogs ограничены высотой viewport, внутреннее содержимое прокручивается. Radix обеспечивает focus trap, Escape, возврат фокуса и accessible title. Формы имеют label, autocomplete, inline field errors, server pending states и глобальный toast. Не добавлять неподписанные иконки-действия.
 
-Recharts: одна карамельная серия, тонкая горизонтальная сетка, muted axis, тёмный tooltip. Пока нет занятий — KPI=0 и явное empty state, без искусственных точек данных. Периоды/метрика/репетитор сохраняются в URL после «Применить».
+Recharts: одна карамельная серия, тонкая горизонтальная сетка, muted axis, тёмный tooltip. Пока нет занятий — KPI=0 и явное empty state, без искусственных точек данных. Периоды/метрика/репетитор применяются сразу через router.replace. Свой период отправляется только с валидной парой дат.
 
 Допустимы тонкие границы и небольшой контраст поверхностей. Запрещены gradients, glow, blur, glassmorphism, неон, большие тени, oversized заголовки, emoji вместо Lucide. Motion минимален и отключается через prefers-reduced-motion.
 
 Браузерные проверки предусмотрены на 375, 768, 1280 и 1440px; артефакты screenshot — локальная `artifacts/`, исключена из Git.
 
 
-Select/Combobox: case-insensitive поиск, ArrowUp/Down, Enter, Esc, возврат фокуса. Popup портируется в body либо Radix focus scope. Dialog не использует transform, поэтому fixed popup не обрезается. Toast success 3с, info/warning 4с, error 5с; дедупликация и закрытие; на mobile сверху.
+Select/Combobox: case-insensitive поиск только для учеников/репетиторов, не для предметов; ArrowUp/Down, Enter, Esc, возврат фокуса. Popup портируется в body либо Radix focus scope. Dialog не использует transform, поэтому fixed popup не обрезается. Toast success 3с, info/warning 4с, error 5с; дедупликация и закрытие; на mobile сверху.
+
+## Состояния 007
+
+Button loading: Loader2.spin + disabled + aria-busy, понятный loadingText; icon-only заменяет иконку spinner и сохраняет accessible name. asChild не получает loading. Отмена/навигация/dialog triggers без spinner.
+
+Save status: постоянно видимые «Сохранено» (спокойный зелёный), «Сохранение…» (spinner), «Не сохранено» (danger); role=status, aria-live=polite, aria-atomic. Padding карточек 0 4px сохранён; CircleCheck присутствует только у проведённых занятий. Add tooltip только для прошлой/будущей недели. В кабинете ученика admin-tutor показывается без строки роли; sidebar не меняется.

@@ -1,0 +1,30 @@
+
+> tutorgate@1.0.0 test:unit
+> tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts
+
+✔ Monday weeks, month boundaries and invalid query fallback (1.653155ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.586085ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.500994ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.592086ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.427379ms)
+✔ current local week and future guards cover every MSK offset (5.128687ms)
+✔ day selector always offers seven dates including year boundary (0.578031ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.352069ms)
+✔ historical subject can only be omitted when unchanged (0.450379ms)
+✔ schedule never refreshes the current RSC calendar (8.813294ms)
+✔ custom selectors and global toast replace legacy mechanisms (14.649536ms)
+✔ history is unbounded but paginated, normalized names are batched (0.970881ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.723069ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (2.995882ms)
+✔ Telegram is normalized and validated (0.347721ms)
+✔ applications require consent, subjects and role-specific selection (2.547505ms)
+✔ password confirmation, hourly rate, assignment IDs (1.578372ms)
+✔ tokens meet Telegram payload limits and retries produce the same link (0.832637ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 796.689628

@@ -1,7 +1,8 @@
 "use client";
 import { Select } from "@/components/ui/select";
-import { useEffect, useState, useTransition } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useCallback, useEffect } from "react";
+import { useAutoFilters } from "@/components/shared/use-auto-filters";
+import { statisticsQuery } from "@/lib/filters";
 import {
   Area,
   AreaChart,
@@ -19,7 +20,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "@/components/ui/toaster";
-import { Button } from "@/components/ui/button";
 import type {
   StatisticsResult,
   StatisticsMetric,
@@ -42,20 +42,20 @@ export function StatisticsView({
   error?: string;
 }) {
   useEffect(() => { if (error) toast.error(error); }, [error]);
-  const router = useRouter();
-  const path = usePathname();
-  const [pending, startTransition] = useTransition();
-  const [custom, setCustom] = useState(period === "custom");
-  function submit(form: FormData) {
-    const query = new URLSearchParams();
-    for (const [key, value] of form)
-      if (typeof value === "string" && value) query.set(key, value);
-    startTransition(() => router.push(`${path}?${query}`));
-  }
+  const parse = useCallback((params: URLSearchParams) => ({
+    period: params.get("period") ?? "7", tutor: tutors ? params.get("tutor") ?? "" : "",
+    metric: params.get("metric") ?? "earnings", from: params.get("from") ?? data.query.from, to: params.get("to") ?? data.query.to,
+  }), [tutors, data.query.from, data.query.to]);
+  const { filters, change, pending } = useAutoFilters({
+    period, tutor: tutors ? data.query.tutorId ?? "" : "", metric: data.query.metric,
+    from: data.query.from, to: data.query.to,
+  }, parse, statisticsQuery);
+  const custom = filters.period === "custom";
+  const invalidDates = custom && statisticsQuery(filters) === null;
   const metric = metrics.find((m) => m.key === data.query.metric)!;
   return (
     <div className="statistics-view" aria-busy={pending}>
-      <form action={submit} className="statistics-controls">
+      <div className="statistics-controls">
         <div className="period-tabs">
           {["7", "14", "30"].map((p) => (
             <label key={p}>
@@ -63,8 +63,8 @@ export function StatisticsView({
                 type="radio"
                 name="period"
                 value={p}
-                defaultChecked={period === p}
-                onChange={() => setCustom(false)}
+                checked={filters.period === p}
+                onChange={() => change({ period: p })}
               />
               <span>{p} дней</span>
             </label>
@@ -74,8 +74,8 @@ export function StatisticsView({
               type="radio"
               name="period"
               value="custom"
-              defaultChecked={period === "custom"}
-              onChange={() => setCustom(true)}
+              checked={custom}
+              onChange={() => change({ period: "custom", from: data.query.from, to: data.query.to })}
             />
             <span>
               <SlidersHorizontal size={13} />
@@ -87,7 +87,8 @@ export function StatisticsView({
           <Select searchable
             name="tutor"
             aria-label="Репетитор для статистики"
-            defaultValue={data.query.tutorId ?? ""}
+            value={filters.tutor}
+            onValueChange={tutor => change({ tutor })}
           >
             <option value="">Общая статистика</option>
             {tutors.map((t) => (
@@ -100,7 +101,8 @@ export function StatisticsView({
         <Select
           name="metric"
           aria-label="Показатель"
-          defaultValue={data.query.metric}
+          value={filters.metric}
+          onValueChange={metric => change({ metric })}
         >
           {metrics.map((m) => (
             <option key={m.key} value={m.key}>
@@ -108,9 +110,6 @@ export function StatisticsView({
             </option>
           ))}
         </Select>
-        <Button variant="secondary" type="submit" disabled={pending}>
-          {pending ? "Загрузка…" : "Применить"}
-        </Button>
         {custom && (
           <div className="custom-dates">
             <label>
@@ -118,7 +117,10 @@ export function StatisticsView({
               <input
                 type="date"
                 name="from"
-                defaultValue={data.query.from}
+                value={filters.from}
+                aria-invalid={invalidDates}
+                aria-describedby={invalidDates ? "statistics-date-error" : undefined}
+                onChange={event => change({ from: event.target.value })}
                 required
               />
             </label>
@@ -128,14 +130,18 @@ export function StatisticsView({
               <input
                 type="date"
                 name="to"
-                defaultValue={data.query.to}
+                value={filters.to}
+                aria-invalid={invalidDates}
+                aria-describedby={invalidDates ? "statistics-date-error" : undefined}
+                onChange={event => change({ to: event.target.value })}
                 required
               />
             </label>
           </div>
         )}
-      </form>
-      <div className="kpi-grid">
+      </div>
+      {invalidDates && <p className="field-error" id="statistics-date-error" role="status">Укажите обе даты; начало должно быть не позже окончания.</p>}
+      <div className={`kpi-grid ${pending ? "loading-dim" : ""}`}>
         {metrics.map(({ key, label, unit, icon: Icon }) => (
           <section
             key={key}

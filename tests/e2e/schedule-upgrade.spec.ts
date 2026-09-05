@@ -80,6 +80,7 @@ test("hard-deleted subject disappears from lists while historic lesson stays edi
     await admin.getByRole("button",{name:"Удалить предмет Математика",exact:true}).click();
     await expect(admin.getByRole("dialog")).toContainText("История уже созданных занятий сохранится");
     await admin.getByRole("button",{name:"Удалить предмет",exact:true}).click();
+    await expect(admin.getByRole("dialog")).toHaveCount(0);
     await expect(admin.getByRole("button",{name:"Удалить предмет Математика",exact:true})).toHaveCount(0);
     await page.reload();
     const card=page.locator('[data-lesson-id="00000000-0000-4000-8000-000000000100"]');

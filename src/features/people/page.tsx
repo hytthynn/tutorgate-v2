@@ -1,5 +1,5 @@
-import { Select } from "@/components/ui/select";
-import { Search, ArrowUpRight, BookOpen } from "lucide-react";
+import { DirectoryFilters } from "@/components/people/directory-filters";
+import { ArrowUpRight, BookOpen } from "lucide-react";
 import { getDirectory } from "./queries";
 import { PageHeading } from "@/components/shared/page-heading";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -7,7 +7,6 @@ import {
   TutorSubjectsDialog,
   AssignmentDialog,
 } from "@/components/forms/admin-forms";
-import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/utils";
 import type { Role } from "@/types";
 export async function PeoplePage({
@@ -74,51 +73,9 @@ export async function PeoplePage({
       />
       <section className="panel directory-panel">
         {admin && (
-          <form className="directory-filters" method="get">
-            <div className="search-input">
-              <Search size={16} />
-              <input
-                aria-label="Поиск по ФИО"
-                name="q"
-                defaultValue={q}
-                placeholder="Поиск по имени…"
-                maxLength={150}
-              />
-            </div>
-            <Select searchable
-              aria-label={
-                kind === "tutors"
-                  ? "Фильтр по предмету"
-                  : "Фильтр по репетитору"
-              }
-              name={kind === "tutors" ? "subject" : "tutor"}
-              defaultValue={
-                (kind === "tutors"
-                  ? searchParams.subject
-                  : searchParams.tutor) ?? ""
-              }
-            >
-              <option value="">
-                {kind === "tutors" ? "Все предметы" : "Все репетиторы"}
-              </option>
-              {kind === "tutors"
-                ? subjects
-                    .filter((s) => s.is_active)
-                    .map((s) => (
-                      <option value={s.id} key={s.id}>
-                        {s.name}
-                      </option>
-                    ))
-                : tutors.map((t) => (
-                    <option value={t.id} key={t.id}>
-                      {t.full_name}
-                    </option>
-                  ))}
-            </Select>
-            <Button variant="secondary" type="submit">
-              Найти
-            </Button>
-          </form>
+          <DirectoryFilters kind={kind} q={typeof searchParams.q === "string" ? searchParams.q : ""}
+            filter={(kind === "tutors" ? searchParams.subject : searchParams.tutor) ?? ""}
+            options={kind === "tutors" ? subjects.filter(s => s.is_active).map(s => ({ value: s.id, label: s.name })) : tutors.map(t => ({ value: t.id, label: t.full_name }))} />
         )}
         {!people.length ? (
           <EmptyState
@@ -172,7 +129,7 @@ export async function PeoplePage({
                     <span className="avatar">{initials(p.full_name)}</span>
                     <div>
                       <strong>{p.full_name}</strong>
-                      {p.role === "admin" && (
+                      {admin && p.role === "admin" && (
                         <small>Администратор · Репетитор</small>
                       )}
                     </div>

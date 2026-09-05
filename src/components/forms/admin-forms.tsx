@@ -3,7 +3,7 @@ import { toast } from "@/components/ui/toaster";
 import { Select } from "@/components/ui/select";
 import { useActionState, useState } from "react";
 import { useForm } from "react-hook-form";
-import { SlidersHorizontal, Plus, X, ArrowRight, Loader2 } from "lucide-react";
+import { SlidersHorizontal, Plus, X, ArrowRight } from "lucide-react";
 import { adminAction } from "@/features/admin/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,8 +92,8 @@ export function TutorSubjectsDialog({
             назначения. История занятий сохраняется при удалении предмета.
           </p>
           <Feedback state={state} />
-          <Button type="submit" disabled={pending}>
-            {pending ? "Сохраняем…" : "Сохранить изменения"}
+          <Button type="submit" loading={pending} loadingText="Сохраняем…">
+            Сохранить изменения
           </Button>
         </form>
       </DialogContent>
@@ -153,7 +153,7 @@ export function AssignmentDialog({
           <input type="hidden" name="operation" value="assignment" />
           <input type="hidden" name="student_id" value={student.id} />
           <Field name="subject_id" label="Предмет" error={state.errors?.subject_id}>
-            <Select searchable
+            <Select
               name="subject_id"
               id="subject_id"
               required
@@ -197,7 +197,7 @@ export function AssignmentDialog({
             Если предмет уже назначен, репетитор будет заменён.
           </p>
           <Feedback state={state} />
-          <Button type="submit" disabled={pending || !available.length}>
+          <Button type="submit" loading={pending} loadingText="Назначаем…" disabled={!available.length}>
             Назначить репетитора
             <ArrowRight size={15} />
           </Button>
@@ -219,8 +219,8 @@ function RemoveAssignment({ id }: { id: string }) {
         type="submit"
         variant="ghost"
         size="icon"
-        disabled={pending}
-        aria-label="Снять назначение"
+        loading={pending}
+        aria-label={pending ? "Снятие назначения…" : "Снять назначение"}
       >
         <X size={15} />
       </Button>
@@ -256,9 +256,8 @@ export function RateForm({ rate }: { rate: number }) {
         </div>
       </Field>
       <Feedback state={state} />
-      <Button disabled={pending} type="submit" className="align-start">
-        {pending ? <Loader2 size={15} className="spin" /> : null}Сохранить
-        ставку
+      <Button loading={pending} loadingText="Сохраняем…" type="submit" className="align-start">
+        Сохранить ставку
       </Button>
     </form>
   );
@@ -280,7 +279,7 @@ export function AddSubjectForm() {
             placeholder="Название предмета"
             maxLength={80}
           />
-          <Button type="submit" disabled={pending} variant="secondary">
+          <Button type="submit" loading={pending} loadingText="Добавляем…" variant="secondary">
             <Plus size={16} />
             Добавить
           </Button>
@@ -315,7 +314,7 @@ export function RemoveSubject({ subject }: { subject: Subject }) {
           <input type="hidden" name="operation" value="subject_remove" />
           <input type="hidden" name="id" value={subject.id} />
           <Feedback state={state} />
-          <Button type="submit" disabled={pending} variant="destructive">
+          <Button type="submit" loading={pending} loadingText="Удаляем…" variant="destructive">
             Удалить предмет
           </Button>
         </form>

@@ -1,30 +1,37 @@
 
 > tutorgate@1.0.0 test:unit
-> tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts
+> tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts tests/filters.test.ts
 
-✔ Monday weeks, month boundaries and invalid query fallback (1.653155ms)
-✔ fixed MSK conversion is independent of browser/host timezone (0.586085ms)
-✔ cross-midnight/week segments, clipped hours and count by start (0.500994ms)
-✔ actual statistics split days, zero points, current rate and clipped count (0.592086ms)
-✔ lesson form accepts minute precision and validates duration/note/date (2.427379ms)
-✔ current local week and future guards cover every MSK offset (5.128687ms)
-✔ day selector always offers seven dates including year boundary (0.578031ms)
-✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.352069ms)
-✔ historical subject can only be omitted when unchanged (0.450379ms)
-✔ schedule never refreshes the current RSC calendar (8.813294ms)
-✔ custom selectors and global toast replace legacy mechanisms (14.649536ms)
-✔ history is unbounded but paginated, normalized names are batched (0.970881ms)
-✔ upgrade migration retains exclusion constraints and locks private helpers (0.723069ms)
-✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (2.995882ms)
-✔ Telegram is normalized and validated (0.347721ms)
-✔ applications require consent, subjects and role-specific selection (2.547505ms)
-✔ password confirmation, hourly rate, assignment IDs (1.578372ms)
-✔ tokens meet Telegram payload limits and retries produce the same link (0.832637ms)
-ℹ tests 18
+✔ directory URL always contains the complete latest search + selection (0.945217ms)
+✔ custom statistics commits only valid complete date pairs (2.04924ms)
+✔ preset periods remove dates and empty tutor without losing metric (0.198983ms)
+✔ Monday weeks, month boundaries and invalid query fallback (1.83091ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.638615ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.546385ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.644192ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.664695ms)
+✔ current local week and future guards cover every MSK offset (2.125548ms)
+✔ day selector always offers seven dates including year boundary (0.603494ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.454889ms)
+✔ historical subject can only be omitted when unchanged (0.536442ms)
+✔ schedule never refreshes the current RSC calendar (8.885222ms)
+✔ custom selectors and global toast replace legacy mechanisms (13.793927ms)
+✔ history is unbounded but paginated, normalized names are batched (0.918886ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.841977ms)
+✔ 007 schedule uses local magnet, persistent status and conditional completion icon (1.394146ms)
+✔ 007 auto filters replace URLs, debounce 300ms, and preserve server directory (2.105322ms)
+✔ 007 subject selectors have no search; people selectors keep it (1.313765ms)
+✔ 007 shared loading API used by every agreed form and logout (1.776303ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (1.772615ms)
+✔ Telegram is normalized and validated (0.344275ms)
+✔ applications require consent, subjects and role-specific selection (2.547932ms)
+✔ password confirmation, hourly rate, assignment IDs (1.673005ms)
+✔ tokens meet Telegram payload limits and retries produce the same link (0.810004ms)
+ℹ tests 25
 ℹ suites 0
-ℹ pass 18
+ℹ pass 25
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 796.689628
+ℹ duration_ms 1051.540231

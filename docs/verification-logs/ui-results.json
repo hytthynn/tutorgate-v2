@@ -1,17 +1,20 @@
 {
-  "passed": true,
-  "checks": [
-    "5 years",
-    "7 days",
-    "future disabled",
-    "case insensitive search",
-    "note resize/height",
-    "create response/toast",
-    "390px no overflow"
+  "passed": [
+    "initial saved, no check spacer, unchanged 4px padding and desktop overflow",
+    "preview before drop chooses later tie and does not overlap",
+    "move network failure rolls back, status persists; success clears it",
+    "no-free-day: restore source, no mutation and one drop toast",
+    "hidden conflict: local 14:00 preview, canonical server 15:00",
+    "Add has no current tooltip, explanatory disabled past/future",
+    "subject has no search; student searchable; create loading and status",
+    "offset and delete participate in saving status",
+    "directory debounce and select race retains both keys; no history spam",
+    "statistics immediate metric/period, custom valid pair, invalid guard",
+    "student directory hides admin role line, sidebar unchanged",
+    "admin buttons use spinner, disabled and accessible text",
+    "auth and logout shared loading, failed auth returns idle",
+    "application shared loading replaces action arrow",
+    "390px schedule, open dialog and directory without horizontal overflow"
   ],
-  "note": {
-    "height": 240,
-    "resize": "none"
-  },
-  "scope": "Source calendar and shared controls in isolated harness. Next actions, Radix and Lucide imports substituted; not full application E2E."
+  "errors": []
 }

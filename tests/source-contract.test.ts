@@ -34,3 +34,43 @@ test("upgrade migration retains exclusion constraints and locks private helpers"
   assert.match(sql, /pg_advisory_xact_lock/);
   assert.match(sql, /tutorgate-week-rollover/);
 });
+
+test("007 schedule uses local magnet, persistent status and conditional completion icon", async () => {
+  const calendar = await read("src/components/schedule/calendar.tsx");
+  assert.match(calendar, /nearestFreeStart\(desiredStart, source.durationMinutes, offset, busy\)/);
+  assert.match(calendar, /lessons.filter\(lesson => lesson.id !== source.id\)/);
+  assert.match(calendar, /g.target = startsAt \?\? undefined/);
+  assert.match(calendar, /noFreeInterval/);
+  assert.match(calendar, /role="status" aria-live="polite"/);
+  assert.match(calendar, /onSaveState=\{setSaveState\}/);
+  assert.match(calendar, /lesson.completed && <CircleCheck/);
+  assert.doesNotMatch(calendar, /visibility:|Все 24 часа/);
+  assert.match(await read("src/components/schedule/lesson-dialog.tsx"), /<form onSubmit=/);
+  assert.match(await read("src/components/schedule/lesson-dialog.tsx"), /onSaveState\?\.\("error"\)/);
+});
+test("007 auto filters replace URLs, debounce 300ms, and preserve server directory", async () => {
+  const directory = await read("src/features/people/page.tsx");
+  assert.doesNotMatch(directory, /use client|Найти/);
+  assert.match(directory, /admin && p.role === "admin"/);
+  assert.match(await read("src/components/people/directory-filters.tsx"), /event.target.value \}, 300/);
+  const hook = await read("src/components/shared/use-auto-filters.ts");
+  assert.match(hook, /router.replace/); assert.doesNotMatch(hook, /router.push/);
+  assert.match(hook, /serialize\(current.current, lastQuery.current\)/);
+  assert.doesNotMatch(await read("src/components/statistics/statistics-view.tsx"), /Применить|router.push/);
+});
+test("007 subject selectors have no search; people selectors keep it", async () => {
+  assert.doesNotMatch(await read("src/components/schedule/lesson-dialog.tsx"), /Select searchable aria-label="Предмет"/);
+  const forms = await read("src/components/forms/admin-forms.tsx");
+  assert.doesNotMatch(forms, /Select searchable\s+name="subject_id"/);
+  assert.match(forms, /Select searchable\s+name="tutor_id"/);
+  assert.match(await read("src/components/people/directory-filters.tsx"), /searchable=\{kind === "students"\}/);
+});
+test("007 shared loading API used by every agreed form and logout", async () => {
+  const button = await read("src/components/ui/button.tsx");
+  assert.match(button, /disabled=\{disabled \|\| loading\}/);
+  assert.match(button, /aria-busy=\{loading/);
+  assert.match(button, /Loader2.*className="spin"/);
+  for (const file of ["admin-forms", "auth-form", "application-form"]) assert.match(await read(`src/components/forms/${file}.tsx`), /loading=\{pending\}/);
+  assert.equal((await read("src/components/forms/admin-forms.tsx")).match(/loading=\{pending\}/g)?.length, 6);
+  assert.match(await read("src/components/layout/navigation.tsx"), /useFormStatus/);
+});

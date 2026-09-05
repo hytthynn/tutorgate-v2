@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -73,14 +74,7 @@ export function Navigation({ profile }: { profile: Profile }) {
         <small>{roleNames[profile.role]}</small>
       </span>
       <form action={logoutAction}>
-        <Button
-          type="submit"
-          size="icon"
-          variant="ghost"
-          aria-label="Выйти из аккаунта"
-        >
-          <LogOut size={16} />
-        </Button>
+        <LogoutButton />
       </form>
     </div>
   );
@@ -116,4 +110,9 @@ export function Navigation({ profile }: { profile: Profile }) {
       </header>
     </>
   );
+}
+
+function LogoutButton() {
+  const { pending } = useFormStatus();
+  return <Button type="submit" size="icon" variant="ghost" loading={pending} aria-label={pending ? "Выход из аккаунта…" : "Выйти из аккаунта"}><LogOut size={16} /></Button>;
 }

@@ -2,7 +2,7 @@
 import { useFeedback } from "@/components/ui/toaster";
 import { useActionState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import {
   loginAction,
   registrationAction,
@@ -24,6 +24,7 @@ const labels = {
   forgot: "Получить ссылку",
   reset: "Сохранить пароль",
 };
+const loadingLabels = { login: "Входим…", register: "Создаём аккаунт…", forgot: "Отправляем…", reset: "Сохраняем…" };
 export function AuthForm({
   kind,
   token = "",
@@ -148,10 +149,9 @@ export function AuthForm({
           Забыли пароль?
         </Link>
       )}
-      <Button type="submit" disabled={pending} className="full-width">
-        {pending ? <Loader2 size={16} className="spin" /> : null}
-        {pending ? "Подождите…" : labels[kind]}
-        {!pending && <ArrowRight size={16} />}
+      <Button type="submit" loading={pending} loadingText={loadingLabels[kind]} className="full-width">
+        {labels[kind]}
+        <ArrowRight size={16} />
       </Button>
     </form>
   );

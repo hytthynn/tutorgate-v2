@@ -50,11 +50,13 @@ const tutorSubjects = [
   { tutor_id: id(3), subject_id: id(12) },
 ];
 const assignments = [
+  { id: id(23), student_id: id(4), tutor_id: id(1), subject_id: id(12) },
   { id: id(20), student_id: id(4), tutor_id: id(2), subject_id: id(10) },
   { id: id(21), student_id: id(5), tutor_id: id(2), subject_id: id(11) },
 ];
 assignments.push({ id: id(22), student_id: id(4), tutor_id: id(2), subject_id: id(11) });
 const sessions = new Map();
+const behaviors = new Map(), actionCounts = new Map();
 const localDate = (instant, offset = 0) => new Date(new Date(instant).getTime() + (3 + offset)*3600000).toISOString().slice(0,10);
 const monday = date => { const d = new Date(`${date}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - (d.getUTCDay()+6)%7); return d.toISOString().slice(0,10); };
 const week = monday(localDate(new Date()));
@@ -81,7 +83,7 @@ function resetSchedule() {
   subjects.splice(0,subjects.length,...structuredClone(seedSubjects));
   tutorSubjects.splice(0,tutorSubjects.length,...structuredClone(seedTutorSubjects));
   assignments.splice(0,assignments.length,...structuredClone(seedAssignments));
-  lessons.length = 0; notes.clear(); preferences.clear(); nextLesson = 100;
+  lessons.length = 0; notes.clear(); preferences.clear(); behaviors.clear(); actionCounts.clear(); nextLesson = 100;
   for (const [student, starts, duration] of [[4, at(0,"10:00"), 60], [5, at(0,"12:00"), 60], [4, at(6,"23:00"), 120]]) {
     const lesson = { id: id(nextLesson++), tutor_id: id(2), student_id: id(student), subject_id: id(student === 5 ? 11 : 10), subject_name_snapshot: "Математика", starts_at: starts, ends_at: new Date(Date.parse(starts) + duration * 60000).toISOString(), duration_minutes: duration, color: "default", completed_at: null, updated_at: new Date().toISOString() };
     lessons.push(lesson); notes.set(lesson.id, "PRIVATE_TUTOR_NOTE_секрет");
@@ -135,6 +137,25 @@ const server = http.createServer(async (req, res) => {
   let value = [];
   let status = 200;
   const op = url.pathname.split("/").at(-1);
+  if (url.pathname === "/fixtures/behavior") {
+    behaviors.set(args.op, { delay: args.delay ?? 0, fail: args.fail ?? false });
+    res.writeHead(200, { "Content-Type": "application/json" }); res.end("true"); return;
+  }
+  if (url.pathname === "/fixtures/state") {
+    res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ actionCounts: Object.fromEntries(actionCounts), lessons })); return;
+  }
+  if (url.pathname === "/fixtures/scenario") {
+    if (args.mode === "hidden") lessons.push({ ...lessons[0], id: id(900), tutor_id: id(3), starts_at: at(0,"14:00"), ends_at: at(0,"15:00"), updated_at: new Date().toISOString() });
+    if (args.mode === "full-day") for (let n=0;n<3;n++) lessons.push({ ...lessons[0], id: id(910+n), student_id: id(5), starts_at: at(1,`${String(n*8).padStart(2,"0")}:00`), ends_at: n===2 ? at(2,"00:00") : at(1,`${String((n+1)*8).padStart(2,"0")}:00`), duration_minutes:480 });
+    res.writeHead(200, { "Content-Type": "application/json" }); res.end("true"); return;
+  }
+  if (req.method !== "GET" && !url.pathname.startsWith("/fixtures")) actionCounts.set(op, (actionCounts.get(op) ?? 0) + 1);
+  const behavior = behaviors.get(op);
+  if (behavior && req.method !== "GET") {
+    behaviors.delete(op);
+    await new Promise(resolve => setTimeout(resolve, behavior.delay));
+    if (behavior.fail) { res.writeHead(500,{"Content-Type":"application/json"}); res.end(JSON.stringify({code:"P0001",message:"Fixture failure"})); return; }
+  }
   if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
   else if (op === "ensure_schedule_rollover") value=null;
   else if (op === "save_schedule_lesson" || op === "patch_schedule_lesson") {
@@ -207,6 +228,7 @@ const server = http.createServer(async (req, res) => {
       user: user(p.id),
     };
   } else if (url.pathname === "/auth/v1/user") value = user(uid);
+  else if (op === "session_delete") { sessions.delete(args.p_hash); value = null; }
   else if (op === "session_read") value = sessions.get(args.p_hash) ?? null;
   else if (op === "session_write") {
     sessions.set(args.p_hash, args.p_cookies);

@@ -8,7 +8,6 @@ import {
   ArrowUpRight,
   Check,
   ArrowRight,
-  Loader2,
 } from "lucide-react";
 import { applyAction } from "@/features/applications/actions";
 import { goals, experiences } from "@/lib/validation/schemas";
@@ -179,12 +178,13 @@ export function ApplicationForm({
           )}
         </div>
         <Button
-          disabled={pending || !subjects.length}
+          disabled={!subjects.length}
+          loading={pending}
+          loadingText="Отправляем…"
           type="submit"
           className="full-width"
         >
-          {pending ? <Loader2 size={16} className="spin" /> : null}
-          {pending ? "Отправляем…" : "Подать заявку"}
+          Подать заявку
           <ArrowRight size={16} />
         </Button>
       </form>

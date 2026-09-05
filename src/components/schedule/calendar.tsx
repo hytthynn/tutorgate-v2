@@ -1,20 +1,20 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CircleCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { CircleCheck, CircleAlert, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { syncScheduleAction, deleteLessonsAction, moveLessonAction, saveSchedulePreferenceAction, setLessonColorAction, setLessonCompletedAction } from "@/features/schedule/actions";
-import { addDays, formatDay, localParts, localToUtc, MINUTE, minutesFromMidnight, parseWeek, snapMinutes, splitLessonByLocalDays, startOfWeek, weeklySummary } from "@/features/schedule/time";
-import type { ScheduleData, ScheduleLesson, ScheduleResult } from "@/features/schedule/types";
+import { addDays, formatDay, localParts, localToUtc, MINUTE, minutesFromMidnight, parseWeek, nearestFreeStart, snapMinutes, splitLessonByLocalDays, startOfWeek, weeklySummary } from "@/features/schedule/time";
+import type { ScheduleData, ScheduleLesson, ScheduleResult, SaveState } from "@/features/schedule/types";
 import { LessonDialog } from "./lesson-dialog";
 import { ScheduleToolbar } from "./toolbar";
 import { LessonContextMenu } from "./context-menu";
 
 const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 type Point = { x: number; y: number };
-type Gesture = { origin: Point; last: Point; source?: ScheduleLesson; sourceWeek: string; grabMinutes: number; moved: boolean; longPress: boolean; target?: string };
+type Gesture = { origin: Point; last: Point; source?: ScheduleLesson; sourceWeek: string; grabMinutes: number; moved: boolean; longPress: boolean; target?: string; noFreeInterval?: boolean };
 export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const path = usePathname(), params = useSearchParams();
   const [now, setNow] = useState(() => new Date(data.now));
@@ -24,6 +24,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const [lessons, setLessons] = useState(data.lessons);
   const [snapshot, setSnapshot] = useState(data);
   const [pending, setPending] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
   const lock = useRef(false);
   const mutationRevision = useRef(0);
   const syncCursor = useRef(data.now);
@@ -83,7 +84,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   }
   async function mutate(next: ScheduleLesson[], action: () => Promise<ScheduleResult>, success?: string, rollbackWeek?: string) {
     if (lock.current) return;
-    lock.current = true; mutationRevision.current++; setPending(true); setMenu(null);
+    lock.current = true; mutationRevision.current++; setPending(true); setSaveState("saving"); setMenu(null);
     const previous = lessons; setLessons(next);
     let failure = "Не удалось сохранить изменения. Попробуйте ещё раз.";
     try {
@@ -93,8 +94,9 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
       if (result.ids) setLessons(current => current.filter(l => !result.ids!.includes(l.id)));
       if (result.shifted && result.requestedStart && result.lesson) toast.info(`${localParts(result.requestedStart, offset).time} занято — занятие поставлено на ${localParts(result.lesson.startsAt, offset).time}.`);
       else if (success) toast.success(success);
+      setSaveState("saved");
     } catch {
-      setLessons(previous);
+      setLessons(previous); setSaveState("error");
       toast.error(failure);
       if (rollbackWeek && rollbackWeek !== weekRef.current) navigate(rollbackWeek);
     } finally { lock.current = false; setPending(false); }
@@ -119,8 +121,19 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     const day = mobile ? mobileRef.current : addDays(weekRef.current, column);
     const minute = Math.min(1439, Math.max(0, (point.y - box.top) / box.height * 1440));
     const timestamp = Date.parse(localToUtc(day, "00:00", offset)) + Math.min(1435, Math.max(0, snapMinutes(minute - g.grabMinutes))) * MINUTE;
-    const startsAt = new Date(timestamp).toISOString(); g.target = startsAt;
-    setPreview({ ...g.source, startsAt, endsAt: new Date(timestamp + g.source.durationMinutes * MINUTE).toISOString() });
+    const source = g.source;
+    const desiredStart = new Date(timestamp).toISOString();
+    // Only already-visible lessons are used. SQL still resolves hidden student conflicts.
+    const busy = lessons.filter(lesson => lesson.id !== source.id);
+    const startsAt = nearestFreeStart(desiredStart, source.durationMinutes, offset, busy);
+    g.noFreeInterval = startsAt === null;
+    g.target = startsAt ?? undefined;
+    if (!startsAt) {
+      // Restore the source rather than showing an overlapping/invalid preview.
+      setPreview(null);
+      return;
+    }
+    setPreview({ ...source, startsAt, endsAt: new Date(Date.parse(startsAt) + source.durationMinutes * MINUTE).toISOString() });
   }
   function watchEdge(point: Point) {
     const box = grid.current!.getBoundingClientRect();
@@ -140,7 +153,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     edgeTimer.current = setTimeout(advance, 500);
   }
   function pointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (pending || editor !== undefined || e.button === 2) return;
+    if (lock.current || pending || editor !== undefined || e.button === 2) return;
     const card = (e.target as HTMLElement).closest<HTMLElement>("[data-lesson-id]");
     const source = card ? lessons.find((l) => l.id === card.dataset.lessonId) : undefined;
     if (e.button === 1) { if (editable && source) { e.preventDefault(); complete(source); } return; }
@@ -185,6 +198,11 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     if (grid.current?.hasPointerCapture(e.pointerId)) grid.current.releasePointerCapture(e.pointerId);
     if (!g || g.longPress) return;
     if (!g.moved && g.source) { clickLesson(g.source); return; }
+    if (g.source && g.moved && g.noFreeInterval && editable) {
+      toast.error("В выбранном дне нет свободного интервала для этого занятия.");
+      if (weekRef.current !== g.sourceWeek) navigate(g.sourceWeek);
+      return;
+    }
     if (g.source && g.target && editable) {
       if (startOfWeek(localParts(g.target, offset).date) > startOfWeek(today)) {
         toast.error("Будущая неделя заполняется автоматически после её начала."); navigate(g.sourceWeek); return;
@@ -229,14 +247,18 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   return <div className="schedule-workspace" aria-busy={pending}>
     <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null); setEditor(null); }} onOffset={async (value) => {
       if (lock.current) return;
-      const old = offset; lock.current = true; setPending(true); setOffset(value); setMenu(null);
+      const old = offset; lock.current = true; mutationRevision.current++; setPending(true); setSaveState("saving"); setOffset(value); setMenu(null);
       try {
         const response = await saveSchedulePreferenceAction(value);
-        if (response.error) { setOffset(old); toast.error("Не удалось сохранить сдвиг МСК."); }
-      } catch { setOffset(old); toast.error("Не удалось сохранить сдвиг МСК."); }
+        if (response.error) throw new Error();
+        setSaveState("saved");
+      } catch { setOffset(old); setSaveState("error"); toast.error("Не удалось сохранить сдвиг МСК."); }
       finally { lock.current = false; setPending(false); }
     }} />
-    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span><span className="schedule-save-status">{pending ? "Сохранение…" : "Все 24 часа"}</span></div>
+    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span><span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
+      {saveState === "saving" ? <Loader2 size={13} className="spin" aria-hidden="true" /> : saveState === "error" ? <CircleAlert size={13} aria-hidden="true" /> : <CircleCheck size={13} aria-hidden="true" />}
+      {saveState === "saving" ? "Сохранение…" : saveState === "error" ? "Не сохранено" : "Сохранено"}
+    </span></div>
     <div className="schedule-mobile-day">
       <Button variant="ghost" size="sm" aria-label="Предыдущий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, -1); navigate(startOfWeek(d), d); }}><ChevronLeft size={16} /></Button>
       <strong>{dayNames[days.indexOf(mobileDate)]}, {formatDay(mobileDate)}</strong>
@@ -269,7 +291,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
               style={{ top: `${segment.startMinute / 1440 * 100}%`, height: `${(segment.endMinute - segment.startMinute) / 1440 * 100}%` }}
               aria-label={label} aria-pressed={selected.has(lesson.id)} title={`${name}\n${start}–${end}\n${lesson.subjectName}`}
               onClick={(e) => { if (e.detail === 0) clickLesson(lesson); }}>
-              <strong><CircleCheck className="lesson-check" aria-hidden="true" data-testid={lesson.completed ? "lesson-completed" : undefined} style={{ visibility: lesson.completed ? "visible" : "hidden" }} />{segment.continuation ? "↳ " : ""}{name}</strong>
+              <strong>{lesson.completed && <CircleCheck className="lesson-check" aria-hidden="true" data-testid="lesson-completed" />}{segment.continuation ? "↳ " : ""}{name}</strong>
               <span>{segment.continuation ? `продолжение до ${end}` : `${start}–${end}`}</span>
             </button>;
           })}
@@ -278,7 +300,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
         {rectangle && <div className="schedule-selection" style={rectangle} />}
       </div>
     </div>
-    {editor !== undefined && <LessonDialog key={editor?.id ?? "new"} lesson={editor} data={{ ...data, offset }} onPending={(value) => { lock.current = value; if (value) mutationRevision.current++; }} date={today >= week && today < addDays(week, 7) ? today : week} onClose={() => { setEditor(undefined); grid.current?.focus(); }} onSaved={(saved) => { mutationRevision.current++; setLessons(current => [...current.filter(l => l.id !== saved.id), saved]); setEditor(undefined); setSelected(new Set([saved.id])); const date = localParts(saved.startsAt, offset).date; navigate(startOfWeek(date), date); }} />}
+    {editor !== undefined && <LessonDialog key={editor?.id ?? "new"} lesson={editor} data={{ ...data, offset }} onSaveState={setSaveState} onPending={(value) => { lock.current = value; setPending(value); if (value) mutationRevision.current++; }} date={today >= week && today < addDays(week, 7) ? today : week} onClose={() => { setEditor(undefined); grid.current?.focus(); }} onSaved={(saved) => { mutationRevision.current++; setLessons(current => [...current.filter(l => l.id !== saved.id), saved]); setEditor(undefined); setSelected(new Set([saved.id])); const date = localParts(saved.startsAt, offset).date; navigate(startOfWeek(date), date); }} />}
     {menu && contextLesson && editable && <LessonContextMenu lesson={contextLesson} x={menu.x} y={menu.y} onClose={closeMenu} onCompleted={() => complete(contextLesson)} onDelete={() => remove([contextLesson.id])} onColor={(color) => {
       void mutate(lessons.map((l) => l.id === contextLesson.id ? { ...l, color } : l), () => setLessonColorAction({ id: contextLesson.id, color }), "Цвет изменён.");
     }} />}

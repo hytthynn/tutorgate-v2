@@ -38,16 +38,9 @@ test("public forms, role tabs and responsive layout", async ({ page }) => {
     fullPage: true,
   });
 });
-test("admin pages, dialog constraints, filters, private session and mobile navigation", async ({
-  page,
-  context,
-}) => {
-  await signIn(page);
-  const cookies = await context.cookies();
-  expect(cookies.filter((c) => c.name.startsWith("sb-"))).toHaveLength(0);
-  expect(cookies.find((c) => c.name === "tg_session")?.httpOnly).toBe(true);
-  expect(JSON.stringify(cookies)).not.toContain("internal.test");
-  for (const width of [375, 768, 1280, 1440]) {
+for (const width of [375, 768, 1280, 1440]) {
+  test(`admin pages: responsive layout and private data at ${width}px`, async ({ page }) => {
+    await signIn(page);
     await page.setViewportSize({ width, height: 900 });
     for (const path of [
       "/admin/schedule",
@@ -66,11 +59,18 @@ test("admin pages, dialog constraints, filters, private session and mobile navig
       ).toBe(true);
       expect(await page.content()).not.toContain("hidden_alias@internal.test");
     }
-  }
-  await page.screenshot({
-    path: "artifacts/statistics-desktop.png",
-    fullPage: true,
+    if (width === 1440) {
+      await mkdir("artifacts", { recursive: true });
+      await page.screenshot({ path: "artifacts/statistics-desktop.png", fullPage: true });
+    }
   });
+}
+test("admin dialog constraints, filters, private session and mobile navigation", async ({ page, context }) => {
+  await signIn(page);
+  const cookies = await context.cookies();
+  expect(cookies.filter((c) => c.name.startsWith("sb-"))).toHaveLength(0);
+  expect(cookies.find((c) => c.name === "tg_session")?.httpOnly).toBe(true);
+  expect(JSON.stringify(cookies)).not.toContain("internal.test");
   await page.goto("/admin/tutors");
   await page
     .getByRole("button", { name: "Предметы", exact: true })
@@ -79,8 +79,8 @@ test("admin pages, dialog constraints, filters, private session and mobile navig
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("textbox", { name: "Поиск по ФИО" }).fill("Мария");
-  await page.getByRole("button", { name: "Найти", exact: true }).click();
-  await expect(page).toHaveURL(/q=.*&subject=/);
+  await expect(page.getByRole("button", { name: "Найти", exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL(/q=/);
   await expect(page.getByText("Дмитрий Лебедев", { exact: true })).toHaveCount(
     0,
   );
@@ -99,12 +99,15 @@ test("admin pages, dialog constraints, filters, private session and mobile navig
   );
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 375, height: 900 });
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toBeVisible();
   expect(
     await page
       .getByRole("dialog")
       .evaluate((el) => el.getBoundingClientRect().right <= innerWidth),
   ).toBe(true);
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Открыть меню" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("link", { name: "Настройки", exact: true }).click();

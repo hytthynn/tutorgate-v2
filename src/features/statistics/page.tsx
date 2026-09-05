@@ -32,7 +32,6 @@ export async function StatisticsPage({
         }
       />
       <StatisticsView
-        key={JSON.stringify(params)}
         data={data}
         period={period}
         tutors={tutors}

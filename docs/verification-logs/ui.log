@@ -1,0 +1,16 @@
+PASS initial saved, no check spacer, unchanged 4px padding and desktop overflow
+PASS preview before drop chooses later tie and does not overlap
+PASS move network failure rolls back, status persists; success clears it
+PASS no-free-day: restore source, no mutation and one drop toast
+PASS hidden conflict: local 14:00 preview, canonical server 15:00
+PASS Add has no current tooltip, explanatory disabled past/future
+PASS subject has no search; student searchable; create loading and status
+PASS offset and delete participate in saving status
+PASS directory debounce and select race retains both keys; no history spam
+PASS statistics immediate metric/period, custom valid pair, invalid guard
+PASS student directory hides admin role line, sidebar unchanged
+PASS admin buttons use spinner, disabled and accessible text
+PASS auth and logout shared loading, failed auth returns idle
+PASS application shared loading replaces action arrow
+PASS 390px schedule, open dialog and directory without horizontal overflow
+BROWSER CHECKS 15 PASS

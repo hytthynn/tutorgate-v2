@@ -1673,7 +1673,13 @@ nav {
 .schedule-toolbar .button { min-height: 32px; padding: 5px 9px; font-size: 11px; }
 .schedule-edit-controls { margin-left: auto; }
 .schedule-summary { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; font-size: 12px; flex-shrink: 0; }
-.schedule-save-status { font-size: 10px; color: #a8998b; }
+.schedule-save-status { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: 11px; color: var(--muted-foreground); }
+.schedule-save-status[data-state="saved"] { color: #99c9a7; }
+.schedule-save-status[data-state="error"] { color: var(--danger); }
+.schedule-save-status svg { flex-shrink: 0; }
+.directory-filters[aria-busy="true"] ~ .people-table { opacity: .55; }
+.button[aria-busy="true"] { cursor: wait; }
+.button .spin { flex-shrink: 0; }
 .schedule-mobile-day { display: none; }
 .schedule-day-headers { display: grid; grid-template-columns: 42px repeat(7, minmax(0, 1fr)); flex: 0 0 32px; font-size: 11px; }
 .schedule-day-headers > div { display: flex; justify-content: center; align-items: center; gap: 5px; border: 1px solid var(--border); border-left: 0; background: #1e1914; }
@@ -1802,3 +1808,8 @@ textarea { resize: none; font: inherit; }
 @media(max-width:767px) { .tg-select-trigger { min-height: 40px; } .tg-select-option { min-height: 44px; } .schedule-date-selects .tg-select:nth-child(3) { width: 0; flex: 1; } .tg-toaster { top: 8px; right: 12px; width: calc(100vw - 24px); } }
 
 .dialog-content:not(.mobile-sheet) { inset: 0; margin: auto; height: fit-content; transform: none; }
+
+/* Flex chevrons already occupy space: do not reserve native-select arrow padding. */
+@media (max-width: 767px) {
+  .schedule-toolbar .tg-select-trigger { padding-right: 7px; gap: 5px; }
+}

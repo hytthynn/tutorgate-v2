@@ -35,3 +35,5 @@ export interface ScheduleResult {
   shifted?: boolean;
   requestedStart?: string;
 }
+
+export type SaveState = "saving" | "saved" | "error";

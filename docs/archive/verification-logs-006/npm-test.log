@@ -1,0 +1,86 @@
+
+> tutorgate@1.0.0 test
+> tsx --test tests/*.test.ts
+
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/database.test.ts (164.949547ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/schedule-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/schedule-database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/schedule-database.test.ts (156.228416ms)
+✔ Monday weeks, month boundaries and invalid query fallback (1.696304ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.654458ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.527325ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.650738ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.581662ms)
+✔ current local week and future guards cover every MSK offset (3.021119ms)
+✔ day selector always offers seven dates including year boundary (0.56266ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.260501ms)
+✔ historical subject can only be omitted when unchanged (0.462414ms)
+✔ schedule never refreshes the current RSC calendar (6.771939ms)
+✔ custom selectors and global toast replace legacy mechanisms (13.90758ms)
+✔ history is unbounded but paginated, normalized names are batched (0.71144ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.686056ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (1.754167ms)
+✔ Telegram is normalized and validated (0.353159ms)
+✔ applications require consent, subjects and role-specific selection (2.621855ms)
+✔ password confirmation, hourly rate, assignment IDs (1.641703ms)
+✔ tokens meet Telegram payload limits and retries produce the same link (0.720505ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 18
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 833.885355
+
+✖ failing tests:
+
+test at tests/database.test.ts:1:1
+✖ tests/database.test.ts (164.949547ms)
+  'test failed'
+
+test at tests/schedule-database.test.ts:1:1
+✖ tests/schedule-database.test.ts (156.228416ms)
+  'test failed'

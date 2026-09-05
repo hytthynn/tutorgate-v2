@@ -11,6 +11,7 @@ export const DialogDescription = DialogPrimitive.Description;
 export function DialogContent({
   children,
   className,
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
@@ -19,6 +20,16 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn("dialog-content", className)}
         {...props}
+        onEscapeKeyDown={(event) => {
+          onEscapeKeyDown?.(event);
+          // Radix handles Escape in capture, before the Select's React handler.
+          // Let an open list consume it before dismissing its parent dialog.
+          const target = event.target;
+          if (target instanceof HTMLElement && (
+            target.closest("[data-tg-popup]") ||
+            target.closest('[role="combobox"][aria-expanded="true"]')
+          )) event.preventDefault();
+        }}
       >
         {children}
         <DialogPrimitive.Close className="dialog-close" aria-label="Закрыть">

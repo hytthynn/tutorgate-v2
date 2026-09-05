@@ -56,7 +56,7 @@ export function Select({ children, value, defaultValue, onValueChange, searchabl
   }, [open, container, searchable]);
   useEffect(() => { popup.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" }); }, [active]);
   function keyboard(e: React.KeyboardEvent) {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+    if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(); }
     if (e.key === "Tab") { close(false); return; }
     if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
       e.preventDefault();
