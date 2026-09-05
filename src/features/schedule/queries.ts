@@ -64,6 +64,8 @@ export async function getSchedule(weekParam: unknown): Promise<ScheduleData> {
   for (let page = 0; ; page++) {
     const result = await db.rpc("visible_profiles").select("id,full_name,role").order("id").range(page*500,page*500+499);
     if (result.error) throw new Error("Не удалось загрузить учеников.");
+    // visible_profiles returns TABLE; the untyped RPC select also infers a single row.
+    if (!Array.isArray(result.data)) throw new Error("Не удалось загрузить учеников.");
     profiles.push(...result.data); if (result.data.length < 500) break;
   }
   const studentIds = new Set(assignments.map(a => a.student_id));
