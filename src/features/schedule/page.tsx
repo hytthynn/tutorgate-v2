@@ -1,24 +1,16 @@
-import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeading } from "@/components/shared/page-heading";
-export function SchedulePage() {
+import { ScheduleCalendar } from "@/components/schedule/calendar";
+import { getSchedule } from "./queries";
+export async function SchedulePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const data = await getSchedule(params.week);
   return (
-    <>
+    <section className="schedule-page">
       <PageHeading
         title="Расписание"
         description="Ваши занятия — в одном пространстве."
       />
-      <section className="panel schedule-panel">
-        <div className="panel-topline">
-          <span>Моё расписание</span>
-          <span className="badge">Скоро</span>
-        </div>
-        <EmptyState
-          title="Расписание пока недоступно"
-          description="Этот раздел будет реализован на следующем этапе."
-          icon="calendar"
-          large
-        />
-      </section>
-    </>
+      <ScheduleCalendar data={data} />
+    </section>
   );
 }

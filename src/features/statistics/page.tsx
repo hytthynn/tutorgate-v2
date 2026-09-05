@@ -1,6 +1,7 @@
 import { PageHeading } from "@/components/shared/page-heading";
 import { StatisticsView } from "@/components/statistics/statistics-view";
 import { getDirectory } from "@/features/people/queries";
+import { getScheduleOffset } from "@/features/schedule/queries";
 import {
   parseStatisticsQuery,
   getAdminStatistics,
@@ -13,7 +14,7 @@ export async function StatisticsPage({
   admin: boolean;
   params: Record<string, string | undefined>;
 }) {
-  const { query, period, error } = parseStatisticsQuery(params);
+  const { query, period, error } = parseStatisticsQuery(params, await getScheduleOffset());
   const data = await (admin
     ? getAdminStatistics(query)
     : getTutorStatistics(query));

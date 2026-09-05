@@ -195,7 +195,7 @@ export function StatisticsView({
                   borderRadius: 8,
                   color: "#f2e8dc",
                 }}
-                formatter={(value) => [`${value} ${metric.unit}`, metric.label]}
+                formatter={(value) => [`${Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ${metric.unit}`, metric.label]}
               />
               <Area
                 type="monotone"
@@ -213,7 +213,7 @@ export function StatisticsView({
                 <ChartNoAxesCombined size={23} strokeWidth={1.4} />
               </span>
               <h3>Нет данных за выбранный период</h3>
-              <p>Статистика появится после запуска расписания.</p>
+              <p>Отметьте проведённые занятия в расписании.</p>
             </div>
           )}
         </div>

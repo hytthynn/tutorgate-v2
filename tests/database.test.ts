@@ -1,4 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
+import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
@@ -6,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { hash, token } from "../src/lib/auth/tokens";
 
 test("real PostgreSQL migrations, registration transactions, RLS and single-use tokens", async (t) => {
-  const db = new PGlite();
+  const db = new PGlite({ extensions: { btree_gist } });
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;

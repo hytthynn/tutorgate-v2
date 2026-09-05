@@ -1,7 +1,10 @@
 import "server-only";
 import { z } from "zod";
-import { format, isValid, parseISO, subDays } from "date-fns";
 import { requireRole } from "@/lib/auth/access";
+import { createClient } from "@/lib/supabase/server";
+import { getScheduleOffset, readLessons } from "@/features/schedule/queries";
+import { addDays, localParts, localToUtc, validDate } from "@/features/schedule/time";
+import { aggregateLessons } from "./aggregate";
 export type StatisticsMetric = "earnings" | "hours" | "lessons";
 export interface StatisticsPoint {
   date: string;
@@ -21,7 +24,7 @@ export interface StatisticsResult {
 const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((v) => isValid(parseISO(v)));
+  .refine(validDate);
 const querySchema = z
   .object({
     from: date,
@@ -34,17 +37,15 @@ const querySchema = z
   });
 export function parseStatisticsQuery(
   params: Record<string, string | undefined>,
+  offset = 0,
 ): { query: StatisticsQuery; error?: string; period: string } {
   const period = ["7", "14", "30", "custom"].includes(params.period ?? "")
     ? params.period!
     : "7";
-  const now = new Date();
+  const today = localParts(new Date(), offset).date;
   const fallback: StatisticsQuery = {
-    from: format(
-      subDays(now, Number(period === "custom" ? "7" : period) - 1),
-      "yyyy-MM-dd",
-    ),
-    to: format(now, "yyyy-MM-dd"),
+    from: addDays(today, -(Number(period === "custom" ? "7" : period) - 1)),
+    to: today,
     metric: "earnings",
   };
   const result = querySchema.safeParse({
@@ -62,18 +63,29 @@ export function parseStatisticsQuery(
           "Проверьте период: укажите корректные даты, начало должно быть не позже окончания.",
       };
 }
-// Replace this datasource when the scheduling domain is designed. No lesson
-// tables, simulated history or inferred earnings in MVP.
-async function emptyDatasource(
+async function lessonsDatasource(
   query: StatisticsQuery,
 ): Promise<StatisticsResult> {
-  return { points: [], totals: { earnings: 0, hours: 0, lessons: 0 }, query };
+  const offset = await getScheduleOffset();
+  const db = await createClient();
+  const [rows, rate] = await Promise.all([
+    readLessons(localToUtc(query.from, "00:00", offset), localToUtc(addDays(query.to, 1), "00:00", offset), { tutorId: query.tutorId, completed: true }),
+    db.from("app_settings").select("hourly_rate").eq("id", true).single(),
+  ]);
+  if (rate.error) throw new Error("Не удалось загрузить ставку.");
+  return { ...aggregateLessons(rows.map((l) => ({ startsAt: l.starts_at, endsAt: l.ends_at, completed: l.completed_at !== null })), query.from, query.to, offset, Number(rate.data.hourly_rate), query.metric), query };
 }
 export async function getTutorStatistics(query: StatisticsQuery) {
   const tutor = await requireRole("tutor");
-  return emptyDatasource({ ...querySchema.parse(query), tutorId: tutor.id });
+  return lessonsDatasource({ ...querySchema.parse(query), tutorId: tutor.id });
 }
 export async function getAdminStatistics(query: StatisticsQuery) {
   await requireRole("admin");
-  return emptyDatasource(querySchema.parse(query));
+  const parsed = querySchema.parse(query);
+  if (parsed.tutorId) {
+    const db = await createClient();
+    const { data, error } = await db.rpc("visible_profiles").select("id,role").eq("id", parsed.tutorId).single();
+    if (error || !data || data.role === "student") throw new Error("Выбранный репетитор недоступен.");
+  }
+  return lessonsDatasource(parsed);
 }
