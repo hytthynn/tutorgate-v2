@@ -7,7 +7,7 @@ export interface ScheduleLesson {
   studentId: string;
   studentName: string;
   tutorName: string;
-  subjectId: string;
+  subjectId: string | null;
   subjectName: string;
   startsAt: string;
   endsAt: string;
@@ -23,10 +23,15 @@ export interface ScheduleData {
   lessons: ScheduleLesson[];
   students: { id: string; name: string }[];
   subjects: { id: string; name: string }[];
+  assignments?: { studentId: string; subjectId: string }[];
 }
 export interface ScheduleResult {
   error?: string;
   errors?: Record<string, string[]>;
   id?: string;
   note?: string;
+  lesson?: ScheduleLesson;
+  ids?: string[];
+  shifted?: boolean;
+  requestedStart?: string;
 }

@@ -1,4 +1,6 @@
 "use client";
+import { useFeedback } from "@/components/ui/toaster";
+import { Select } from "@/components/ui/select";
 import { useActionState, useState } from "react";
 import {
   GraduationCap,
@@ -25,6 +27,7 @@ export function ApplicationForm({
     applyAction,
     {} as ActionState,
   );
+  useFeedback(state, false);
   if (state.success)
     return (
       <div className="success-state" role="status">
@@ -129,7 +132,7 @@ export function ApplicationForm({
             name="student_goal"
             error={state.errors?.student_goal}
           >
-            <select
+            <Select
               id="student_goal"
               name="student_goal"
               defaultValue=""
@@ -141,7 +144,7 @@ export function ApplicationForm({
               {goals.map((v) => (
                 <option key={v}>{v}</option>
               ))}
-            </select>
+            </Select>
           </Field>
         ) : (
           <Field
@@ -149,7 +152,7 @@ export function ApplicationForm({
             name="teaching_experience"
             error={state.errors?.teaching_experience}
           >
-            <select
+            <Select
               id="teaching_experience"
               name="teaching_experience"
               defaultValue=""
@@ -161,7 +164,7 @@ export function ApplicationForm({
               {experiences.map((v) => (
                 <option key={v}>{v}</option>
               ))}
-            </select>
+            </Select>
           </Field>
         )}
         <div>
@@ -175,11 +178,6 @@ export function ApplicationForm({
             </p>
           )}
         </div>
-        {state.error && (
-          <p className="form-error" role="alert">
-            {state.error}
-          </p>
-        )}
         <Button
           disabled={pending || !subjects.length}
           type="submit"

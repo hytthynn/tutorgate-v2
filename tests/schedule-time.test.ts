@@ -57,3 +57,40 @@ test("lesson form accepts minute precision and validates duration/note/date", ()
   for (const durationMinutes of [0, 601, 1.5]) assert.equal(lessonSchema.safeParse({ ...value, durationMinutes }).success, false);
   assert.equal(lessonSchema.safeParse({ ...value, note: "x".repeat(4001) }).success, false);
 });
+
+
+test("current local week and future guards cover every MSK offset", async () => {
+  const { currentWeek, isFutureWeek } = await import("../src/features/schedule/time");
+  const now = new Date("2026-09-06T22:00:00Z");
+  assert.equal(currentWeek(0,now),"2026-09-07");
+  assert.equal(currentWeek(-3,now),"2026-08-31");
+  for (let offset=-12;offset<=12;offset++) {
+    const current=currentWeek(offset,now);
+    assert.equal(isFutureWeek(current,offset,now),false);
+    assert.equal(isFutureWeek(addDays(current,7),offset,now),true);
+  }
+});
+test("day selector always offers seven dates including year boundary", async () => {
+  const { dayOptions } = await import("../src/features/schedule/time");
+  const days=dayOptions("2027-01-01");
+  assert.equal(days.length,7); assert.equal(days[0].value,"2026-12-28");
+  assert.equal(days[6].label,"Вс, 03.01"); assert.equal(new Set(days.map(d=>d.value)).size,7);
+});
+test("magnet checks full duration, chooses later tie, snaps and stays in chosen day", async () => {
+  const { nearestFreeStart }=await import("../src/features/schedule/time");
+  const at=(time:string)=>localToUtc("2026-09-05",time,0);
+  const busy=[{ startsAt:at("10:00"),endsAt:at("11:00") }];
+  assert.equal(nearestFreeStart(at("10:30"),60,0,busy),at("11:00"));
+  assert.equal(nearestFreeStart(at("10:00"),60,0,busy),at("11:00"));
+  assert.equal(nearestFreeStart(at("09:05"),60,0,busy),at("09:00"));
+  assert.equal(nearestFreeStart(at("14:03"),60,0,busy),at("14:05"));
+  assert.equal(nearestFreeStart(at("23:59"),120,0,[]),at("23:55"));
+  assert.equal(nearestFreeStart(at("12:00"),60,0,[{startsAt:at("00:00"),endsAt:localToUtc("2026-09-06","00:00",0)}]),null);
+  const previous=[{startsAt:localToUtc("2026-09-04","23:00",0),endsAt:at("01:00")}];
+  assert.equal(nearestFreeStart(at("00:00"),60,0,previous),at("01:00"));
+});
+test("historical subject can only be omitted when unchanged",()=>{
+  const input={studentId:"00000000-0000-4000-8000-000000000004",subjectId:null,date:"2026-09-05",time:"10:00",durationMinutes:60,note:""};
+  assert.equal(lessonSchema.safeParse(input).success,false);
+  assert.equal(lessonSchema.safeParse({...input,subjectChanged:false}).success,true);
+});

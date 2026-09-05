@@ -53,15 +53,37 @@ const assignments = [
   { id: id(20), student_id: id(4), tutor_id: id(2), subject_id: id(10) },
   { id: id(21), student_id: id(5), tutor_id: id(2), subject_id: id(11) },
 ];
+assignments.push({ id: id(22), student_id: id(4), tutor_id: id(2), subject_id: id(11) });
 const sessions = new Map();
+const localDate = (instant, offset = 0) => new Date(new Date(instant).getTime() + (3 + offset)*3600000).toISOString().slice(0,10);
+const monday = date => { const d = new Date(`${date}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - (d.getUTCDay()+6)%7); return d.toISOString().slice(0,10); };
+const week = monday(localDate(new Date()));
+const day = n => new Date(Date.parse(`${week}T00:00:00Z`)+n*86400000).toISOString().slice(0,10);
+const at = (n,time) => new Date(Date.parse(`${day(n)}T${time}:00Z`)-3*3600000).toISOString();
+function dto(l) { return { id:l.id,tutorId:l.tutor_id,studentId:l.student_id,subjectId:l.subject_id,studentName:profiles.find(p=>p.id===l.student_id)?.full_name,tutorName:profiles.find(p=>p.id===l.tutor_id)?.full_name,subjectName:subjects.find(s=>s.id===l.subject_id)?.name ?? l.subject_name_snapshot,startsAt:l.starts_at,endsAt:l.ends_at,durationMinutes:l.duration_minutes,color:l.color,completed:l.completed_at!==null }; }
+function magnet(candidate, offset) {
+  const desired=Date.parse(candidate.starts_at), date=localDate(desired,offset);
+  const midnight=Date.parse(`${date}T00:00:00Z`)-(3+offset)*3600000;
+  const snap=Math.min(1435,Math.max(0,Math.round((desired-midnight)/300000)*5));
+  const minutes=Array.from({length:288},(_,i)=>i*5).sort((a,b)=>Math.abs(a-snap)-Math.abs(b-snap)||b-a);
+  for(const minute of minutes) { const start=midnight+minute*60000;
+    const moved={...candidate,starts_at:new Date(start).toISOString(),ends_at:new Date(start+candidate.duration_minutes*60000).toISOString()};
+    if(!overlaps(moved)) return moved;
+  }
+  return null;
+}
 const lessons = [];
 const notes = new Map();
 const preferences = new Map();
 let nextLesson = 100;
+const seedSubjects=structuredClone(subjects), seedTutorSubjects=structuredClone(tutorSubjects), seedAssignments=structuredClone(assignments);
 function resetSchedule() {
+  subjects.splice(0,subjects.length,...structuredClone(seedSubjects));
+  tutorSubjects.splice(0,tutorSubjects.length,...structuredClone(seedTutorSubjects));
+  assignments.splice(0,assignments.length,...structuredClone(seedAssignments));
   lessons.length = 0; notes.clear(); preferences.clear(); nextLesson = 100;
-  for (const [student, starts, duration] of [[4, "2026-08-31T07:00:00Z", 60], [5, "2026-08-31T09:00:00Z", 60], [4, "2026-09-06T20:00:00Z", 120]]) {
-    const lesson = { id: id(nextLesson++), tutor_id: id(2), student_id: id(student), subject_id: id(10), starts_at: starts, ends_at: new Date(Date.parse(starts) + duration * 60000).toISOString(), duration_minutes: duration, color: "default", completed_at: null };
+  for (const [student, starts, duration] of [[4, at(0,"10:00"), 60], [5, at(0,"12:00"), 60], [4, at(6,"23:00"), 120]]) {
+    const lesson = { id: id(nextLesson++), tutor_id: id(2), student_id: id(student), subject_id: id(student === 5 ? 11 : 10), subject_name_snapshot: "Математика", starts_at: starts, ends_at: new Date(Date.parse(starts) + duration * 60000).toISOString(), duration_minutes: duration, color: "default", completed_at: null, updated_at: new Date().toISOString() };
     lessons.push(lesson); notes.set(lesson.id, "PRIVATE_TUTOR_NOTE_секрет");
   }
 }
@@ -73,6 +95,7 @@ function matches(row, params) {
     const value = filter.slice(filter.indexOf(".") + 1);
     if (filter.startsWith("eq.")) return String(row[key]) === value;
     if (filter.startsWith("lt.")) return Date.parse(row[key]) < Date.parse(value);
+    if (filter.startsWith("gte.")) return Date.parse(row[key]) >= Date.parse(value);
     if (filter.startsWith("gt.")) return Date.parse(row[key]) > Date.parse(value);
     if (filter.startsWith("in.")) return value.slice(1, -1).split(",").includes(row[key]);
     return true;
@@ -113,18 +136,42 @@ const server = http.createServer(async (req, res) => {
   let status = 200;
   const op = url.pathname.split("/").at(-1);
   if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
-  else if (op === "save_schedule_lesson") {
-    const old = args.p_id ? lessons.find((l) => l.id === args.p_id && l.tutor_id === uid) : null;
-    const candidate = { ...(old ?? { id: id(nextLesson++), tutor_id: uid, color: "default", completed_at: null }), student_id: args.p_student, subject_id: args.p_subject, starts_at: args.p_start, duration_minutes: args.p_duration, ends_at: new Date(Date.parse(args.p_start) + args.p_duration * 60000).toISOString() };
-    if (profile?.role === "student" || (args.p_id && !old)) { status = 403; value = { code: "42501" }; }
-    else if (overlaps(candidate)) { status = 409; value = { code: "23P01" }; }
-    else { if (old) Object.assign(old, candidate); else lessons.push(candidate); notes.set(candidate.id, args.p_note); value = candidate.id; }
+  else if (op === "ensure_schedule_rollover") value=null;
+  else if (op === "save_schedule_lesson" || op === "patch_schedule_lesson") {
+    const old=args.p_id ? lessons.find(l=>l.id===args.p_id && l.tutor_id===uid) : null;
+    const offset=preferences.get(uid)?.msk_offset_hours ?? 0;
+    const requested=args.p_start ?? old?.starts_at;
+    const current=monday(localDate(new Date(),offset)), localWeek=monday(localDate(requested,offset));
+    const candidate=op==="patch_schedule_lesson" ? {...old,starts_at:requested,color:args.p_color ?? old?.color,completed_at:args.p_completed==null?old?.completed_at:args.p_completed?new Date().toISOString():null} :
+      {...(old ?? { id:id(nextLesson++),tutor_id:uid,color:"default",completed_at:null }), student_id:args.p_student,subject_id:args.p_subject_changed===false?old?.subject_id:args.p_subject,starts_at:requested,duration_minutes:args.p_duration};
+    if(profile?.role==="student" || (args.p_id && !old)) {status=403;value={code:"42501"};}
+    else if(!old && localWeek!==current) {status=400;value={code:"PT001"};}
+    else if(args.p_start && localWeek>current) {status=400;value={code:"PT002"};}
+    else {
+      const moved=args.p_start ? magnet(candidate,offset) : candidate;
+      if(!moved) {status=409;value={code:"P0002"};}
+      else {
+        moved.updated_at=new Date().toISOString();
+        moved.ends_at=new Date(Date.parse(moved.starts_at)+moved.duration_minutes*60000).toISOString();
+        moved.subject_name_snapshot=subjects.find(s=>s.id===moved.subject_id)?.name ?? old?.subject_name_snapshot;
+        if(old) Object.assign(old,moved); else lessons.push(moved);
+        if(op==="save_schedule_lesson") notes.set(moved.id,args.p_note);
+        value={lesson:dto(moved),requestedStart:args.p_start,shifted:Boolean(args.p_start && Date.parse(args.p_start)!==Date.parse(moved.starts_at))};
+      }
+    }
   } else if (op === "delete_schedule_lessons") {
     if (profile?.role === "student") { status = 403; value = { code: "42501" }; }
     else {
       const owned = lessons.filter((l) => l.tutor_id === uid && args.p_ids.includes(l.id));
       for (const row of owned) { lessons.splice(lessons.indexOf(row), 1); notes.delete(row.id); }
-      value = owned.length;
+      value = { ids: owned.map(l=>l.id) };
+    }
+  } else if(op === "delete_subject_hard") {
+    if(profile?.role!=="admin") {status=403;value={code:"42501"};}
+    else {
+      for(const rows of [assignments,tutorSubjects]) for(let i=rows.length-1;i>=0;i--) if(rows[i].subject_id===args.p_id) rows.splice(i,1);
+      for(const lesson of lessons) if(lesson.subject_id===args.p_id) lesson.subject_id=null;
+      const index=subjects.findIndex(s=>s.id===args.p_id); if(index>=0) subjects.splice(index,1); value=null;
     }
   } else if (op === "lessons") {
     const readable = lessons.filter((l) => profile?.role === "admin" || l.tutor_id === uid || l.student_id === uid);
@@ -142,7 +189,7 @@ const server = http.createServer(async (req, res) => {
       value = [];
     } else value = filtered.slice(Number(url.searchParams.get("offset") ?? 0), Number(url.searchParams.get("offset") ?? 0) + Number(url.searchParams.get("limit") ?? 500));
   } else if (op === "schedule_lesson_names") {
-    value = lessons.filter((l) => args.p_ids.includes(l.id) && (profile?.role === "admin" || l.tutor_id === uid || l.student_id === uid)).map((l) => ({ id: l.id, student_name: profiles.find((p) => p.id === l.student_id)?.full_name, tutor_name: profiles.find((p) => p.id === l.tutor_id)?.full_name, subject_name: subjects.find((s) => s.id === l.subject_id)?.name }));
+    value = lessons.filter((l) => args.p_ids.includes(l.id) && (profile?.role === "admin" || l.tutor_id === uid || l.student_id === uid)).map((l) => ({ id: l.id, student_name: profiles.find((p) => p.id === l.student_id)?.full_name, tutor_name: profiles.find((p) => p.id === l.tutor_id)?.full_name, subject_name: subjects.find((s) => s.id === l.subject_id)?.name ?? l.subject_name_snapshot }));
   } else if (op === "lesson_private_notes") {
     value = profile?.role === "student" ? [] : lessons.filter((l) => l.tutor_id === uid || profile?.role === "admin").map((l) => ({ lesson_id: l.id, note: notes.get(l.id) ?? "" })).filter((l) => matches(l, url.searchParams));
   } else if (op === "user_schedule_preferences") {
@@ -197,6 +244,10 @@ const server = http.createServer(async (req, res) => {
         : assignments.filter((a) => a.student_id === uid || a.tutor_id === uid);
   else if (op === "app_settings") value = [{ hourly_rate: 1500 }];
   else if (op === "token_status") value = args.p_hash ? "valid" : null;
+  if(Array.isArray(value) && ["subjects","tutor_subjects","student_tutor_assignments","visible_profiles"].includes(op)) {
+    value=value.filter(row=>matches(row,url.searchParams));
+    const from=Number(url.searchParams.get("offset") ?? 0), limit=Number(url.searchParams.get("limit") ?? 500); value=value.slice(from,from+limit);
+  }
   if (req.headers.accept?.includes("vnd.pgrst.object") && Array.isArray(value))
     value = value[0] ?? null;
   res.writeHead(status, { "Content-Type": "application/json" });

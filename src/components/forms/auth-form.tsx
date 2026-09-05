@@ -1,4 +1,5 @@
 "use client";
+import { useFeedback } from "@/components/ui/toaster";
 import { useActionState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
@@ -34,6 +35,7 @@ export function AuthForm({
     actions[kind],
     {} as ActionState,
   );
+  useFeedback(state, false);
   if (state.success)
     return (
       <div className="success-state" role="status">
@@ -145,11 +147,6 @@ export function AuthForm({
         <Link className="forgot-link" href="/forgot-password">
           Забыли пароль?
         </Link>
-      )}
-      {state.error && (
-        <p className="form-error" role="alert">
-          {state.error}
-        </p>
       )}
       <Button type="submit" disabled={pending} className="full-width">
         {pending ? <Loader2 size={16} className="spin" /> : null}

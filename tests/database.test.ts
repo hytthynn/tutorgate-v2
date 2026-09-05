@@ -374,17 +374,17 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
     },
   );
   await t.test(
-    "soft deletion preserves historic assignments and prevents new ones",
+    "hard deletion removes current assignments and prevents new ones",
     async () => {
       await asUser(admin.id, async () => {
         await db.query(
-          "update public.subjects set is_active=false where id=$1",
+          "select public.delete_subject_hard($1)",
           [subject],
         );
         assert.equal(
           (await query("select * from public.student_tutor_assignments"))
             .length,
-          1,
+          0,
         );
         await assert.rejects(
           db.query(

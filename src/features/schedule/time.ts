@@ -66,3 +66,21 @@ export function weeklySummary(lessons: TimedLesson[], week: string, offset: numb
 export function formatDay(date: string): string {
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
 }
+
+export function currentWeek(offset: number, now: Date = new Date()): string { return startOfWeek(localParts(now, offset).date); }
+export function isFutureWeek(date: string, offset: number, now: Date = new Date()): boolean { return startOfWeek(date) > currentWeek(offset, now); }
+export function dayOptions(date: string) {
+  const names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"], week = startOfWeek(date);
+  return names.map((name, i) => { const value = addDays(week, i); return { value, label: `${name}, ${value.slice(8)}.${value.slice(5, 7)}` }; });
+}
+/** Preview only. Database repeats this using all tutor AND student conflicts. */
+export function nearestFreeStart(desired: string, duration: number, offset: number, busy: TimedLesson[]): string | null {
+  const day = localParts(desired, offset).date, midnight = Date.parse(localToUtc(day, "00:00", offset));
+  const target = Math.min(1435, Math.max(0, snapMinutes((Date.parse(desired) - midnight) / MINUTE)));
+  const candidates = Array.from({ length: 288 }, (_, i) => i * 5).sort((a,b) => Math.abs(a-target)-Math.abs(b-target) || b-a);
+  for (const minute of candidates) {
+    const start = midnight + minute * MINUTE, end = start + duration * MINUTE;
+    if (!busy.some(l => Date.parse(l.startsAt) < end && Date.parse(l.endsAt) > start)) return new Date(start).toISOString();
+  }
+  return null;
+}

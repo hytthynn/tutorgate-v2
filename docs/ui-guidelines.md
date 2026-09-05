@@ -18,12 +18,15 @@ Geist через next/font, кириллица и latin. Body 14px; подпис
 
 На desktop sidebar 236px, на небольших desktop 216px, на mobile Radix Dialog в виде бокового Sheet. Контент ограничен 1472px. Поля и кнопки mobile не менее 40–44px по высоте. Табличные строки становятся карточками без горизонтальной прокрутки.
 
-Вход и заявка — компактные формы в центре. Карамель используется для основного действия, выбранных предметов, тонких деталей и focus. Списки и управление используют secondary buttons. Danger зарезервирован для деактивации предметов.
+Вход и заявка — компактные формы в центре. Карамель используется для основного действия, выбранных предметов, тонких деталей и focus. Списки и управление используют secondary buttons. Danger зарезервирован для удаления предметов.
 
-Dialogs ограничены высотой viewport, внутреннее содержимое прокручивается. Radix обеспечивает focus trap, Escape, возврат фокуса и accessible title. Формы имеют label, autocomplete, inline errors, server pending states и status feedback. Не добавлять неподписанные иконки-действия.
+Dialogs ограничены высотой viewport, внутреннее содержимое прокручивается. Radix обеспечивает focus trap, Escape, возврат фокуса и accessible title. Формы имеют label, autocomplete, inline field errors, server pending states и глобальный toast. Не добавлять неподписанные иконки-действия.
 
 Recharts: одна карамельная серия, тонкая горизонтальная сетка, muted axis, тёмный tooltip. Пока нет занятий — KPI=0 и явное empty state, без искусственных точек данных. Периоды/метрика/репетитор сохраняются в URL после «Применить».
 
 Допустимы тонкие границы и небольшой контраст поверхностей. Запрещены gradients, glow, blur, glassmorphism, неон, большие тени, oversized заголовки, emoji вместо Lucide. Motion минимален и отключается через prefers-reduced-motion.
 
 Браузерные проверки предусмотрены на 375, 768, 1280 и 1440px; артефакты screenshot — локальная `artifacts/`, исключена из Git.
+
+
+Select/Combobox: case-insensitive поиск, ArrowUp/Down, Enter, Esc, возврат фокуса. Popup портируется в body либо Radix focus scope. Dialog не использует transform, поэтому fixed popup не обрезается. Toast success 3с, info/warning 4с, error 5с; дедупликация и закрытие; на mobile сверху.

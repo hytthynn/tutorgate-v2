@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
-import { saveLesson, patchLesson, scheduleError, revalidateSchedule } from "./service";
+import { saveLesson, patchLesson, scheduleError } from "./service";
 import { colorSchema, completedSchema, deleteSchema, moveSchema, offsetSchema } from "./validation";
 import type { ScheduleResult } from "./types";
 export async function createLessonAction(input: unknown) { return saveLesson(null, input); }
@@ -19,7 +19,7 @@ export async function setLessonColorAction(input: unknown): Promise<ScheduleResu
 }
 export async function setLessonCompletedAction(input: unknown): Promise<ScheduleResult> {
   await requireRole();
-  try { const v = completedSchema.parse(input); return await patchLesson(v.id, { completed_at: v.completed ? new Date().toISOString() : null }); }
+  try { const v = completedSchema.parse(input); return await patchLesson(v.id, { completed: v.completed }); }
   catch (error) { return scheduleError(error); }
 }
 export async function deleteLessonsAction(input: unknown): Promise<ScheduleResult> {
@@ -28,9 +28,9 @@ export async function deleteLessonsAction(input: unknown): Promise<ScheduleResul
   try {
     const ids = [...new Set(deleteSchema.parse(input))];
     const db = await createClient();
-    const { error } = await db.rpc("delete_schedule_lessons", { p_ids: ids });
+    const { data, error } = await db.rpc("delete_schedule_lessons", { p_ids: ids });
     if (error) return scheduleError(error);
-    revalidateSchedule(); return {};
+    return data as ScheduleResult;
   } catch (error) { return scheduleError(error); }
 }
 export async function saveSchedulePreferenceAction(input: unknown): Promise<ScheduleResult> {
@@ -40,7 +40,7 @@ export async function saveSchedulePreferenceAction(input: unknown): Promise<Sche
     const db = await createClient();
     const { error } = await db.from("user_schedule_preferences").upsert({ user_id: user.id, msk_offset_hours: offset });
     if (error) return scheduleError(error);
-    revalidateSchedule(); return {};
+    return {};
   } catch (error) { return scheduleError(error); }
 }
 export async function getLessonNoteAction(input: unknown): Promise<ScheduleResult> {
@@ -54,4 +54,12 @@ export async function getLessonNoteAction(input: unknown): Promise<ScheduleResul
     const { data, error } = await db.from("lesson_private_notes").select("note").eq("lesson_id", id).maybeSingle();
     return error ? scheduleError(error) : { note: data?.note ?? "" };
   } catch (error) { return scheduleError(error); }
+}
+
+// Background incremental sync for cron-created lessons, independent of navigation.
+export async function syncScheduleAction(since: string) {
+  await requireRole();
+  const cursor = z.iso.datetime({ offset: true }).parse(since);
+  const { readScheduleUpdates } = await import("./queries");
+  return readScheduleUpdates(cursor);
 }

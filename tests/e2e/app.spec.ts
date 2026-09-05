@@ -1,3 +1,4 @@
+import { choose } from "./select";
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 async function signIn(page: import("@playwright/test").Page, role = "admin") {
@@ -88,15 +89,15 @@ test("admin pages, dialog constraints, filters, private session and mobile navig
     .getByRole("button", { name: "Назначения", exact: true })
     .first()
     .click();
-  await page
-    .getByLabel("Предмет", { exact: true })
-    .selectOption({ label: "Физика" });
-  await expect(page.getByLabel("Репетитор", { exact: true })).toContainText(
+  await choose(page,"Предмет","Физика");
+  await page.getByRole("combobox",{name:"Репетитор",exact:true}).click();
+  await expect(page.getByRole("listbox")).toContainText(
     "Мария Соколова",
   );
-  await expect(page.getByLabel("Репетитор", { exact: true })).not.toContainText(
+  await expect(page.getByRole("listbox")).not.toContainText(
     "Дмитрий Лебедев",
   );
+  await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 375, height: 900 });
   expect(
     await page

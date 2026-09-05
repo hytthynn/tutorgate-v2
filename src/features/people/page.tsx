@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/select";
 import { Search, ArrowUpRight, BookOpen } from "lucide-react";
 import { getDirectory } from "./queries";
 import { PageHeading } from "@/components/shared/page-heading";
@@ -84,7 +85,7 @@ export async function PeoplePage({
                 maxLength={150}
               />
             </div>
-            <select
+            <Select searchable
               aria-label={
                 kind === "tutors"
                   ? "Фильтр по предмету"
@@ -113,7 +114,7 @@ export async function PeoplePage({
                       {t.full_name}
                     </option>
                   ))}
-            </select>
+            </Select>
             <Button variant="secondary" type="submit">
               Найти
             </Button>

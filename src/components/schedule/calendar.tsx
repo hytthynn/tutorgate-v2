@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useRef, useState, useTransition, type PointerEvent as ReactPointerEvent } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { CircleCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { deleteLessonsAction, moveLessonAction, saveSchedulePreferenceAction, setLessonColorAction, setLessonCompletedAction } from "@/features/schedule/actions";
+import { syncScheduleAction, deleteLessonsAction, moveLessonAction, saveSchedulePreferenceAction, setLessonColorAction, setLessonCompletedAction } from "@/features/schedule/actions";
 import { addDays, formatDay, localParts, localToUtc, MINUTE, minutesFromMidnight, parseWeek, snapMinutes, splitLessonByLocalDays, startOfWeek, weeklySummary } from "@/features/schedule/time";
 import type { ScheduleData, ScheduleLesson, ScheduleResult } from "@/features/schedule/types";
 import { LessonDialog } from "./lesson-dialog";
@@ -14,7 +16,7 @@ const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 type Point = { x: number; y: number };
 type Gesture = { origin: Point; last: Point; source?: ScheduleLesson; sourceWeek: string; grabMinutes: number; moved: boolean; longPress: boolean; target?: string };
 export function ScheduleCalendar({ data }: { data: ScheduleData }) {
-  const router = useRouter(), path = usePathname(), params = useSearchParams();
+  const path = usePathname(), params = useSearchParams();
   const [now, setNow] = useState(() => new Date(data.now));
   const [todayRequest, setTodayRequest] = useState(0);
   const [offset, setOffset] = useState(data.offset);
@@ -22,8 +24,9 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const [lessons, setLessons] = useState(data.lessons);
   const [snapshot, setSnapshot] = useState(data);
   const [pending, setPending] = useState(false);
-  const [, startTransition] = useTransition();
   const lock = useRef(false);
+  const mutationRevision = useRef(0);
+  const syncCursor = useRef(data.now);
   if (snapshot !== data) {
     setSnapshot(data);
     if (!pending) { setLessons(data.lessons); setOffset(data.offset); }
@@ -32,7 +35,6 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const [editor, setEditor] = useState<ScheduleLesson | null | undefined>(undefined);
   const [bindings, setBindings] = useState(false);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const today = localParts(now, offset).date;
   const [activeDate, setActiveDate] = useState(today >= week && today < addDays(week, 7) ? today : week);
   const requestedDay = params.get("day") ?? activeDate;
@@ -55,10 +57,10 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     return () => { clearInterval(timer); if (edgeTimer.current) clearTimeout(edgeTimer.current); if (longTimer.current) clearTimeout(longTimer.current); };
   }, []);
   useEffect(() => {
-    function restoreWeek() { setMenu(null); router.refresh(); }
+    function restoreWeek() { setMenu(null); }
     window.addEventListener("popstate", restoreWeek);
     return () => window.removeEventListener("popstate", restoreWeek);
-  }, [router]);
+  }, []);
   useEffect(() => {
     const value = params.get("week");
     if (value !== null && value !== week) {
@@ -67,13 +69,11 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     }
   }, [params, path, week]);
   function navigate(nextWeek: string, day?: string) {
-    const previousWeek = weekRef.current;
     weekRef.current = nextWeek;
     const nextDay = day ?? (today >= nextWeek && today < addDays(nextWeek, 7) ? today : nextWeek);
     mobileRef.current = nextDay; setActiveDate(nextDay); setMenu(null);
     const next = new URLSearchParams(params.toString()); next.set("week", nextWeek); next.set("day", nextDay);
     window.history.pushState(null, "", `${path}?${next}`);
-    if (nextWeek !== previousWeek) startTransition(() => router.refresh());
   }
   function closeMenu() { setMenu(null); grid.current?.focus(); }
   function openLesson(lesson: ScheduleLesson) { setMenu(null); setEditor(lesson); }
@@ -83,26 +83,28 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   }
   async function mutate(next: ScheduleLesson[], action: () => Promise<ScheduleResult>, success?: string, rollbackWeek?: string) {
     if (lock.current) return;
-    lock.current = true; setPending(true); setMenu(null); setNotice(null);
+    lock.current = true; mutationRevision.current++; setPending(true); setMenu(null);
     const previous = lessons; setLessons(next);
     let failure = "Не удалось сохранить изменения. Попробуйте ещё раз.";
     try {
       const result = await action();
       if (result.error || result.errors) { failure = result.error ?? "Проверьте параметры занятия."; throw new Error(); }
-      if (success) setNotice({ text: success });
-      startTransition(() => router.refresh());
+      if (result.lesson) setLessons(current => [...current.filter(l => l.id !== result.lesson!.id), result.lesson!]);
+      if (result.ids) setLessons(current => current.filter(l => !result.ids!.includes(l.id)));
+      if (result.shifted && result.requestedStart && result.lesson) toast.info(`${localParts(result.requestedStart, offset).time} занято — занятие поставлено на ${localParts(result.lesson.startsAt, offset).time}.`);
+      else if (success) toast.success(success);
     } catch {
       setLessons(previous);
-      setNotice({ text: failure, error: true });
+      toast.error(failure);
       if (rollbackWeek && rollbackWeek !== weekRef.current) navigate(rollbackWeek);
     } finally { lock.current = false; setPending(false); }
   }
   function remove(ids: string[]) {
     if (!editable || !ids.length) return;
-    void mutate(lessons.filter((l) => !ids.includes(l.id)), () => deleteLessonsAction(ids), "Занятие удалено").then(() => setSelected(new Set()));
+    void mutate(lessons.filter((l) => !ids.includes(l.id)), () => deleteLessonsAction(ids), ids.length === 1 ? "Занятие удалено." : `Удалено занятий: ${ids.length}.`).then(() => setSelected(new Set()));
   }
   function complete(lesson: ScheduleLesson) {
-    void mutate(lessons.map((l) => l.id === lesson.id ? { ...l, completed: !l.completed } : l), () => setLessonCompletedAction({ id: lesson.id, completed: !lesson.completed }));
+    void mutate(lessons.map((l) => l.id === lesson.id ? { ...l, completed: !l.completed } : l), () => setLessonCompletedAction({ id: lesson.id, completed: !lesson.completed }), lesson.completed ? "Отметка снята." : "Занятие проведено.");
   }
   function clearTimers() {
     if (edgeTimer.current) clearTimeout(edgeTimer.current);
@@ -116,7 +118,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     const column = Math.min(6, Math.max(0, Math.floor((point.x - box.left) / box.width * 7)));
     const day = mobile ? mobileRef.current : addDays(weekRef.current, column);
     const minute = Math.min(1439, Math.max(0, (point.y - box.top) / box.height * 1440));
-    const timestamp = Date.parse(localToUtc(day, "00:00", offset)) + snapMinutes(minute - g.grabMinutes) * MINUTE;
+    const timestamp = Date.parse(localToUtc(day, "00:00", offset)) + Math.min(1435, Math.max(0, snapMinutes(minute - g.grabMinutes))) * MINUTE;
     const startsAt = new Date(timestamp).toISOString(); g.target = startsAt;
     setPreview({ ...g.source, startsAt, endsAt: new Date(timestamp + g.source.durationMinutes * MINUTE).toISOString() });
   }
@@ -184,32 +186,61 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     if (!g || g.longPress) return;
     if (!g.moved && g.source) { clickLesson(g.source); return; }
     if (g.source && g.target && editable) {
+      if (startOfWeek(localParts(g.target, offset).date) > startOfWeek(today)) {
+        toast.error("Будущая неделя заполняется автоматически после её начала."); navigate(g.sourceWeek); return;
+      }
       const source = g.source;
       const moved = { ...source, startsAt: g.target, endsAt: new Date(Date.parse(g.target) + source.durationMinutes * MINUTE).toISOString() };
       setSelected(new Set([source.id]));
-      void mutate([...lessons.filter((l) => l.id !== source.id), moved], () => moveLessonAction({ id: source.id, startsAt: moved.startsAt }), undefined, g.sourceWeek);
+      void mutate([...lessons.filter((l) => l.id !== source.id), moved], () => moveLessonAction({ id: source.id, startsAt: moved.startsAt }), "Занятие перемещено.", g.sourceWeek);
     }
   }
-  const displayed = preview ? [...lessons.filter((l) => l.id !== preview.id), preview] : lessons;
+  const displayed = useMemo(() => preview ? [...lessons.filter(l => l.id !== preview.id), preview] : lessons, [lessons, preview]);
+  const segmentsByDate = useMemo(() => {
+    const map = new Map<string, { lesson: ScheduleLesson; segment: ReturnType<typeof splitLessonByLocalDays>[number] }[]>();
+    for (const lesson of displayed) for (const segment of splitLessonByLocalDays(lesson, offset)) {
+      const bucket = map.get(segment.date) ?? []; bucket.push({ lesson, segment }); map.set(segment.date, bucket);
+    }
+    return map;
+  }, [displayed, offset]);
+  useEffect(() => {
+    let cancelled = false, syncing = false;
+    // New rows from any tutor's timezone arrive without replacing the RSC tree.
+    const sync = async () => {
+      if (document.hidden || syncing || lock.current) return;
+      const revision = mutationRevision.current;
+      syncing = true;
+      try {
+        const fresh = await syncScheduleAction(syncCursor.current);
+        if (!cancelled && !lock.current && revision === mutationRevision.current) {
+          setLessons(current => { const merged = new Map(current.map(l => [l.id,l])); for (const lesson of fresh.lessons) merged.set(lesson.id,lesson); return [...merged.values()]; });
+          syncCursor.current = fresh.cursor;
+        }
+      } catch { if (!cancelled) toast.error("Не удалось загрузить новые занятия. Проверьте соединение."); }
+      finally { syncing = false; }
+    };
+    const timer = setInterval(() => void sync(), 60_000);
+    document.addEventListener("visibilitychange", sync);
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener("visibilitychange", sync); };
+  }, []);
   const summary = weeklySummary(displayed, week, offset);
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
   const contextLesson = menu ? lessons.find((l) => l.id === menu.id) : undefined;
   return <div className="schedule-workspace" aria-busy={pending}>
-    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { setMenu(null); setEditor(null); }} onOffset={async (value) => {
+    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null); setEditor(null); }} onOffset={async (value) => {
       if (lock.current) return;
       const old = offset; lock.current = true; setPending(true); setOffset(value); setMenu(null);
       try {
         const response = await saveSchedulePreferenceAction(value);
-        if (response.error) { setOffset(old); setNotice({ text: response.error, error: true }); }
-        else startTransition(() => router.refresh());
-      } catch { setOffset(old); setNotice({ text: "Не удалось сохранить сдвиг МСК.", error: true }); }
+        if (response.error) { setOffset(old); toast.error("Не удалось сохранить сдвиг МСК."); }
+      } catch { setOffset(old); toast.error("Не удалось сохранить сдвиг МСК."); }
       finally { lock.current = false; setPending(false); }
     }} />
     <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span><span className="schedule-save-status">{pending ? "Сохранение…" : "Все 24 часа"}</span></div>
     <div className="schedule-mobile-day">
-      <Button variant="ghost" size="sm" aria-label="Предыдущий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, -1); navigate(startOfWeek(d), d); }}>←</Button>
+      <Button variant="ghost" size="sm" aria-label="Предыдущий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, -1); navigate(startOfWeek(d), d); }}><ChevronLeft size={16} /></Button>
       <strong>{dayNames[days.indexOf(mobileDate)]}, {formatDay(mobileDate)}</strong>
-      <Button variant="ghost" size="sm" aria-label="Следующий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, 1); navigate(startOfWeek(d), d); }}>→</Button>
+      <Button variant="ghost" size="sm" aria-label="Следующий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, 1); navigate(startOfWeek(d), d); }}><ChevronRight size={16} /></Button>
     </div>
     <div className="schedule-day-headers"><span />{days.map((day, i) => <div key={day} className={day === today ? "is-today" : ""} data-mobile-active={day === mobileDate}>{dayNames[i]} <strong>{formatDay(day)}</strong></div>)}</div>
     <div className="schedule-grid-wrapper">
@@ -229,7 +260,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
         }}>
         {days.map((day) => <div key={day} className={`schedule-day ${day === today ? "is-today" : ""}`} data-date={day} data-mobile-active={day === mobileDate}>
           {Array.from({ length: 24 }, (_, h) => <i className="schedule-hour-line" key={h} style={{ top: `${h / 24 * 100}%` }} />)}
-          {displayed.flatMap((lesson) => splitLessonByLocalDays(lesson, offset).filter((s) => s.date === day).map((segment) => {
+          {(segmentsByDate.get(day) ?? []).map(({ lesson, segment }) => {
             const start = localParts(lesson.startsAt, offset).time, end = localParts(lesson.endsAt, offset).time;
             const name = editable ? lesson.studentName : lesson.tutorName;
             const label = `${name}, ${start}–${end}${lesson.completed ? ", Проведено" : ""}`;
@@ -238,19 +269,18 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
               style={{ top: `${segment.startMinute / 1440 * 100}%`, height: `${(segment.endMinute - segment.startMinute) / 1440 * 100}%` }}
               aria-label={label} aria-pressed={selected.has(lesson.id)} title={`${name}\n${start}–${end}\n${lesson.subjectName}`}
               onClick={(e) => { if (e.detail === 0) clickLesson(lesson); }}>
-              <strong>{lesson.completed ? "✓ " : ""}{segment.continuation ? "↳ " : ""}{name}</strong>
+              <strong><CircleCheck className="lesson-check" aria-hidden="true" data-testid={lesson.completed ? "lesson-completed" : undefined} style={{ visibility: lesson.completed ? "visible" : "hidden" }} />{segment.continuation ? "↳ " : ""}{name}</strong>
               <span>{segment.continuation ? `продолжение до ${end}` : `${start}–${end}`}</span>
             </button>;
-          }))}
+          })}
           {day === today && <div className="schedule-now-line" aria-label={`Текущее время ${localParts(now, offset).time}`} style={{ top: `${minutesFromMidnight(now.getTime(), offset) / 1440 * 100}%` }} />}
         </div>)}
         {rectangle && <div className="schedule-selection" style={rectangle} />}
       </div>
     </div>
-    {notice && <div className={`schedule-notice ${notice.error ? "form-error" : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}<button aria-label="Скрыть сообщение" onClick={() => setNotice(null)}>×</button></div>}
-    {editor !== undefined && <LessonDialog key={editor?.id ?? "new"} lesson={editor} data={{ ...data, offset }} date={today >= week && today < addDays(week, 7) ? today : week} onClose={() => { setEditor(undefined); grid.current?.focus(); }} onSaved={(id, date) => { setEditor(undefined); setSelected(new Set([id])); navigate(startOfWeek(date), date); startTransition(() => router.refresh()); }} />}
+    {editor !== undefined && <LessonDialog key={editor?.id ?? "new"} lesson={editor} data={{ ...data, offset }} onPending={(value) => { lock.current = value; if (value) mutationRevision.current++; }} date={today >= week && today < addDays(week, 7) ? today : week} onClose={() => { setEditor(undefined); grid.current?.focus(); }} onSaved={(saved) => { mutationRevision.current++; setLessons(current => [...current.filter(l => l.id !== saved.id), saved]); setEditor(undefined); setSelected(new Set([saved.id])); const date = localParts(saved.startsAt, offset).date; navigate(startOfWeek(date), date); }} />}
     {menu && contextLesson && editable && <LessonContextMenu lesson={contextLesson} x={menu.x} y={menu.y} onClose={closeMenu} onCompleted={() => complete(contextLesson)} onDelete={() => remove([contextLesson.id])} onColor={(color) => {
-      void mutate(lessons.map((l) => l.id === contextLesson.id ? { ...l, color } : l), () => setLessonColorAction({ id: contextLesson.id, color }));
+      void mutate(lessons.map((l) => l.id === contextLesson.id ? { ...l, color } : l), () => setLessonColorAction({ id: contextLesson.id, color }), "Цвет изменён.");
     }} />}
     <Dialog open={bindings} onOpenChange={setBindings}><DialogContent><DialogTitle>Бинды</DialogTitle><DialogDescription>Управление расписанием</DialogDescription><dl className="schedule-bindings">
       {[["Выбрать занятие", "ЛКМ / tap"], ["Открыть занятие", "Повторный ЛКМ / tap"], ["Выбрать несколько", "Протянуть область по сетке"], ["Переместить", "Перетаскивание"], ["Отметить / снять отметку", "Средняя кнопка мыши"], ["Контекстное меню", "ПКМ / удержание на touch"], ["Удалить выбранные", "Delete"], ["Снять выделение / закрыть", "Escape"], ["Открыть выбранное", "Enter"]].map(([action, key]) => <div key={action}><dt>{action}</dt><dd>{key}</dd></div>)}

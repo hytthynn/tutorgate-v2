@@ -817,7 +817,7 @@ nav {
 .search-input input {
   padding-left: 37px !important;
 }
-.directory-filters select {
+.directory-filters .tg-select {
   width: 210px;
 }
 .people-table-head {
@@ -1106,7 +1106,7 @@ nav {
 .period-tabs input:focus-visible + span {
   outline: 2px solid var(--accent);
 }
-.statistics-controls > select {
+.statistics-controls > .tg-select {
   width: auto;
   max-width: 240px;
   font-size: 12px;
@@ -1328,7 +1328,7 @@ nav {
   .search-input {
     min-width: 180px;
   }
-  .directory-filters select {
+  .directory-filters .tg-select {
     width: 170px;
   }
   .kpi-card {
@@ -1441,7 +1441,7 @@ nav {
   .search-input > svg {
     top: 14px;
   }
-  .directory-filters select {
+  .directory-filters .tg-select {
     flex: 1;
     width: 0;
   }
@@ -1532,7 +1532,7 @@ nav {
     padding: 9px 7px;
     min-height: 38px;
   }
-  .statistics-controls > select {
+  .statistics-controls > .tg-select {
     max-width: 100%;
     flex: 1;
     font-size: 12px;
@@ -1653,7 +1653,7 @@ nav {
   .person-actions {
     margin-left: 0;
   }
-  .statistics-controls > select {
+  .statistics-controls > .tg-select {
     min-width: 120px;
   }
 }
@@ -1669,7 +1669,7 @@ nav {
 .schedule-workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
 .schedule-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; flex-shrink: 0; }
 .schedule-date-selects, .schedule-controls-group { display: flex; gap: 5px; align-items: center; min-width: 0; }
-.schedule-toolbar select { height: 32px; padding: 4px 22px 4px 8px; width: auto; min-width: 0; font-size: 12px; }
+.schedule-toolbar .tg-select-trigger { height: 32px; padding: 4px 22px 4px 8px; width: auto; min-width: 0; font-size: 12px; }
 .schedule-toolbar .button { min-height: 32px; padding: 5px 9px; font-size: 11px; }
 .schedule-edit-controls { margin-left: auto; }
 .schedule-summary { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; font-size: 12px; flex-shrink: 0; }
@@ -1706,8 +1706,6 @@ nav {
 .schedule-now-line { position: absolute; left: 0; right: 0; height: 1px; background: #e8b478; z-index: 6; pointer-events: none; }
 .schedule-now-line::before { content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #e8b478; left: -2px; top: -2px; }
 .schedule-selection { position: absolute; z-index: 7; border: 1px solid #d39a59; background: rgba(211,154,89,.15); pointer-events: none; }
-.schedule-notice { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px); background: #251e18; border: 1px solid #65513e; border-radius: 8px; padding: 12px 16px; z-index: 40; display: flex; align-items: center; gap: 16px; }
-.schedule-notice button { font-size: 20px; }
 .lesson-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .lesson-form label { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 12px; }
 .lesson-time-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
@@ -1741,10 +1739,10 @@ nav {
   .schedule-page .page-heading p { display: none; }
   .schedule-toolbar { gap: 5px; }
   .schedule-date-selects { width: 100%; }
-  .schedule-date-selects select:nth-child(1) { width: 65px; }
-  .schedule-date-selects select:nth-child(2) { width: 88px; }
-  .schedule-date-selects select:nth-child(3) { flex: 1; width: 0; }
-  .schedule-toolbar select { font-size: 10px; height: 30px; padding-left: 5px; padding-right: 16px; }
+  .schedule-date-selects .tg-select:nth-child(1) { width: 65px; }
+  .schedule-date-selects .tg-select:nth-child(2) { width: 88px; }
+  .schedule-date-selects .tg-select:nth-child(3) { flex: 1; width: 0; }
+  .schedule-toolbar .tg-select-trigger { font-size: 10px; height: 30px; padding-left: 5px; padding-right: 16px; }
   .schedule-toolbar .button { font-size: 10px; min-height: 30px; padding: 3px 7px; }
   .schedule-edit-controls { margin-left: 0; width: 100%; }
   .schedule-edit-controls .button:last-child { margin-left: auto; }
@@ -1759,7 +1757,7 @@ nav {
   .schedule-lesson { font-size: 10px; }
   .lesson-dialog { padding: 18px; }
   .lesson-form { gap: 9px; }
-  .lesson-form input, .lesson-form select { font-size: 13px; min-width: 0; }
+  .lesson-form input, .lesson-form .tg-select-trigger { font-size: 13px; min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1769,3 +1767,38 @@ nav {
     transition: none !important;
   }
 }
+/* Shared controls: warm mocha, no native number spinners. */
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+textarea { resize: none; font: inherit; }
+.tg-select { display: inline-flex; position: relative; min-width: 0; width: 100%; vertical-align: middle; }
+.tg-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; height: 40px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--background); color: var(--foreground); text-align: left; }
+.tg-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tg-select-trigger:focus-visible, .tg-select-trigger[aria-expanded="true"] { outline: 1px solid var(--accent); border-color: var(--accent); }
+.tg-select-popup { position: fixed; z-index: 200; padding: 5px; background: #251e18; border: 1px solid #66513e; border-radius: 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #81654a #251e18; outline: none; pointer-events: auto; }
+.tg-select-option { display: flex; justify-content: space-between; gap: 10px; padding: 9px 10px; min-height: 36px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+.tg-select-option.is-active { background: #3a2c20; }
+.tg-select-option[aria-selected="true"] { color: #e6b479; background: #34271c; }
+.tg-select-option[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.tg-select-search { display: flex; align-items: center; gap: 8px; padding: 3px 5px 8px; position: sticky; top: -5px; background: #251e18; }
+.tg-select-search input { height: 36px !important; }
+.tg-select-empty { padding: 12px; font-size: 13px; }
+.schedule-date-selects .tg-select { width: auto; }
+.schedule-controls-group > .tg-select { width: 100px; }
+.schedule-toolbar .tg-select-trigger { width: 100%; }
+.tg-toaster { position: fixed; top: 16px; right: 16px; z-index: 300; display: grid; gap: 8px; width: min(390px, calc(100vw - 32px)); pointer-events: none; }
+.tg-toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; background: #251e18; color: #f2e8dc; border: 1px solid #65513e; border-radius: 8px; padding: 12px; font-size: 13px; }
+.tg-toast > span { flex: 1; }
+.tg-toast > button { display: grid; place-items: center; min-width: 32px; min-height: 32px; background: transparent; border: 0; color: inherit; }
+.tg-toast-success > svg { color: #8bc59d; }.tg-toast-error > svg { color: #e5a294; }.tg-toast-info > svg, .tg-toast-warning > svg { color: #dcb483; }
+.tg-tooltip { position: relative; display: inline-flex; }
+.tg-tooltip > [role="tooltip"] { display: none; position: absolute; z-index: 210; bottom: calc(100% + 8px); right: 0; width: max-content; max-width: min(270px, 85vw); padding: 8px 10px; border: 1px solid #65513e; background: #251e18; border-radius: 6px; color: #f2e8dc; font-size: 12px; }
+.tg-tooltip:hover > [role="tooltip"], .tg-tooltip:focus-within > [role="tooltip"] { display: block; }
+.lesson-note { min-height: 88px; max-height: 240px; overflow-y: auto; resize: none; width: 100%; background: var(--background); color: var(--foreground); border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px; }
+.lesson-note:focus { outline: 1px solid var(--accent); }
+.lesson-note:disabled { opacity: .65; }
+.lesson-check { color: #99edb0; width: 14px; height: 14px; flex: 0 0 14px; vertical-align: text-bottom; }
+.schedule-lesson strong { display: flex; align-items: center; gap: 3px; }
+@media(max-width:767px) { .tg-select-trigger { min-height: 40px; } .tg-select-option { min-height: 44px; } .schedule-date-selects .tg-select:nth-child(3) { width: 0; flex: 1; } .tg-toaster { top: 8px; right: 12px; width: calc(100vw - 24px); } }
+
+.dialog-content:not(.mobile-sheet) { inset: 0; margin: auto; height: fit-content; transform: none; }

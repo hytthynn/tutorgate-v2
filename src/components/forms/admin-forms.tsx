@@ -1,4 +1,6 @@
 "use client";
+import { toast } from "@/components/ui/toaster";
+import { Select } from "@/components/ui/select";
 import { useActionState, useState } from "react";
 import { useForm } from "react-hook-form";
 import { SlidersHorizontal, Plus, X, ArrowRight, Loader2 } from "lucide-react";
@@ -19,22 +21,19 @@ import type {
   TutorSubject,
   ActionState,
 } from "@/types";
+async function runAdminAction(previous: ActionState, form: FormData): Promise<ActionState> {
+  const state = await adminAction(previous, form);
+  // Dispatch before the deleted subject row unmounts; the global toaster survives.
+  if (state.success) toast.success(state.success);
+  if (state.error && !state.errors) toast.error(state.error);
+  return state;
+}
 function Feedback({ state }: { state: ActionState }) {
   return (
     <>
-      {state.error && (
-        <p className="form-error" role="alert">
-          {state.error}
-        </p>
-      )}
-      {state.success && (
-        <p className="form-success" role="status">
-          {state.success}
-        </p>
-      )}
       {state.errors &&
         Object.entries(state.errors)
-          .filter(([k]) => !["name", "hourly_rate"].includes(k))
+          .filter(([k]) => !["name", "hourly_rate", "subject_id", "tutor_id"].includes(k))
           .map(([k, v]) => (
             <p className="field-error" role="alert" key={k}>
               {v[0]}
@@ -53,7 +52,7 @@ export function TutorSubjectsDialog({
   assigned: string[];
 }) {
   const [state, action, pending] = useActionState(
-    adminAction,
+    runAdminAction,
     {} as ActionState,
   );
   return (
@@ -90,7 +89,7 @@ export function TutorSubjectsDialog({
           </div>
           <p className="field-hint">
             Чтобы снять предмет с назначенными учениками, сначала измените их
-            назначения. Архивные предметы сохраняются в истории.
+            назначения. История занятий сохраняется при удалении предмета.
           </p>
           <Feedback state={state} />
           <Button type="submit" disabled={pending}>
@@ -116,7 +115,7 @@ export function AssignmentDialog({
 }) {
   const [selected, setSelected] = useState("");
   const [state, action, pending] = useActionState(
-    adminAction,
+    runAdminAction,
     {} as ActionState,
   );
   const available = tutors.filter((t) =>
@@ -153,13 +152,13 @@ export function AssignmentDialog({
         <form action={action} className="form-stack">
           <input type="hidden" name="operation" value="assignment" />
           <input type="hidden" name="student_id" value={student.id} />
-          <Field name="subject_id" label="Предмет">
-            <select
+          <Field name="subject_id" label="Предмет" error={state.errors?.subject_id}>
+            <Select searchable
               name="subject_id"
               id="subject_id"
               required
               value={selected}
-              onChange={(e) => setSelected(e.target.value)}
+              onValueChange={(value) => setSelected(value)}
             >
               <option value="" disabled>
                 Выберите предмет
@@ -171,10 +170,10 @@ export function AssignmentDialog({
                     {s.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </Field>
-          <Field name="tutor_id" label="Репетитор">
-            <select
+          <Field name="tutor_id" label="Репетитор" error={state.errors?.tutor_id}>
+            <Select searchable
               name="tutor_id"
               id="tutor_id"
               required
@@ -192,7 +191,7 @@ export function AssignmentDialog({
                   {t.full_name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <p className="field-hint">
             Если предмет уже назначен, репетитор будет заменён.
@@ -209,7 +208,7 @@ export function AssignmentDialog({
 }
 function RemoveAssignment({ id }: { id: string }) {
   const [state, action, pending] = useActionState(
-    adminAction,
+    runAdminAction,
     {} as ActionState,
   );
   return (
@@ -231,7 +230,7 @@ function RemoveAssignment({ id }: { id: string }) {
 }
 export function RateForm({ rate }: { rate: number }) {
   const [state, action, pending] = useActionState(
-    adminAction,
+    runAdminAction,
     {} as ActionState,
   );
   const { register } = useForm({ defaultValues: { hourly_rate: rate } });
@@ -266,7 +265,7 @@ export function RateForm({ rate }: { rate: number }) {
 }
 export function AddSubjectForm() {
   const [state, action, pending] = useActionState(
-    adminAction,
+    runAdminAction,
     {} as ActionState,
   );
   return (
@@ -293,7 +292,7 @@ export function AddSubjectForm() {
 }
 export function RemoveSubject({ subject }: { subject: Subject }) {
   const [state, action, pending] = useActionState(
-    adminAction,
+    runAdminAction,
     {} as ActionState,
   );
   return (
@@ -310,8 +309,7 @@ export function RemoveSubject({ subject }: { subject: Subject }) {
       <DialogContent>
         <DialogTitle>Удалить предмет «{subject.name}»?</DialogTitle>
         <DialogDescription>
-          Предмет исчезнет из новых заявок и назначений. Существующие назначения
-          сохранятся.
+          Предмет будет полностью удалён из текущих назначений и списков. История уже созданных занятий сохранится.
         </DialogDescription>
         <form action={action} className="form-stack">
           <input type="hidden" name="operation" value="subject_remove" />

@@ -1,0 +1,5 @@
+
+> tutorgate@1.0.0 build
+> next build
+
+sh: line 1: next: command not found

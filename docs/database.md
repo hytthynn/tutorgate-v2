@@ -13,7 +13,7 @@ erDiagram
  PROFILES ||--o{ STUDENT_TUTOR_ASSIGNMENTS : student_or_tutor
  TUTOR_SUBJECTS ||--o{ STUDENT_TUTOR_ASSIGNMENTS : eligible
  PROFILES ||--o{ LESSONS : student_or_tutor
- TUTOR_SUBJECTS ||--o{ LESSONS : subject
+ SUBJECTS |o--o{ LESSONS : historical_reference
  LESSONS ||--o| LESSON_PRIVATE_NOTES : private_note
  PROFILES ||--o| USER_SCHEDULE_PREFERENCES : timezone
  APPLICATIONS ||--o{ ONE_TIME_TOKENS : registration
@@ -31,7 +31,7 @@ erDiagram
 | tutor_subjects | composite PK(tutor_id,subject_id), assigned_by, created_at |
 | student_tutor_assignments | uuid, student_id,subject_id,tutor_id,assigned_by,timestamps; unique(student_id,subject_id); FK(tutor_id,subject_id) RESTRICT |
 | app_settings | boolean singleton id=true; numeric(12,2) hourly_rate 0…1000000; updated_by/at |
-| lessons | tutor/student/subject FK, starts_at/ends_at timestamptz, duration_minutes 1…600, color enum key, completed_at; tutor_subject FK RESTRICT; GiST exclusion для tutor и student |
+| lessons | tutor/student FK; subject_id nullable SET NULL + subject_name_snapshot, starts_at/ends_at timestamptz, duration_minutes 1…600, color enum key, completed_at; без составного FK на tutor_subjects; GiST exclusion для tutor и student |
 | lesson_private_notes | lesson_id PK/FK CASCADE, note до 4000 символов, updated_at; пустая заметка хранится как пустая строка |
 | user_schedule_preferences | user_id PK/FK CASCADE, msk_offset_hours −12…12, default 0; updated_at |
 | private.auth_aliases | user_id PK, unique lowercase username, unique auth alias |
@@ -55,15 +55,28 @@ erDiagram
 | assignments | — | own | own | all/write |
 | settings | — | — | read | read/update |
 | lessons | — | свои read | свои read/write | все read; свои write |
-| lesson_private_notes | — | — | свои read/write | все read; свои write |
+| lesson_private_notes | — | — | свои read/write | свои read/write через RPC |
 | user_schedule_preferences | — | свои read/insert/update | свои read/insert/update | свои read/insert/update |
 | applications/private tables | — | — | — | — |
 
-`visible_profiles` — security definer RPC с явной проверкой связей; скрывает Telegram username от peers. Прямое чтение profiles ограничено column grants. `set_tutor_subjects` доступна authenticated, но внутри обязательно `is_admin`; операция транзакционная. `save_schedule_lesson` — authenticated SECURITY INVOKER, проверяет роль и сохраняет lesson+note под RLS атомарно. `schedule_lesson_names` — узкий SECURITY DEFINER для безопасных имён участников доступных занятий, в том числе после смены назначений; не расширяет права на profiles/Telegram. Служебные RPC регистрации, токенов, сессий и Telegram исполняет только service_role.
+`visible_profiles` остаётся узким интерфейсом безопасных имён. Приватные функции авторизации и Telegram не изменены. Обычное снятие tutor_subjects при student assignments по-прежнему запрещено FK RESTRICT; полное удаление subject — отдельная атомарная admin RPC.
 
-`validate_lesson` запрещает подмену tutor_id, проверяет роль ученика и назначение пары, активность предмета при создании/смене. FK гарантирует доступность предмета репетитору. Триггер всегда пересчитывает ends_at. Неактивный исторический предмет сохраняется; для изменения занятия ученик должен оставаться назначен этому репетитору. Индексы `(tutor_id,starts_at,ends_at)`, `(student_id,starts_at,ends_at)` и partial completed index поддерживают выборки. `btree_gist` и полуоткрытые диапазоны `[)` разрешают back-to-back и запрещают конкурентные пересечения. `delete_schedule_lessons` — authenticated SECURITY INVOKER: удаление собственных UUID одним SQL statement; массив передаётся POST body, чтобы массовое выделение не упиралось в длину URL.
+В 006 добавлены индексы (tutor_id,updated_at,id), (student_id,updated_at,id) и таблица schedule_week_rollovers с PK(tutor_id,target_week_start), copied_count, skipped_count, results, completed_at. Журнал доступен только владельцу. Time indexes и оба GiST exclusions сохранены.
 
-Триггеры запрещают невалидные роли и неактивные предметы в новых назначениях. Снятие tutor_subject при наличии assignments блокирует FK. Deactivate subject сохраняет исторические связи.
+
+## Актуальные правила schedule upgrade 006
+- Предмет удаляется физически через admin RPC delete_subject_hard: assignments → tutor_subjects → application_subjects → subjects, атомарно. Lessons остаются с nullable subject_id ON DELETE SET NULL и subject_name_snapshot. Пока предмет существует, отображается текущее имя; после удаления — исторический snapshot. Статистика и заметки сохраняются.
+- Вся история календаря загружается при открытии пакетами по 500; имена также батчами. Неделя/день — локальное состояние + History API. Навигация и CRUD не вызывают router.refresh или revalidatePath. Force-dynamic статистика читает актуальные данные при заходе.
+- Save/patch возвращают нормализованный lesson без note, delete — фактически удалённые IDs. Заметки загружаются отдельно только владельцу. Общие сообщения — единый Toaster, ошибки полей остаются inline.
+- Один private SQL magnet resolver: ближайший полный свободный интервал tutor+student, шаг 5 мин, при равенстве расстояний — позже. Start остаётся в выбранном дне (последний старт 23:55), окончание может выйти за полночь. Exclusion constraints сохранены; ограниченные retry защищают от гонок.
+- Ручное создание — только текущая локальная неделя (UTC+3+сохранённый offset). Диалог редактирования ограничен семью днями недели карточки; drag может идти в прошлое, но не в будущую неделю. Все ограничения повторяются на сервере.
+- Owner-checked SECURITY DEFINER RPC сохраняют lesson+note атомарно. Прямые INSERT/UPDATE/DELETE lessons/notes для authenticated отозваны. Роль admin не даёт права писать в чужой календарь. Private helpers не доступны anon/authenticated, private schema не экспонируется.
+- Cron каждые 5 минут копирует валидные занятия предыдущей локальной недели. Новые IDs, completed_at=NULL, прежние цвет/длительность/заметка. История не перемещается. Idempotency: (tutor_id,target_week_start). Удалённые предметы и снятые назначения не копируются; конфликт использует magnet или записывается как безопасный skip.
+- Все schedule writers, hard-delete и rollover сериализованы одним transaction advisory lock. Это консервативная стратегия для конфликтов общего student; при высокой нагрузке нужно измерять latency и длительность Cron.
+- Видимый календарь раз в минуту читает только обновлённые строки по updated_at cursor с 10-минутным перекрытием. Это независимый от навигации инкремент для автокопий репетиторов с разными offset, а не повторный all-history preload. In-flight polling не перезаписывает мутации: lock + revision guard. Полная межвкладочная realtime-синхронизация удалений не входит в релиз.
+- UI: Select/Combobox с portal и поиском, Tooltip, Toaster; native selects убраны. Numeric spinners скрыты, min/max/step сохранены. Заметка 88–240px с auto-grow и внутренней прокруткой. Completed — зелёный Lucide CircleCheck. Undo/Redo только disabled icons.
+
+Фактическая проверка этой ревизии: docs/verification.md (для файлов в docs — verification.md). Старые результаты CI не подтверждают новую ревизию.
 
 ## История
 
@@ -71,6 +84,7 @@ erDiagram
 - 002: шесть начальных активных предметов; администратор меняет каталог.
 - 003: привязка vault session к user и отзыв после password reset.
 - 004: освобождение Telegram reservation просроченной незавершённой заявки при новой заявке.
+- 006: hard-delete/snapshots, atomic magnet RPC, rollover и Cron.
 - 005: расписание, GiST overlap constraints, notes/preferences RLS, authenticated schedule RPC и tutor чтение ставки.
 
 Просроченные vault sessions и rate buckets удаляются при соответствующих операциях. История заявок/токенов остаётся; политика длительного хранения персональных данных определяется владельцем перед эксплуатацией.

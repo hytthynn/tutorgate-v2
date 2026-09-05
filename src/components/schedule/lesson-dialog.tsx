@@ -1,16 +1,23 @@
 "use client";
+import { Combobox } from "@/components/ui/combobox";
+import { Select } from "@/components/ui/select";
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createLessonAction, getLessonNoteAction, updateLessonAction } from "@/features/schedule/actions";
-import { localParts } from "@/features/schedule/time";
+import { toast } from "@/components/ui/toaster";
+import { dayOptions, localParts } from "@/features/schedule/time";
 import { lessonSchema } from "@/features/schedule/validation";
 import type { ScheduleData, ScheduleLesson, ScheduleResult } from "@/features/schedule/types";
 
-export function LessonDialog({ lesson, data, date, onClose, onSaved }: {
+export function LessonDialog({ lesson, data, date, onClose, onSaved, onPending }: {
   lesson: ScheduleLesson | null; data: ScheduleData; date: string;
-  onClose: () => void; onSaved: (id: string, date: string) => void;
+  onPending?: (pending: boolean) => void;
+  onClose: () => void; onSaved: (lesson: ScheduleLesson) => void;
 }) {
+  const [studentId, setStudentId] = useState(lesson?.studentId ?? "");
+  const [subjectChanged, setSubjectChanged] = useState(false);
+  const noteElement = useRef<HTMLTextAreaElement>(null);
   const readonly = data.role === "student";
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(Boolean(lesson && !readonly));
@@ -23,30 +30,37 @@ export function LessonDialog({ lesson, data, date, onClose, onSaved }: {
     let cancelled = false;
     getLessonNoteAction(lesson.id).then((response) => {
       if (cancelled) return;
-      setResult(response); setNote(response.note ?? ""); setNoteFailed(Boolean(response.error)); setLoading(false);
+      if (response.error) toast.error("Не удалось загрузить заметку. Откройте занятие ещё раз."); setNote(response.note ?? ""); setNoteFailed(Boolean(response.error)); setLoading(false);
     }).catch(() => {
-      if (!cancelled) { setResult({ error: "Не удалось загрузить заметку. Откройте занятие ещё раз." }); setNoteFailed(true); setLoading(false); }
+      if (!cancelled) { toast.error("Не удалось загрузить заметку. Откройте занятие ещё раз."); setNoteFailed(true); setLoading(false); }
     });
     return () => { cancelled = true; };
   }, [lesson, readonly]);
+  useEffect(() => {
+    const element = noteElement.current;
+    if (element) { element.style.height = "88px"; element.style.height = `${Math.min(240, Math.max(88, element.scrollHeight))}px`; }
+  }, [note]);
   const start = lesson ? localParts(lesson.startsAt, data.offset) : { date, time: "12:00" };
   const end = lesson ? localParts(lesson.endsAt, data.offset) : null;
   async function submit(form: FormData) {
     if (locked.current || loading || noteFailed) return;
-    const input = { studentId: form.get("studentId"), subjectId: form.get("subjectId"), date: form.get("date"), time: form.get("time"), durationMinutes: Number(form.get("durationMinutes")), note };
+    const input = { studentId: form.get("studentId"), subjectId: form.get("subjectId") === "__historical__" ? null : form.get("subjectId"), subjectChanged: !lesson || subjectChanged, date: form.get("date"), time: form.get("time"), durationMinutes: Number(form.get("durationMinutes")), note };
     const parsed = lessonSchema.safeParse(input);
     if (!parsed.success) {
       const errors: Record<string, string[]> = {};
       for (const issue of parsed.error.issues) (errors[String(issue.path[0])] ??= []).push(issue.message);
       setResult({ errors }); return;
     }
-    locked.current = true; setPending(true); setResult({});
+    locked.current = true; onPending?.(true); setPending(true); setResult({});
     try {
       const response = await (lesson ? updateLessonAction(lesson.id, parsed.data) : createLessonAction(parsed.data));
-      if (response.id && !response.error) onSaved(response.id, parsed.data.date);
-      else setResult(response);
-    } catch { setResult({ error: "Не удалось сохранить занятие. Попробуйте ещё раз." }); }
-    finally { locked.current = false; setPending(false); }
+      if (response.lesson && !response.error) {
+        if (response.shifted && response.requestedStart) toast.info(`${localParts(response.requestedStart, data.offset).time} занято — занятие поставлено на ${localParts(response.lesson.startsAt, data.offset).time}.`);
+        else toast.success(lesson ? "Занятие обновлено." : "Занятие добавлено.");
+        onSaved(response.lesson);
+      } else { setResult(response); if (response.error && !response.errors) toast.error(response.error); }
+    } catch { toast.error("Не удалось сохранить занятие. Попробуйте ещё раз."); }
+    finally { locked.current = false; onPending?.(false); setPending(false); }
   }
   const error = (name: string) => result.errors?.[name] && <span className="form-error" role="alert">{result.errors[name].join(" ")}</span>;
   return <Dialog open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
@@ -62,24 +76,23 @@ export function LessonDialog({ lesson, data, date, onClose, onSaved }: {
         <dt>Длительность</dt><dd>{lesson.durationMinutes} мин</dd>
         <dt>Состояние</dt><dd>{lesson.completed ? "Проведено" : "Запланировано"}</dd>
       </dl> : <form action={submit} className="lesson-form">
-        <label>Ученик<select aria-label="Ученик" name="studentId" defaultValue={lesson?.studentId ?? ""} required disabled={pending}>
+        <label>Ученик<Combobox aria-label="Ученик" name="studentId" value={studentId} onValueChange={setStudentId} required disabled={pending}>
           <option value="" disabled>Выберите ученика</option>
           {lesson && !data.students.some((s) => s.id === lesson.studentId) && <option value={lesson.studentId}>{lesson.studentName} — назначение снято</option>}
           {data.students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>{error("studentId")}</label>
+        </Combobox>{error("studentId")}</label>
         <div className="lesson-time-fields">
-          <label>День<input name="date" type="date" defaultValue={start.date} required disabled={pending} />{error("date")}</label>
+          <label>День<Select aria-label="День" name="date" defaultValue={start.date} required disabled={pending}>{dayOptions(start.date).map(day => <option key={day.value} value={day.value}>{day.label}</option>)}</Select>{error("date")}</label>
           <label>Начало<input name="time" type="time" step="60" defaultValue={start.time} required disabled={pending} />{error("time")}</label>
         </div>
         <label>Длительность, мин<input name="durationMinutes" type="number" min="1" max="600" step="1" defaultValue={lesson?.durationMinutes ?? 60} required disabled={pending} />{error("durationMinutes")}</label>
-        <label>Предмет<select aria-label="Предмет" name="subjectId" defaultValue={lesson?.subjectId ?? ""} required disabled={pending}>
+        <label>Предмет<Select searchable aria-label="Предмет" name="subjectId" defaultValue={lesson ? lesson.subjectId ?? "__historical__" : ""} onValueChange={() => setSubjectChanged(true)} required disabled={pending}>
           <option value="" disabled>Выберите предмет</option>
-          {lesson && !data.subjects.some((s) => s.id === lesson.subjectId) && <option value={lesson.subjectId}>{lesson.subjectName} — архив</option>}
-          {data.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>{error("subjectId")}</label>
-        <label>Заметка<textarea name="note" maxLength={4000} value={note} disabled={pending || loading || noteFailed} onChange={(e) => setNote(e.target.value)} rows={3} />{error("note")}</label>
+          {lesson && !data.subjects.some((s) => s.id === lesson.subjectId && (!data.assignments || data.assignments.some(a => a.studentId === studentId && a.subjectId === s.id))) && <option value={lesson.subjectId ?? "__historical__"} disabled={subjectChanged}>{lesson.subjectName} — исторический предмет</option>}
+          {data.subjects.filter(s => !data.assignments || data.assignments.some(a => a.studentId === studentId && a.subjectId === s.id)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </Select>{error("subjectId")}</label>
+        <label>Заметка<textarea aria-label="Заметка" ref={noteElement} className="lesson-note" name="note" maxLength={4000} value={note} disabled={pending || loading || noteFailed} onChange={(event) => setNote(event.target.value)} rows={3} />{error("note")}</label>
         {loading && <p role="status">Загрузка заметки…</p>}
-        {result.error && <p className="form-error" role="alert">{result.error}</p>}
         {!data.students.length && !lesson && <p className="form-error">Сначала администратор должен назначить вам ученика.</p>}
         {!data.subjects.length && !lesson && <p className="form-error">Нет доступных предметов. Обратитесь к администратору.</p>}
         <div className="lesson-form-actions"><Button type="button" variant="secondary" disabled={pending} onClick={onClose}>Отмена</Button>

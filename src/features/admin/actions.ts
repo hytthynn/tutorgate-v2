@@ -29,10 +29,7 @@ export async function adminAction(
       }
       case "subject_remove": {
         const v = idSchema.parse(values);
-        result = await db
-          .from("subjects")
-          .update({ is_active: false })
-          .eq("id", v.id);
+        result = await db.rpc("delete_subject_hard", { p_id: v.id });
         break;
       }
       case "rate": {
@@ -79,7 +76,7 @@ export async function adminAction(
       if (result.error.code === "23505")
         return {
           errors: {
-            name: ["Такой предмет уже существует, в том числе среди архивных."],
+            name: ["Такой предмет уже существует."],
           },
         };
       if (result.error.code === "23503")
@@ -98,7 +95,7 @@ export async function adminAction(
     revalidatePath("/apply");
     return {
       success:
-        operation === "assignment_remove"
+        operation === "subject_remove" ? "Предмет удалён. История занятий сохранена." : operation === "assignment_remove"
           ? "Назначение снято."
           : "Изменения сохранены.",
     };

@@ -14,7 +14,9 @@
     "test": "tsx --test tests/*.test.ts",
     "telegram:webhook": "node --env-file=.env.local scripts/set-webhook.mjs",
     "admin:promote": "node --env-file=.env.local scripts/promote-admin.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit": "tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts",
+    "test:db": "tsx --test tests/database.test.ts tests/schedule-database.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

@@ -1,4 +1,8 @@
 "use client";
+import { Select } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Keyboard, Undo2, Redo2, Plus } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { startOfWeek } from "@/features/schedule/time";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { addDays, formatDay, weeksInMonth } from "@/features/schedule/time";
@@ -28,23 +32,23 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, editable, bus
   }
   return <div className="schedule-toolbar">
     <div className="schedule-date-selects">
-      <select aria-label="Год" value={year} disabled={busy} onChange={(e) => changeMonth(Number(e.target.value), month)}>
-        {Array.from({ length: 21 }, (_, i) => year - 10 + i).filter((y) => y >= 100 && y <= 9998).map((y) => <option key={y}>{y}</option>)}
-      </select>
-      <select aria-label="Месяц" value={month} disabled={busy} onChange={(e) => changeMonth(year, Number(e.target.value))}>{months.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
-      <select aria-label="Неделя" value={week} disabled={busy} onChange={(e) => onNavigate(e.target.value)}>{weeks.map((w) => <option key={w} value={w}>{formatDay(w)} — {formatDay(addDays(w, 6))}</option>)}</select>
+      <Select aria-label="Год" value={year} disabled={busy} onValueChange={(value) => changeMonth(Number(value), month)}>
+        {Array.from({ length: 5 }, (_, i) => Number(today.slice(0, 4)) - 2 + i).filter((y) => y >= 100 && y <= 9998).map((y) => <option key={y}>{y}</option>)}
+      </Select>
+      <Select aria-label="Месяц" value={month} disabled={busy} onValueChange={(value) => changeMonth(year, Number(value))}>{months.map((m, i) => <option key={m} value={i}>{m}</option>)}</Select>
+      <Select aria-label="Неделя" value={week} disabled={busy} onValueChange={(value) => onNavigate(value)}>{weeks.map((w) => <option key={w} value={w}>{formatDay(w)} — {formatDay(addDays(w, 6))}</option>)}</Select>
     </div>
     <div className="schedule-controls-group">
-      <Button variant="secondary" size="sm" aria-label="Предыдущая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, -7))}>←</Button>
-      <Button variant="secondary" size="sm" aria-label="Следующая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, 7))}>→</Button>
+      <Select aria-label="Сдвиг МСК" value={offset} disabled={busy} onValueChange={(v) => onOffset(Number(v))}>{Array.from({ length: 25 }, (_, i) => i - 12).map(n => <option key={n} value={n}>МСК{n > 0 ? `+${n}` : n < 0 ? `−${-n}` : ""}</option>)}</Select>
+      <Button variant="secondary" size="sm" aria-label="Предыдущая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, -7))}><ChevronLeft size={16} /></Button>
       <Button variant="secondary" size="sm" disabled={busy} onClick={onToday}>Текущая</Button>
-      <select aria-label="Сдвиг МСК" value={offset} disabled={busy} onChange={(e) => onOffset(Number(e.target.value))}>{Array.from({ length: 25 }, (_, i) => i - 12).map((n) => <option key={n} value={n}>МСК{n > 0 ? `+${n}` : n < 0 ? `−${-n}` : ""}</option>)}</select>
+      <Button variant="secondary" size="sm" aria-label="Следующая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, 7))}><ChevronRight size={16} /></Button>
     </div>
     {editable && <div className="schedule-controls-group schedule-edit-controls">
-      <Button variant="ghost" size="sm" onClick={onBindings}>Бинды</Button>
-      <Button variant="ghost" size="sm" disabled title="Скоро">Отменить</Button>
-      <Button variant="ghost" size="sm" disabled title="Скоро">Вернуть</Button>
-      <Button size="sm" disabled={busy} onClick={onAdd}>Добавить занятие</Button>
+      <Tooltip text="Бинды"><Button variant="ghost" size="sm" aria-label="Бинды" onClick={onBindings}><Keyboard size={16} /></Button></Tooltip>
+      <Tooltip text="Отменить — скоро"><Button variant="ghost" size="sm" disabled aria-label="Отменить — скоро"><Undo2 size={16} /></Button></Tooltip>
+      <Tooltip text="Вернуть — скоро"><Button variant="ghost" size="sm" disabled aria-label="Вернуть — скоро"><Redo2 size={16} /></Button></Tooltip>
+      <Tooltip text={week > startOfWeek(today) ? "Занятия будущей недели появятся автоматически в начале недели." : week < startOfWeek(today) ? "Добавлять занятия можно только в текущей неделе." : "Добавить занятие"}><Button size="sm" disabled={busy || week !== startOfWeek(today)} onClick={onAdd}><Plus size={16} />Добавить занятие</Button></Tooltip>
     </div>}
   </div>;
 }

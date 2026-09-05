@@ -1,5 +1,6 @@
 "use client";
-import { useState, useTransition } from "react";
+import { Select } from "@/components/ui/select";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Area,
@@ -17,6 +18,7 @@ import {
   ChartNoAxesCombined,
   SlidersHorizontal,
 } from "lucide-react";
+import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import type {
   StatisticsResult,
@@ -39,6 +41,7 @@ export function StatisticsView({
   tutors?: Profile[];
   error?: string;
 }) {
+  useEffect(() => { if (error) toast.error(error); }, [error]);
   const router = useRouter();
   const path = usePathname();
   const [pending, startTransition] = useTransition();
@@ -81,7 +84,7 @@ export function StatisticsView({
           </label>
         </div>
         {tutors && (
-          <select
+          <Select searchable
             name="tutor"
             aria-label="Репетитор для статистики"
             defaultValue={data.query.tutorId ?? ""}
@@ -92,9 +95,9 @@ export function StatisticsView({
                 {t.full_name}
               </option>
             ))}
-          </select>
+          </Select>
         )}
-        <select
+        <Select
           name="metric"
           aria-label="Показатель"
           defaultValue={data.query.metric}
@@ -104,7 +107,7 @@ export function StatisticsView({
               {m.label}
             </option>
           ))}
-        </select>
+        </Select>
         <Button variant="secondary" type="submit" disabled={pending}>
           {pending ? "Загрузка…" : "Применить"}
         </Button>
@@ -132,11 +135,6 @@ export function StatisticsView({
           </div>
         )}
       </form>
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
-        </p>
-      )}
       <div className="kpi-grid">
         {metrics.map(({ key, label, unit, icon: Icon }) => (
           <section
