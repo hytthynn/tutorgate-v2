@@ -41,10 +41,15 @@ Soft delete атомарно стирает private alias, reset tokens, Telegra
 
 ## Массовая синхронизация Telegram
 
-В admin/settings третья карточка Telegram запускает syncTelegramAction с requireRole(admin). Профили читаются server-only порциями по 100 с UUID cursor; обрабатываются все non-deleted с chat ID, включая blocked. getChat вызывается по постоянному chat_id, максимум пять параллельных запросов, timeout 8 секунд. Новый username записывается lowercase, отсутствие — NULL; неизменённое значение не записывается. Ошибка отдельного API/DB запроса увеличивает счётчик и не отменяет остальные обновления.
+В admin/settings карточка Telegram под ставкой запускает syncTelegramAction с requireRole(admin). Профили читаются server-only порциями по 100 с UUID cursor; обрабатываются все non-deleted с chat ID, включая blocked. getChat вызывается по постоянному chat_id, максимум пять параллельных запросов, timeout 8 секунд. Новый username записывается lowercase, отсутствие — NULL; неизменённое значение не записывается. Ошибка отдельного API/DB запроса увеличивает счётчик и не отменяет остальные обновления.
 
 Обновление проверяет исходные username/chat ID и non-deleted status, чтобы конкурентное удаление не вернуло персональные данные. В браузер попадают только агрегированные checked/updated/removed/unchanged/errors. Bot token, raw Telegram payload и chat ID не возвращаются. Нет username — нет t.me-ссылки. Восстановление пароля по Telegram username возможно только если актуальный username существует и account active.
 
 ## Изменения 011
 
-Webhook принимает message/callback_query. Deep-link /start token имеет приоритет. Связанный active profile определяется постоянной парой user/chat ID, не username. Registration/resend/reset URL только inline. Dynamic HTML экранируется. Reply имеет приоритет над recipient state, cancel тихий. Tutor получает только «Открыть чат» и не отвечает через бота. [Ограничения доставки](release-011.md).
+Webhook принимает message/callback_query. Deep-link /start token имеет приоритет. Связанный active profile определяется постоянной парой user/chat ID, не username. Registration/resend/reset URL только inline. Dynamic HTML экранируется. Reply имеет приоритет над recipient state, cancel очищает recipient и отвечает «✅ Действие отменено.» с student-меню. Tutor получает только «Открыть чат» и не отвечает через бота. [Ограничения доставки](release-011.md).
+
+
+## Чаты 012
+
+Ученик выбирает active tutor/admin только по текущему назначению. Сообщение преподавателя имеет callback «↩️ Ответить» с chat:to:UUID; при двух частях кнопка и reply mapping относятся к последней части. Callback перепроверяет назначения; недоступный recipient очищается; другой действующий recipient сохраняется. Native Reply сохраняет приоритет над state. Повторная отмена успешна, stale cancel показывает безопасное start-меню. Admin получает notification на /admin/chats?student=UUID и отвечает на сайте. Чужие диалоги администратору недоступны.

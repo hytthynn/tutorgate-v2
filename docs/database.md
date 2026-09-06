@@ -55,8 +55,8 @@ erDiagram
 | tutor_subjects | — | assigned pairs | own | all/write |
 | assignments | — | own | own | all/write |
 | settings | — | — | read | read/update |
-| lessons | — | свои read | свои read/write | все read; свои write |
-| lesson_private_notes | — | — | свои read/write | свои read/write через RPC |
+| lessons | — | свои read | свои read; write через RPC | все read; write через проверенный owner RPC |
+| lesson_private_notes | — | — | свои read; write через RPC | свои и delegated read/write через owner RPC |
 | user_schedule_preferences | — | свои read/insert/update | свои read/insert/update | свои read/insert/update |
 | applications/private tables | — | — | — | — |
 
@@ -88,7 +88,7 @@ lessons_tutor_normal_overlap, lessons_student_normal_overlap, lessons_tutor_cora
 
 public.schedule_command(jsonb) — authenticated RPC с обязательным auth.uid()/role/ownership, подписанными before/after, canonical lessons/rules/offset. Student допускается только к личному offset/его restore. Старые single RPC сохраняют owner-checks, новый resolver и запрет изменения inactive. restore не принимает произвольные записи: подпись закрытым ключом, одинаковая область expected/target, compare-and-swap затронутых данных, защищённый контекст для восстановления исторических assignments, затем FK и exclusion checks.
 
-private.schedule_signing_key содержит один случайный ключ, а не историю операций. private.sign_schedule, scope_schedule, schedule_snapshot и signed_schedule_snapshot не доступны API-ролям. Снимки с note возвращаются только владельцу в ответе мутации; student DTO и polling не содержат note. Серверная история в таблицах не хранится.
+private.schedule_signing_key содержит один случайный ключ, а не историю операций. private.sign_schedule, scope_schedule, schedule_snapshot и signed_schedule_snapshot не доступны API-ролям. Снимки с note возвращаются владельцу и авторизованному delegated admin в ответе мутации; student DTO и polling не содержат note. Серверная история в таблицах не хранится.
 
 ## Повторное применение после deadlock
 
@@ -127,3 +127,12 @@ Service-only `bind_session` берёт profile FOR SHARE, проверяет act
 ## Миграция 011
 
 chat_conversations: unique student+tutor, tutor_last_read_at. chat_messages: UUID, sender_role, body до 4000, pending/sent/failed, строго возрастающий внутри conversation created_at. RLS SELECT требует активного участника и назначения. Прямые writes запрещены; authenticated RPC: chat_snapshot/chat_unread/chat_mark_read/chat_send. private.telegram_chat_state, telegram_chat_updates и telegram_message_links закрыты от anon/authenticated; bot RPC только service_role. FOR SHARE участников/назначений и FOR UPDATE conversation сериализуют writes. Dedupe ledger и incoming message атомарны. Reply mapping привязан к Telegram chat ID и student.
+
+
+## Миграция 012
+
+Атомарная миграция сохраняет advisory lock 842106001. private.schedule_require_owner(uuid) проверяет active actor и active teacher owner под FOR SHARE. Admin может выбрать другого tutor/admin; tutor только себя. public.schedule_command(uuid,jsonb) вызывает private.schedule_command_for_owner, который использует явного owner во всех операциях и private.save_schedule_lesson_for_owner. Одноаргументный schedule_command сохранён для self и student offset. Старые self save/patch/delete остаются закрыты owner-checks.
+
+public.schedule_owner_context(uuid) возвращает безопасное имя, offset и availability и запускает rollover именно owner; public.schedule_lesson_note(uuid,uuid) проверяет владельца занятия. Delegated offset/offsetChanged restore запрещены. Права на private helpers отозваны у API-ролей, новые public RPC доступны только authenticated; anon ничего не получает. Прямые writes таблиц не расширены.
+
+chat_pair_active и chat_require_tutor принимают active tutor/admin. Сторона admin сообщения сохраняется sender_role=tutor. RLS остаётся participant-based без admin bypass. Service-only chat_bot_clear_unavailable_recipient очищает только неактивную пару, не затрагивая другого доступного получателя. Service-only chat_notification_target теперь возвращает JSON {chatId,role}, позволяющий выбрать /admin/chats или /tutor/chats.

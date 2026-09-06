@@ -246,9 +246,6 @@ export function ChatView({
             <>
               <header className="chat-heading">
                 <h2>{current.studentName}</h2>
-                <p>
-                  Вы пишете на сайте, ученик отвечает в Telegram. Время — МСК.
-                </p>
               </header>
               {snapshot.hasMore && loadedFor === selected && (
                 <p className="chat-history-limit">

@@ -15,7 +15,7 @@ Server Components по умолчанию; клиентские — формы, 
 - Session/JWT не передавать в браузер: private.sessions + opaque HttpOnly tg_session.
 - service key только server-only; private schema не экспонировать, private RPC закрыты.
 - Регистрация атомарна; роль только из подтверждённой заявки. Одноразовые токены хешируются.
-- Заметки только владельцу; Telegram peers не раскрывается. Admin не пишет чужой календарь.
+- Заметки доступны владельцу и admin в delegated schedule; Telegram peers не раскрывается. Admin может редактировать расписание другого активного teacher только через target-aware delegated RPC с повторной DB-проверкой actor/owner. Прямые записи в schedule tables и подмена identity запрещены.
 
 ## Расписание
 
@@ -34,7 +34,7 @@ Server Components по умолчанию; клиентские — формы, 
 
 Warm mocha — tokens в globals.css; без gradients/glow/тяжёлых теней. Focus-visible, подписи иконок, responsive без horizontal overflow. Предметы без поиска; ученики/репетиторы searchable. Loading через общий Button; asChild только навигация. Ошибки полей inline, общие сообщения Toaster. Автофильтры используют replace, единый актуальный draft и debounce ФИО 300 мс.
 
-Добавлять регрессии. Не объявлять команду пройденной, если она не выполнялась. Текущее [ТЗ](docs/TZ_TutorGate_011_chat_bot_and_compact_ui.md), [проверки](docs/verification.md). История — только docs/archive.
+Добавлять регрессии. Не объявлять команду пройденной, если она не выполнялась. Текущее [ТЗ](docs/TZ_TutorGate_012_chat_admin_schedule_ui_fixes.md), [проверки](docs/verification.md). История — только docs/archive.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

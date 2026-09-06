@@ -145,13 +145,14 @@ export function chatStatusMessage(
           : [];
   return html(catalogue[codes[status] ?? 25], rows);
 }
-export function tutorMessage(name: string, body: string): TelegramMessage[] {
+export function tutorMessage(tutorId: string, name: string, body: string): TelegramMessage[] {
+  const rows: InlineButton[][] = [[{ text: "↩️ Ответить", callback_data: `chat:to:${tutorId}` }]];
   const header = `💬 <b>Сообщение от репетитора</b>\n\n<b>${escapeHtml(name)}</b>\n\n`;
   if (`💬 Сообщение от репетитора\n\n${name}\n\n${body}`.length <= 4096)
-    return [html(header + escapeHtml(body))];
+    return [html(header + escapeHtml(body), rows)];
   return [
     html(header + "Ответьте через Reply на следующее сообщение с текстом."),
-    { text: body, options: {} },
+    { text: body, options: { reply_markup: { inline_keyboard: rows } } },
   ];
 }
 export function studentNotification(name: string, body: string, url: string) {

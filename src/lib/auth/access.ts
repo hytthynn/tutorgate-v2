@@ -19,9 +19,9 @@ export const currentProfile = cache(async (): Promise<Profile | null> => {
   if (error) return null;
   return data as Profile;
 });
-export async function requireRole(role?: Role) {
+export async function requireRole(role?: Role | Role[]) {
   const profile = await currentProfile();
   if (!profile) redirect("/login");
-  if (role && profile.role !== role) redirect(`/${profile.role}/schedule`);
+  if (role && !(Array.isArray(role) ? role.includes(profile.role) : profile.role === role)) redirect(`/${profile.role}/schedule`);
   return profile;
 }

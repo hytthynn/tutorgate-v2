@@ -1,4 +1,5 @@
 import {
+  html, siteButton, writeButton,
   chatStatusMessage,
   pickerMessage,
   recipientMessage,
@@ -34,8 +35,9 @@ export type BotPorts = {
   profile: (user: string, chat: string) => Promise<BotProfile | null>;
   tutors: (student: string) => Promise<BotTutor[]>;
   recipient: (student: string, tutor: string | null) => Promise<unknown>;
+  clearUnavailableRecipient: (student: string) => Promise<unknown>;
   receive: (input: BotInput) => Promise<ReceiveResult>;
-  notificationTarget: (message: string) => Promise<string | null>;
+  notificationTarget: (message: string) => Promise<{ chatId: string; role: "tutor" | "admin" } | null>;
   send: (chat: string, message: TelegramMessage) => Promise<unknown>;
   answer: (callback: string) => Promise<unknown>;
   url: (path: string) => string;
@@ -55,7 +57,10 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
   }
   const profile = await ports.profile(input.userId, input.chatId);
   if (input.callbackData === "chat:cancel") {
-    if (profile?.role === "student") await ports.recipient(profile.id, null);
+    if (profile?.role === "student") {
+      await ports.recipient(profile.id, null);
+      await send(html("✅ Действие отменено.", [[siteButton(home)], [writeButton]]));
+    } else await send(startMessage(profile?.role, home));
     return;
   }
   if (!profile || /^\/start(?:@\w+)?\s*$/.test(input.text ?? "")) {
@@ -66,19 +71,15 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     await send(
       chatStatusMessage(
         profile.role,
-        profile.role === "tutor" ? ports.url("/tutor/chats") : home,
+        ports.url(`/${profile.role}/chats`),
       ),
     );
     return;
   }
-  const unavailable = async () =>
-    send(
-      chatStatusMessage(
-        "unavailable",
-        home,
-        (await ports.tutors(profile.id)).length > 0,
-      ),
-    );
+  const unavailable = async () => {
+    await ports.clearUnavailableRecipient(profile.id);
+    return send(chatStatusMessage("unavailable", home, (await ports.tutors(profile.id)).length > 0));
+  };
   if (input.callbackData) {
     const tutors = await ports.tutors(profile.id);
     if (
@@ -153,11 +154,11 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     const target = await ports.notificationTarget(result.messageId!);
     if (target)
       await ports.send(
-        target,
+        target.chatId,
         studentNotification(
           result.studentName!,
           result.text!,
-          ports.url(`/tutor/chats?student=${result.studentId}`),
+          ports.url(`/${target.role}/chats?student=${result.studentId}`),
         ),
       );
   } catch {

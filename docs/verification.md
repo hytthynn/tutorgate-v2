@@ -1,27 +1,37 @@
-# Проверки пакета 011
+# Проверки пакета 012
 
-Дата: 06.09.2026. [ТЗ](TZ_TutorGate_011_chat_bot_and_compact_ui.md), [установка и smoke test](release-011.md).
+Дата: 06.09.2026. [Текущее ТЗ](TZ_TutorGate_012_chat_admin_schedule_ui_fixes.md).
 
-Код включён в архив. Полная production-сборка НЕ подтверждена. Точные зависимости проекта отсутствуют, npm registry недоступен. Старые успешные логи 009/010 не являются проверкой 011.
+Проверки выполняются с установленными закреплёнными зависимостями проекта. Версии и lockfile не менялись. Полная цепочка миграций 001–012 проверяется в PGlite; браузерные тесты запускают настоящий Next с локальными Supabase/Telegram fixtures. Production Supabase и Telegram не использовались, миграция на рабочую БД не применялась.
 
-## Фактические результаты
+## Результаты
 
-**Пройдено: 54/54 быстрых теста, проверка Markdown-ссылок и синтаксическая трансформация 140 файлов.**
+Все обязательные команды выполнены успешно:
 
-Логи текущего повторного прогона: `docs/verification-011-logs`. Быстрые тесты запускаются на предустановленном tsx/Zod, а не полном locked dependency tree. Итоговые количества — unit.log; проверка Markdown-ссылок — test-docs.log. Syntax transform проверяет разбор кода, но не заменяет semantic typecheck.
+| Команда | Результат |
+|---|---|
+| `npm run lint` | Без ошибок и предупреждений |
+| `npm run typecheck` | Пройдено |
+| `npm test` | 121/121, без пропусков |
+| `npm run test:docs` | Markdown-ссылки корректны |
+| `npm run build` | Production-сборка успешна |
+| `npm run test:e2e` | 73/73, полный повторный прогон за 5,8 минуты |
 
-npm ci --offline --ignore-scripts: ENOTCACHED; сетевой npm в первом прогоне: DNS ENOTFOUND. Отсутствуют Next, ESLint, @playwright/test, PGlite и React types. Поэтому lint/build/typecheck/полный npm test/E2E не считаются пройденными. Добавленные DB/E2E тесты необходимо выполнить в CI после npm ci. Production Supabase/Telegram не использовались.
+В первом полном E2E-прогоне новый сценарий упёрся в пятисекундное ожидание входа во время параллельной пересборки. Ожидание входа увеличено до 15 секунд; повторный полный прогон без параллельной нагрузки прошёл целиком.
 
-## Покрытие
+Логи: `artifacts/package-012-lint.log`, `artifacts/package-012-typecheck.log`, `artifacts/package-012-tests.log`, `artifacts/package-012-docs.log`, `artifacts/package-012-build.log`, `artifacts/package-012-e2e.log`.
 
-- Каталог /start, секретные URL только в keyboard, HTML escaping, long-message split.
-- Sentinel нового draft, пустые select и существующий исторический предмет.
-- Picker/cancel, Reply, duplicate, oversize/attachments, tutor/admin запрет ответа из бота, ошибки записи и уведомления.
-- DB: миграции 001–011, unique pair, RLS/service grants, лимит 4000, tail 200, bounded read marker, отзыв назначения и blocked accounts.
-- E2E fixtures обновлены для Bot API message_id/callback_query; добавлены сценарии roundtrip, badge/polling, failed delivery, responsive.
+## Регрессии
 
-## UI
+- Telegram: видимая повторная отмена и меню, stale callback без мутации, очистка только недоступного recipient, сохранение другого активного recipient, Reply на последней части, callback ≤64 bytes, native Reply priority, dedupe, admin notification URL и shortcut.
+- Chat DB: teacher=tutor/admin, личные назначения admin, запрет чужих диалогов, service-only notification/cleanup, account status, delivery mapping и текстовый лимит.
+- Delegated DB: actor/owner, active teacher target, admin→admin, UUID, target assignments, create/edit/note, move/paste/transfer, color/completed/delete, availability, rollover, owner canonical data, cross-owner signed restore, self-admin offset и запрет delegated offset/offsetChanged restore, прямые writes закрыты. Общие suites продолжают проверять exclusion constraints и атомарный magnet.
+- E2E: переход из /admin/tutors, target query и имя, создание/редактирование target lesson и note, completion, disabled offset, сохранение target при навигации, отсутствие посторонних учеников в форме; admin-chat roundtrip через mocked delivery; settings bounding boxes на 1440/1100/768/390 px, включая искусственное увеличение высоты Subjects.
 
-Изолированные React/CSS превью проверяют только компоновку, не Next/Supabase-интеграцию. Перед перезапуском среды осмотрены desktop/mobile: исправлены textarea и постоянная плашка 200 сообщений. Финальные изолированные превью чата (1280/390px), empty state и четырёх справочников осмотрены и сохранены в verification-011-logs/visual. Горизонтального overflow в этих fixtures нет. Иконки/кнопки и серверные вызовы подменены; справочники — CSS-fixtures, это не запуск настоящих Next-страниц. Полный E2E обязателен.
+## Визуальная проверка
 
-Рабочая среда дважды перезапускалась; результат восстановлен из сохранённого checkpoint, доступные проверки повторены. Неисполненные staging-проверки перечислены в release-011.md.
+Снимки настоящих страниц в `artifacts/package-012-settings-*.png`, `artifacts/package-012-admin-chat.png`, `artifacts/package-012-delegated.png`. Desktop settings, admin chat и delegated editor просмотрены: Telegram сразу под ставкой, предметы справа, удалённые пояснения отсутствуют. Screenshot fixtures не подтверждают внешнюю доставку Telegram.
+
+## Выпуск
+
+Для базы, на которой уже применены 001–011, выполнить целиком `supabase/migrations/202609060012_admin_chat_schedule_fixes.sql` от владельца БД перед запуском нового приложения. Миграция содержит begin/commit и общий schedule advisory lock. Исторические миграции не изменены. После обновления окружения проверить реальный Telegram roundtrip student↔admin, cancel/reply, собственное и delegated расписание.

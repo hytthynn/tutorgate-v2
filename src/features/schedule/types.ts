@@ -31,6 +31,10 @@ export interface ScheduleData {
   assignments?: { studentId: string; subjectId: string }[];
   studentAvailability?: AvailabilityRule[];
   ownerId?: string;
+  ownerName?: string;
+  canEdit?: boolean;
+  canEditOffset?: boolean;
+  delegated?: boolean;
 }
 export interface ScheduleResult {
   error?: string;

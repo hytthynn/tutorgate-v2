@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { CalendarDays } from "lucide-react";
 import { DirectoryFilters } from "@/components/people/directory-filters";
 import { UserActionsMenu } from "@/components/people/user-actions-menu";
 import { isAdminDirectoryProfile, matchesPerson } from "./search";
@@ -166,6 +168,7 @@ export async function PeoplePage({
                   </div>
                   {admin && (
                     <div className="person-actions">
+                      {kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <Link className="telegram-link" href={p.id === viewer.id ? "/admin/schedule" : `/admin/schedule?tutor=${p.id}`}><CalendarDays size={14} />Расписание</Link>}
                       {p.telegram_username ? <a
                         className="telegram-link"
                         href={`https://t.me/${p.telegram_username}`}

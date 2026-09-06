@@ -63,4 +63,4 @@
 
 ## Пакет 011
 
-Полный CI и staging пока не подтверждены из-за отсутствующих зависимостей. Pending возможен при потере delivery audit, exactly-once Telegram не обещается. [Подробности выпуска](release-011.md).
+Ограничения среды прежнего выпуска 011 описаны в [историческом отчёте](release-011.md). Текущие проверки — [пакет 012](verification.md). Pending возможен при потере delivery audit, exactly-once Telegram не обещается. Production Supabase/Telegram не заменяются локальными fixture проверками.

@@ -154,7 +154,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" }); res.end("true"); return;
   }
   if (url.pathname === "/fixtures/state") {
-    res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ actionCounts: Object.fromEntries(actionCounts), lessons })); return;
+    res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ actionCounts: Object.fromEntries(actionCounts), lessons, notes:Object.fromEntries(notes) })); return;
   }
   if (url.pathname === "/fixtures/scenario") {
     if(args.mode==="no-students")assignments.length=0;
@@ -197,40 +197,50 @@ const server = http.createServer(async (req, res) => {
       value=null;
     }
   }
+  else if(op==="schedule_owner_context" || op==="schedule_lesson_note") {
+    const owner=profiles.find(p=>p.id===args.p_owner);
+    if(!owner || !["tutor","admin"].includes(owner.role) || owner.account_status!=="active" || !profile || profile.account_status!=="active" || !["tutor","admin"].includes(profile.role) || (owner.id!==uid && profile.role!=="admin")) {status=403;value={code:"42501"};}
+    else if(op==="schedule_owner_context") value={ownerId:owner.id,ownerName:owner.full_name,offset:preferences.get(owner.id)?.msk_offset_hours??0,rules:availability.filter(r=>r.tutor_id===owner.id).map(r=>({studentId:r.student_id,availableFrom:r.available_from}))};
+    else if(!lessons.some(l=>l.id===args.p_lesson&&l.tutor_id===owner.id)){status=403;value={code:"42501"};}
+    else value=notes.get(args.p_lesson)??"";
+  }
   else if(op==="tutor_student_availability")value=availability.filter(r=>r.tutor_id===uid);
   else if(op==="schedule_command"){
+    const ownerId=args.p_owner??uid;
     const c=args.p_command, original=structuredClone(lessons), oldNotes=new Map(notes), oldRules=structuredClone(availability),oldPreferences=new Map(preferences);
-    const snapshot=()=>({payload:{owner:uid,lessons:structuredClone(lessons.filter(l=>l.tutor_id===uid)),notes:Object.fromEntries([...notes].filter(([id])=>lessons.some(l=>l.id===id&&l.tutor_id===uid))),rules:structuredClone(availability.filter(r=>r.tutor_id===uid)),offset:preferences.get(uid)?.msk_offset_hours??0},signature:"a".repeat(64)});
+    const snapshot=()=>({payload:{owner:ownerId,lessons:structuredClone(lessons.filter(l=>l.tutor_id===ownerId)),notes:Object.fromEntries([...notes].filter(([id])=>lessons.some(l=>l.id===id&&l.tutor_id===ownerId))),rules:structuredClone(availability.filter(r=>r.tutor_id===ownerId)),offset:preferences.get(ownerId)?.msk_offset_hours??0},signature:"a".repeat(64)});
     const before=snapshot();let extra={};
-    const activity=l=>{if(l.inactive_reason!=="transferred"){const r=availability.find(r=>r.tutor_id===l.tutor_id&&r.student_id===l.student_id);l.inactive_reason=r&&localDate(l.starts_at,preferences.get(uid)?.msk_offset_hours??0)<r.available_from?"available_from":null;l.inactive_until=l.inactive_reason?r.available_from:null;}if(l.inactive_reason)l.completed_at=null;return l;};
+    const activity=l=>{if(l.inactive_reason!=="transferred"){const r=availability.find(r=>r.tutor_id===l.tutor_id&&r.student_id===l.student_id);l.inactive_reason=r&&localDate(l.starts_at,preferences.get(ownerId)?.msk_offset_hours??0)<r.available_from?"available_from":null;l.inactive_until=l.inactive_reason?r.available_from:null;}if(l.inactive_reason)l.completed_at=null;return l;};
     const remove=ids=>{for(let i=lessons.length-1;i>=0;i--)if(ids.includes(lessons[i].id))lessons.splice(i,1);};
     try{
-      const group=lessons.filter(l=>c.ids?.includes(l.id)&&l.tutor_id===uid);
+      const owner=profiles.find(p=>p.id===ownerId);
+      if(!owner || owner.account_status!=="active" || (ownerId!==uid && profile?.role!=="admin") || (ownerId!==uid && c.kind==="offset"))throw {code:"42501"};
+      const group=lessons.filter(l=>c.ids?.includes(l.id)&&l.tutor_id===ownerId);
       if(c.ids&&group.length!==c.ids.length)throw {code:"42501"};
       if(c.kind==="restore"){
-        const target=c.target.payload;const ownedIds=lessons.filter(l=>l.tutor_id===uid).map(l=>l.id);remove(ownedIds);lessons.push(...structuredClone(target.lessons));for(const id of ownedIds)notes.delete(id);for(const [id,note] of Object.entries(target.notes))notes.set(id,note);availability.splice(0,availability.length,...availability.filter(r=>r.tutor_id!==uid),...structuredClone(target.rules));preferences.set(uid,{user_id:uid,msk_offset_hours:target.offset});
+        const target=c.target.payload;const ownedIds=lessons.filter(l=>l.tutor_id===ownerId).map(l=>l.id);remove(ownedIds);lessons.push(...structuredClone(target.lessons));for(const id of ownedIds)notes.delete(id);for(const [id,note] of Object.entries(target.notes))notes.set(id,note);availability.splice(0,availability.length,...availability.filter(r=>r.tutor_id!==ownerId),...structuredClone(target.rules));preferences.set(ownerId,{user_id:ownerId,msk_offset_hours:target.offset});
       }else if(c.kind==="delete"){
         const restore=group.filter(l=>l.is_transfer_target&&!c.ids.includes(l.transfer_source_id)).map(l=>l.transfer_source_id);
         remove(c.ids);for(const id of c.ids)notes.delete(id);
-        for(const l of lessons.filter(l=>l.tutor_id===uid)){
+        for(const l of lessons.filter(l=>l.tutor_id===ownerId)){
           if(l.is_transfer_target&&c.ids.includes(l.transfer_source_id)){l.is_transfer_target=false;l.transfer_source_id=null;l.transfer_source_starts_at=null;}
           if(restore.includes(l.id)&&l.inactive_reason==="transferred"){l.inactive_reason=null;l.inactive_until=null;l.completed_at=null;activity(l);}
         }
       }
-      else if(c.kind==="offset"){preferences.set(uid,{user_id:uid,msk_offset_hours:c.offset});lessons.filter(l=>l.tutor_id===uid).forEach(activity);}
+      else if(c.kind==="offset"){preferences.set(ownerId,{user_id:ownerId,msk_offset_hours:c.offset});lessons.filter(l=>l.tutor_id===ownerId).forEach(activity);}
       else if(c.kind==="availability"){
-        for(let i=availability.length-1;i>=0;i--)if(availability[i].tutor_id===uid&&c.studentIds.includes(availability[i].student_id))availability.splice(i,1);
-        if(c.availableFrom)for(const student_id of new Set(c.studentIds))availability.push({tutor_id:uid,student_id,available_from:c.availableFrom});
-        lessons.filter(l=>l.tutor_id===uid).forEach(activity);
+        for(let i=availability.length-1;i>=0;i--)if(availability[i].tutor_id===ownerId&&c.studentIds.includes(availability[i].student_id))availability.splice(i,1);
+        if(c.availableFrom)for(const student_id of new Set(c.studentIds))availability.push({tutor_id:ownerId,student_id,available_from:c.availableFrom});
+        lessons.filter(l=>l.tutor_id===ownerId).forEach(activity);
       }else if(c.kind==="color"||c.kind==="completed"){
         for(const l of group){if(l.inactive_reason)throw {code:"PT005"};if(c.kind==="color")l.color=c.color;else l.completed_at=c.completed?new Date().toISOString():null;}
       }else if(c.kind==="create"||c.kind==="edit"){
-        const old=lessons.find(l=>l.id===c.id),offset=preferences.get(uid)?.msk_offset_hours??0;
-        const l=activity({...old,id:old?.id??id(nextLesson++),tutor_id:uid,student_id:c.studentId,subject_id:c.subjectChanged===false?old?.subject_id:c.subjectId,subject_name_snapshot:subjects.find(s=>s.id===c.subjectId)?.name??old?.subject_name_snapshot,starts_at:c.startsAt,duration_minutes:c.durationMinutes,color:old?.color??"default",completed_at:old?.completed_at??null});
+        const old=lessons.find(l=>l.id===c.id),offset=preferences.get(ownerId)?.msk_offset_hours??0;
+        const l=activity({...old,id:old?.id??id(nextLesson++),tutor_id:ownerId,student_id:c.studentId,subject_id:c.subjectChanged===false?old?.subject_id:c.subjectId,subject_name_snapshot:subjects.find(s=>s.id===c.subjectId)?.name??old?.subject_name_snapshot,starts_at:c.startsAt,duration_minutes:c.durationMinutes,color:old?.color??"default",completed_at:old?.completed_at??null});
         const moved=magnet(l,offset);if(!moved)throw {code:"P0002"};if(old)Object.assign(old,moved);else lessons.push(moved);notes.set(moved.id,c.note);extra={lesson:dto(moved),requestedStart:c.startsAt,shifted:Date.parse(c.startsAt)!==Date.parse(moved.starts_at)};
       }else if(["transfer","paste","move"].includes(c.kind)){
         if(group.some(l=>l.inactive_reason))throw {code:"PT005"};if(c.kind==="transfer"&&group.some(l=>l.is_transfer_target))throw {code:"PT006"};
-        const anchor=Math.min(...group.map(l=>Date.parse(l.starts_at))),offset=preferences.get(uid)?.msk_offset_hours??0;
+        const anchor=Math.min(...group.map(l=>Date.parse(l.starts_at))),offset=preferences.get(ownerId)?.msk_offset_hours??0;
         const copies=group.map(l=>activity({...l,id:c.kind==="move"?l.id:id(nextLesson++),starts_at:new Date(Date.parse(l.starts_at)+Date.parse(c.startsAt)-anchor).toISOString(),duration_minutes:c.durationMinutes??l.duration_minutes,completed_at:c.kind==="move"?l.completed_at:null,is_transfer_target:c.kind==="transfer"||c.kind==="move"&&l.is_transfer_target,transfer_source_id:c.kind==="transfer"?l.id:null,transfer_source_starts_at:c.kind==="transfer"?l.starts_at:null}));
         for(let i=0;i<copies.length;i++){const l=copies[i];l.ends_at=new Date(Date.parse(l.starts_at)+l.duration_minutes*60000).toISOString();if(c.kind!=="move")notes.set(l.id,notes.get(group[i].id)??"");}
         if(c.kind==="transfer")for(const l of group){l.inactive_reason="transferred";l.completed_at=null;}if(c.kind==="move")remove(c.ids);
@@ -239,7 +249,7 @@ const server = http.createServer(async (req, res) => {
         extra={createdIds:copies.map(l=>l.id),shifted:delta!==0,...(copies.length===1&&c.kind==="move"?{lesson:dto(copies[0]),requestedStart:c.startsAt}:{})};
       }
       if(lessons.some(overlaps))throw {code:"23P01"};
-      value={...extra,before,after:snapshot(),replaceAll:profile?.role!=="student",lessons:lessons.filter(l=>l.tutor_id===uid).map(dto),rules:availability.filter(r=>r.tutor_id===uid).map(r=>({studentId:r.student_id,availableFrom:r.available_from})),offset:preferences.get(uid)?.msk_offset_hours??0};
+      value={...extra,before,after:snapshot(),replaceAll:profile?.role!=="student",lessons:lessons.filter(l=>l.tutor_id===ownerId).map(dto),rules:availability.filter(r=>r.tutor_id===ownerId).map(r=>({studentId:r.student_id,availableFrom:r.available_from})),offset:preferences.get(ownerId)?.msk_offset_hours??0};
     }catch(error){lessons.splice(0,lessons.length,...original);notes.clear();for(const [id,note]of oldNotes)notes.set(id,note);availability.splice(0,availability.length,...oldRules);preferences.clear();for(const [id,p]of oldPreferences)preferences.set(id,p);status=409;value={code:error.code??"P0001"};}
   }
   else if (op === "ensure_schedule_rollover") value=null;

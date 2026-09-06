@@ -96,7 +96,7 @@ test("011 full migration chain, active assignment, Reply mapping, dedupe, bounde
       ).rows[0].n;
     const message = await send();
     await t.test(
-      "unique pair across subjects; admin excluded from picker",
+      "unique pair across subjects; assigned admin included in picker",
       async () => {
         await send();
         assert.equal(
@@ -114,12 +114,12 @@ test("011 full migration chain, active assignment, Reply mapping, dedupe, bounde
         assert.equal(picker.length, 2);
         assert.deepEqual(
           (
-            await db.query<{ v: unknown }>(
+            await db.query<{ v: {id:string}[] }>(
               "select public.chat_bot_tutors($1) v",
               [id(5)],
             )
-          ).rows[0].v,
-          [],
+          ).rows[0].v.map(t=>t.id),
+          [id(1)],
         );
       },
     );

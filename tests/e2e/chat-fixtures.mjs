@@ -23,7 +23,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
         p.id === s && p.role === "student" && p.account_status === "active",
     ) &&
     profiles.some(
-      (p) => p.id === t && p.role === "tutor" && p.account_status === "active",
+      (p) => p.id === t && ["tutor", "admin"].includes(p.role) && p.account_status === "active",
     ) &&
     assignments.some((x) => x.student_id === s && x.tutor_id === t);
   const append = (s, t, role, body) => {
@@ -76,7 +76,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
     ["chat_snapshot", "chat_send", "chat_unread", "chat_mark_read"].includes(
       op,
     ) &&
-    (actor?.role !== "tutor" || actor.account_status !== "active")
+    (!["tutor", "admin"].includes(actor?.role) || actor.account_status !== "active")
   )
     return denied();
   if (op === "chat_unread")
@@ -153,6 +153,10 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
           subjects: "Математика, Физика",
         })),
     );
+  if (op === "chat_bot_clear_unavailable_recipient") {
+    if (!active(a.p_student, state.get(a.p_student))) state.delete(a.p_student);
+    return ok(null);
+  }
   if (op === "chat_bot_set_recipient") {
     if (a.p_tutor === null) state.delete(a.p_student);
     else {
@@ -187,7 +191,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
       c = cs.find((c) => c.id === m?.conversation_id);
     return ok(
       c && active(c.studentId, c.tutorId)
-        ? profiles.find((p) => p.id === c.tutorId).telegram_chat_id
+        ? {chatId: profiles.find((p) => p.id === c.tutorId).telegram_chat_id, role: profiles.find((p) => p.id === c.tutorId).role}
         : null,
     );
   }

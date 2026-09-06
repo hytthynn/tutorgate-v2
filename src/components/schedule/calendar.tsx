@@ -55,7 +55,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const [activeDate, setActiveDate] = useState(today >= week && today < addDays(week, 7) ? today : week);
   const requestedDay = params.get("day") ?? activeDate;
   const mobileDate = daysafe(requestedDay, week) ? requestedDay : (today >= week && today < addDays(week, 7) ? today : week);
-  const editable = data.role !== "student";
+  const editable = data.canEdit ?? data.role !== "student";
   const grid = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const weekRef = useRef(week);
@@ -105,7 +105,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     setLessons(next);setRules(nextRules);setOffset(nextOffset);setSelected(new Set([...selected].filter(id=>next.some(l=>l.id===id&&isMultiSelectable(l)))));
     let failure="Не удалось сохранить изменения. Попробуйте ещё раз.";
     try {
-      const result=await scheduleCommandAction(command);
+      const result=await scheduleCommandAction(command, data.ownerId);
       if(result.error||result.errors){if(command.kind==="create"||command.kind==="edit")setEditorErrors(result.errors);failure=result.error??Object.values(result.errors??{}).flat().join(" ");throw new Error();}
       const canonical=result.replaceAll ? result.lessons??[] : result.lesson ? replaceTemporaryLessons(next,[result.lesson]) : next;
       const canonicalRules=result.rules??nextRules, canonicalOffset=result.offset??nextOffset;
@@ -121,7 +121,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
       setSaveState("saved");return true;
     }catch{
       setLessons(previous);setRules(previousRules);setOffset(previousOffset);setSelected(previousSelection);setSaveState("error");toast.error(failure);
-      if(historyMode){setHistory({undo:[],redo:[]});try{const fresh=await syncScheduleAction(new Date(0).toISOString());setLessons(fresh.lessons);setRules(fresh.rules);setOffset(fresh.offset);}catch{ /* next sync retries */ }}
+      if(historyMode){setHistory({undo:[],redo:[]});try{const fresh=await syncScheduleAction(new Date(0).toISOString(), data.ownerId);setLessons(fresh.lessons);setRules(fresh.rules);setOffset(fresh.offset);}catch{ /* next sync retries */ }}
       if(rollbackWeek&&rollbackWeek!==weekRef.current)navigate(rollbackWeek);return false;
     }finally{lock.current=false;setPending(false);}
   }
@@ -307,7 +307,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
       const revision = mutationRevision.current;
       syncing = true;
       try {
-        const fresh = await syncScheduleAction(syncCursor.current);
+        const fresh = await syncScheduleAction(syncCursor.current, data.ownerId);
         if (!cancelled && !lock.current && revision === mutationRevision.current) {
           setLessons(current => { const merged = new Map(current.map(l => [l.id,l])); for (const lesson of fresh.lessons) merged.set(lesson.id,lesson); return [...merged.values()]; });
           syncCursor.current = fresh.cursor;setRules(fresh.rules);setOffset(fresh.offset);
@@ -318,7 +318,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     const timer = setInterval(() => void sync(), 60_000);
     document.addEventListener("visibilitychange", sync);
     return () => { cancelled = true; clearInterval(timer); document.removeEventListener("visibilitychange", sync); };
-  }, []);
+  }, [data.ownerId]);
   const summary = weeklySummary(displayed, week, offset);
   const keyboardShortcut=useEffectEvent((event:KeyboardEvent)=>{
     if(!(event.ctrlKey||event.metaKey)||lock.current||document.querySelector('[role="dialog"]'))return;
@@ -341,7 +341,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
           if (e.key === "Delete" && editable && !pending) { e.preventDefault(); remove([...selected]); }
           if (e.key === "Enter" && grid.current?.contains(e.target as Node) && selected.size === 1) { const lesson = lessons.find((l) => selected.has(l.id)); if (lesson) { e.preventDefault(); openLesson(lesson); } }
         }}>
-    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null);setEmptyMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
+    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} canEditOffset={data.canEditOffset ?? true} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null);setEmptyMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
       {saveState === "saving" ? <Loader2 size={13} className="spin" aria-hidden="true" /> : saveState === "error" ? <CircleAlert size={13} aria-hidden="true" /> : <CircleCheck size={13} aria-hidden="true" />}
       {saveState === "saving" ? "Сохранение…" : saveState === "error" ? "Не сохранено" : "Сохранено"}
     </span>}</div>

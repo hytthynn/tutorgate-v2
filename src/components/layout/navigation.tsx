@@ -41,7 +41,7 @@ const items = [
 const allowed = {
   student: ["schedule", "tutors"],
   tutor: ["schedule", "students", "chats", "statistics"],
-  admin: ["schedule", "tutors", "students", "statistics", "applications", "settings"],
+  admin: ["schedule", "tutors", "students", "chats", "statistics", "applications", "settings"],
 };
 const roleNames = {
   student: "Ученик",
@@ -53,7 +53,7 @@ export function Navigation({ profile }: { profile: Profile }) {
   const [open, setOpen] = useState(false);
   const [unread,setUnread]=useState(0);
   const pollUnread=useCallback(async()=>{const result=await chatUnreadAction();if(result.data!==undefined)setUnread(result.data);},[]);
-  useVisiblePolling(pollUnread,profile.role==="tutor");
+  useVisiblePolling(pollUnread,profile.role!=="student");
   const links = (
     <nav aria-label="Основная навигация">
       {items

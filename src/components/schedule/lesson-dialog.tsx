@@ -36,14 +36,14 @@ export function LessonDialog({ lesson, draft, serverErrors, data, date, onClose,
   useEffect(() => {
     if (!lesson || studentViewer || draft) return;
     let cancelled = false;
-    getLessonNoteAction(lesson.id).then((response) => {
+    getLessonNoteAction(lesson.id, data.ownerId).then((response) => {
       if (cancelled) return;
       if (response.error) toast.error("Не удалось загрузить заметку. Откройте занятие ещё раз."); setNote(response.note ?? ""); setNoteFailed(Boolean(response.error)); setLoading(false);
     }).catch(() => {
       if (!cancelled) { toast.error("Не удалось загрузить заметку. Откройте занятие ещё раз."); setNoteFailed(true); setLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [lesson, studentViewer, draft]);
+  }, [lesson, studentViewer, draft, data.ownerId]);
   useEffect(() => {
     const element = noteElement.current;
     if (element) { element.style.height = "88px"; element.style.height = `${Math.min(240, Math.max(88, element.scrollHeight))}px`; }

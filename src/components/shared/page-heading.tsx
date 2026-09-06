@@ -4,7 +4,7 @@ export function PageHeading({
   count,
 }: {
   title: string;
-  description: string;
+  description?: string;
   count?: number;
 }) {
   return (
@@ -14,7 +14,7 @@ export function PageHeading({
           {title}
           {count !== undefined && <span className="count-badge">{count}</span>}
         </h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
       </div>
     </header>
   );

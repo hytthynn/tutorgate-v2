@@ -27,6 +27,7 @@ export async function SettingsPage() {
         description="Общие параметры учебного пространства."
       />
       <div className="settings-grid">
+        <div className="settings-column">
         <section className="panel settings-panel">
           <div className="settings-heading">
             <span className="section-icon">
@@ -39,6 +40,12 @@ export async function SettingsPage() {
           </div>
           <RateForm rate={Number(settings.data.hourly_rate)} />
         </section>
+        <section className="panel settings-panel">
+          <div className="settings-heading"><span className="section-icon"><RefreshCw size={20} /></span><div><h2>Telegram</h2><p>Обновляет актуальные Telegram username у привязанных аккаунтов.</p></div></div>
+          <TelegramSyncForm />
+        </section>
+        </div>
+        <div className="settings-column">
         <section className="panel settings-panel">
           <div className="settings-heading">
             <span className="section-icon">
@@ -65,10 +72,7 @@ export async function SettingsPage() {
             )}
           </div>
         </section>
-        <section className="panel settings-panel">
-          <div className="settings-heading"><span className="section-icon"><RefreshCw size={20} /></span><div><h2>Telegram</h2><p>Обновляет актуальные Telegram username у привязанных аккаунтов.</p></div></div>
-          <TelegramSyncForm />
-        </section>
+        </div>
       </div>
     </>
   );

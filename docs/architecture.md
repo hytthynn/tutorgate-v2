@@ -23,7 +23,7 @@ flowchart TD
 
 `features/schedule/page.tsx` — Server Component. `queries.ts` получает собственное расписание, безопасные имена и доступные варианты формы. Client Components в `components/schedule` реализуют сетку, Pointer Events, выделение, dialogs и меню. Каноническая неделя хранится в `?week=YYYY-MM-DD`; необязательный `day` сохраняет мобильный выбор. Native History API синхронизирован с Next Router; неделя и Back/Forward меняют только локальное отображение. Границы дней вычисляются явно: UTC+3 плюс пользовательский сдвиг, без timezone браузера.
 
-Server Actions проверяют identity/роль и Zod, затем работают через authenticated client. Создание и редактирование используют owner-checked SECURITY DEFINER `save_schedule_lesson`: занятие и приватная заметка сохраняются одной транзакцией под RLS. Заметка загружается лениво только для собственного редактора tutor/admin. Student DTO не содержит заметок. Все пользовательские операции применяются оптимистически с блокировкой повторной отправки и откатом при ошибке. Exclusion constraints обеспечивают защиту от конкурирующих пересечений независимо от UI.
+Server Actions проверяют identity/роль и Zod, затем работают через authenticated client. Создание и редактирование используют owner-checked SECURITY DEFINER `save_schedule_lesson`: занятие и приватная заметка сохраняются одной транзакцией под RLS. Заметка загружается лениво через schedule_lesson_note с проверкой actor/owner для владельца и delegated admin. Student DTO не содержит заметок. Все пользовательские операции применяются оптимистически с блокировкой повторной отправки и откатом при ошибке. Exclusion constraints обеспечивают защиту от конкурирующих пересечений независимо от UI.
 
 Слои: `app` — маршруты; `features` — actions, queries, services; `components` — интерфейс; `lib` — интеграции, security и validation; `supabase/migrations` — источник истины схемы.
 
@@ -33,7 +33,7 @@ Server Actions проверяют identity/роль и Zod, затем рабо�
 - Клиентский preview вызывает placeGroup по загруженным занятиям без перемещаемой группы, с учётом conflict class. Нет свободного положения группы — нет target/мутации, один toast после drop. Скрытые student-конфликты остаются исключительно серверными. UI принимает normalized result.lessons/rules/offset, при серверном сдвиге показывает информационный toast.
 - Обычное создание/paste разрешено только в текущей неделе UTC+3+offset; dedicated transfer — в текущей или следующей реальной неделе; редактор ограничен семью днями недели занятия; drag в прошлое допустим, в будущую неделю — нет.
 - Вся история читается пакетами по 500, имена — батчами. Навигация и CRUD не вызывают refresh/revalidatePath. Минутный polling updated_at с 10-минутным перекрытием работает отдельно и защищён lock + revision guard.
-- Save/patch возвращают lesson без note; delete — фактически удалённые IDs. Owner-checked SECURITY DEFINER RPC атомарно сохраняют lesson+note. Прямые writes lessons/notes для authenticated отозваны; admin не пишет чужое расписание.
+- Save/patch возвращают lesson без note; delete — фактически удалённые IDs. Owner-checked SECURITY DEFINER RPC атомарно сохраняют lesson+note. Прямые writes lessons/notes для authenticated отозваны; admin редактирует чужое расписание только через target-aware schedule_command.
 - Hard delete предмета атомарно удаляет текущие связи, сохраняет lessons с nullable subject_id и subject_name_snapshot. Статистика и заметки не теряются.
 - Cron каждые 5 минут копирует валидные занятия предыдущей локальной недели, не перемещая историю: новые IDs, completed_at=NULL, прежние цвет/длительность/заметка. Идемпотентность по (tutor_id,target_week_start); невалидные связи пропускаются, конфликт разрешается magnet либо безопасным skip.
 - Schedule writers, hard-delete и rollover используют общий transaction advisory lock. При росте нагрузки измерять latency. Полная межвкладочная синхронизация удалений и восстановление цепочки пропущенных Cron-недель не входят в текущий пакет.
@@ -76,4 +76,11 @@ Application tabs и period tabs используют общий CSS segmented pa
 
 ## Чат 011
 
-Один диалог на student+tutor; предметы не создают дополнительные чаты. Только active tutor пишет на /tutor/chats. Student отвечает через Telegram. Polling 5 секунд в видимой вкладке, без overlap. Mark-read ограничен ID последнего полученного сообщения. Action проверяет requireRole(tutor), RPC повторно проверяет auth.uid и назначение. Service-only Telegram delivery после commit pending, safe DTO без Telegram IDs.
+Один диалог на student+tutor; предметы не создают дополнительные чаты. Active tutor/admin пишет в собственные чаты на /tutor/chats или /admin/chats. Student отвечает через Telegram. Polling 5 секунд в видимой вкладке, без overlap. Mark-read ограничен ID последнего полученного сообщения. Action проверяет requireRole([tutor, admin]), RPC повторно проверяет auth.uid и назначение. Service-only Telegram delivery после commit pending, safe DTO без Telegram IDs.
+
+
+## Делегированное расписание 012
+
+Вход из /admin/tutors ведёт на /admin/schedule?tutor=UUID; без query admin видит свой календарь. Server loader валидирует UUID и active teacher, повторная DB-проверка private.schedule_require_owner сопоставляет auth.uid() с owner. schedule_command(uuid,jsonb) передаёт owner явным аргументом во внутренний engine, без подмены JWT. schedule_owner_context читает offset/availability и выполняет rollover выбранного owner. Queries, polling, lesson notes и optimistic mutations используют тот же owner. Calendar key сбрасывает историю/clipboard/selection при смене владельца; History API сохраняет query tutor.
+
+Delegated offset и restore с offsetChanged запрещены на сервере и в БД. Signed snapshots содержат owner; expected/target должны совпадать с выбранным owner. Прямые grants записи lessons/notes не расширены, tutor_id существующего занятия неизменен. Чаты admin остаются participant-based: назначения лично admin обязательны, доступа к чужим диалогам нет.

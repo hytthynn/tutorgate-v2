@@ -1,18 +1,9 @@
 import "server-only";
+import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
 import { parseWeek } from "./time";
 import type { AvailabilityRule, LessonColor, ScheduleData, ScheduleLesson } from "./types";
-
-async function readAvailability(ownerId: string): Promise<AvailabilityRule[]> {
-  const db=await createClient(), rules:AvailabilityRule[]=[];
-  for(let page=0;;page++) {
-    const result=await db.from("tutor_student_availability").select("student_id,available_from").eq("tutor_id",ownerId).order("student_id").range(page*500,page*500+499);
-    if(result.error)throw new Error("Не удалось загрузить правила расписания.");
-    rules.push(...result.data.map(r=>({studentId:r.student_id,availableFrom:r.available_from})));
-    if(result.data.length<500)return rules;
-  }
-}
 
 export async function getScheduleOffset() {
   const user = await requireRole();
@@ -45,30 +36,26 @@ export async function readLessons(start: string | null, end: string | null, filt
   }
   return rows;
 }
-export async function getSchedule(weekParam: unknown): Promise<ScheduleData> {
+export async function getSchedule(weekParam: unknown, requestedOwner?: unknown): Promise<ScheduleData> {
   const user = await requireRole();
-  const offset = await getScheduleOffset();
+  const context = await resolveScheduleOwner(requestedOwner);
+  const { ownerId, offset } = context;
   const now = new Date();
   const week = parseWeek(weekParam, offset, now);
-  const initialDb = await createClient();
-  if (user.role !== "student") {
-    const ensure = await initialDb.rpc("ensure_schedule_rollover");
-    if (ensure.error) throw new Error("Не удалось подготовить текущую неделю.");
-  }
-  const rows = await readLessons(null, null, user.role === "student" ? { studentId: user.id } : { tutorId: user.id });
+  const rows = await readLessons(null, null, user.role === "student" ? { studentId: user.id } : { tutorId: ownerId });
   const db = await createClient();
   const lessons = await normalizeLessons(rows);
-  if (user.role === "student") return { now: now.toISOString(), role: user.role, week, offset, lessons, students: [], subjects: [] };
+  if (user.role === "student") return { now: now.toISOString(), role: user.role, week, offset, lessons, students: [], subjects: [], ownerId: user.id, canEdit: false, canEditOffset: true, delegated: false };
   const assignments: { student_id: string; subject_id: string }[] = [];
   const subjects: { subject_id: string; subjects: { id: string; name: string } | { id: string; name: string }[] }[] = [];
   const profiles: { id: string; role: string; full_name: string }[] = [];
   for (let page = 0; ; page++) {
-    const result = await db.from("student_tutor_assignments").select("student_id,subject_id").eq("tutor_id", user.id).order("id").range(page*500,page*500+499);
+    const result = await db.from("student_tutor_assignments").select("student_id,subject_id").eq("tutor_id", ownerId).order("id").range(page*500,page*500+499);
     if (result.error) throw new Error("Не удалось загрузить назначения.");
     assignments.push(...result.data); if (result.data.length < 500) break;
   }
   for (let page = 0; ; page++) {
-    const result = await db.from("tutor_subjects").select("subject_id,subjects!inner(id,name,is_active)").eq("tutor_id", user.id).eq("subjects.is_active", true).order("subject_id").range(page*500,page*500+499);
+    const result = await db.from("tutor_subjects").select("subject_id,subjects!inner(id,name,is_active)").eq("tutor_id", ownerId).eq("subjects.is_active", true).order("subject_id").range(page*500,page*500+499);
     if (result.error) throw new Error("Не удалось загрузить предметы.");
     subjects.push(...result.data); if (result.data.length < 500) break;
   }
@@ -80,8 +67,8 @@ export async function getSchedule(weekParam: unknown): Promise<ScheduleData> {
     profiles.push(...result.data); if (result.data.length < 500) break;
   }
   const studentIds = new Set(assignments.map(a => a.student_id));
-  const availability = await readAvailability(user.id);
-  return { now: now.toISOString(), role: user.role, week, offset, lessons, ownerId: user.id,
+  const availability = context.rules;
+  return { now: now.toISOString(), role: user.role, week, offset, lessons, ownerId, ownerName: context.ownerName, delegated: context.delegated, canEdit: true, canEditOffset: !context.delegated,
     studentAvailability: availability,
     students: profiles.filter(p => p.role === "student" && studentIds.has(p.id)).map(p => ({ id: p.id, name: p.full_name })),
     assignments: assignments.map(a => ({ studentId: a.student_id, subjectId: a.subject_id })),
@@ -105,22 +92,33 @@ export async function normalizeLessons(rows: LessonRow[]): Promise<ScheduleLesso
     inactiveReason: l.inactive_reason ?? null, inactiveUntil: l.inactive_until ?? null, isTransferTarget: l.is_transfer_target ?? false, transferSourceId: l.transfer_source_id ?? null, transferSourceStartsAt: l.transfer_source_starts_at ?? null,
   }));
 }
-export async function readScheduleUpdates(since: string) {
+export async function readScheduleUpdates(since: string, requestedOwner?: unknown) {
   const user = await requireRole(), db = await createClient();
   const cursor = new Date().toISOString();
-  if (user.role !== "student") {
-    const ensure = await db.rpc("ensure_schedule_rollover");
-    if (ensure.error) throw new Error("Не удалось подготовить текущую неделю.");
-  }
+  const context = await resolveScheduleOwner(requestedOwner);
   const rows: LessonRow[] = [];
   // Inclusive cursor plus a small overlap tolerates long-running cron transactions.
   const after = new Date(Date.parse(since)-10*60_000).toISOString();
   for (let page=0; ;page++) {
     const result = await db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
-      .eq(user.role === "student" ? "student_id" : "tutor_id",user.id).gte("updated_at",after)
+      .eq(user.role === "student" ? "student_id" : "tutor_id",context.ownerId).gte("updated_at",after)
       .order("updated_at").order("id").range(page*500,page*500+499);
     if (result.error) throw new Error("Не удалось загрузить новые занятия.");
     rows.push(...result.data as LessonRow[]); if (result.data.length<500) break;
   }
-  return { lessons: await normalizeLessons(rows), cursor, rules: user.role === "student" ? [] : await readAvailability(user.id), offset: await getScheduleOffset() };
+  return { lessons: await normalizeLessons(rows), cursor, rules: context.rules, offset: context.offset };
+}
+
+export async function resolveScheduleOwner(requested?: unknown) {
+  const user = await requireRole();
+  const ownerId = requested === undefined ? user.id : z.uuid().parse(requested);
+  if (ownerId !== user.id && user.role !== "admin") throw new Error("Расписание недоступно.");
+  if (user.role === "student") {
+    if (requested !== undefined && ownerId !== user.id) throw new Error("Расписание недоступно.");
+    return { ownerId, ownerName: user.full_name, delegated: false, offset: await getScheduleOffset(), rules: [] as AvailabilityRule[] };
+  }
+  const db = await createClient();
+  const {data,error} = await db.rpc("schedule_owner_context", {p_owner: ownerId});
+  if (error || !data) throw new Error("Расписание недоступно.");
+  return { ...(data as {ownerId: string; ownerName: string; offset: number; rules: AvailabilityRule[]}), delegated: ownerId !== user.id };
 }

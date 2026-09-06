@@ -165,6 +165,8 @@ export async function POST(request: NextRequest) {
               p_student: student,
               p_tutor: tutor,
             }),
+          clearUnavailableRecipient: (student) =>
+            serviceRpc("chat_bot_clear_unavailable_recipient", { p_student: student }),
           receive: (input) =>
             serviceRpc("chat_bot_receive", {
               p_user: input.userId,

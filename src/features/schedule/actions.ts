@@ -1,4 +1,5 @@
 "use server";
+import { resolveScheduleOwner } from "./queries";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
@@ -6,13 +7,15 @@ import { saveLesson, patchLesson, scheduleError } from "./service";
 import { colorSchema, completedSchema, deleteSchema, moveSchema, offsetSchema } from "./validation";
 import type { ScheduleResult } from "./types";
 import { commandSchema } from "./validation";
-export async function scheduleCommandAction(input: unknown): Promise<ScheduleResult> {
+export async function scheduleCommandAction(input: unknown, requestedOwner?: unknown): Promise<ScheduleResult> {
   const user = await requireRole();
   try {
     const command = commandSchema.parse(input);
+    const owner = await resolveScheduleOwner(requestedOwner);
+    if (owner.delegated && (command.kind === "offset" || (command.kind === "restore" && (command.target.payload.offsetChanged || command.expected.payload.offsetChanged)))) return { error: "Сдвиг задаёт репетитор в своём расписании." };
     if (user.role === "student" && command.kind !== "offset" && command.kind !== "restore") return { error: "Ученику доступен только просмотр расписания." };
     const db = await createClient();
-    const { data, error } = await db.rpc("schedule_command", { p_command: command });
+    const { data, error } = await db.rpc("schedule_command", { p_command: command, ...(user.role !== "student" ? { p_owner: owner.ownerId } : {}) });
     return error ? scheduleError(error) : data as ScheduleResult;
   } catch (error) { return scheduleError(error); }
 }
@@ -54,23 +57,22 @@ export async function saveSchedulePreferenceAction(input: unknown): Promise<Sche
     return {};
   } catch (error) { return scheduleError(error); }
 }
-export async function getLessonNoteAction(input: unknown): Promise<ScheduleResult> {
+export async function getLessonNoteAction(input: unknown, requestedOwner?: unknown): Promise<ScheduleResult> {
   const user = await requireRole();
   if (user.role === "student") return { error: "Заметка недоступна." };
   try {
     const id = z.uuid().parse(input);
     const db = await createClient();
-    const lesson = await db.from("lessons").select("id").eq("id", id).eq("tutor_id", user.id).single();
-    if (lesson.error) return scheduleError(lesson.error);
-    const { data, error } = await db.from("lesson_private_notes").select("note").eq("lesson_id", id).maybeSingle();
-    return error ? scheduleError(error) : { note: data?.note ?? "" };
+    const owner = await resolveScheduleOwner(requestedOwner);
+    const { data, error } = await db.rpc("schedule_lesson_note", { p_owner: owner.ownerId, p_lesson: id });
+    return error ? scheduleError(error) : { note: data ?? "" };
   } catch (error) { return scheduleError(error); }
 }
 
 // Background incremental sync for cron-created lessons, independent of navigation.
-export async function syncScheduleAction(since: string) {
+export async function syncScheduleAction(since: string, requestedOwner?: unknown) {
   await requireRole();
   const cursor = z.iso.datetime({ offset: true }).parse(since);
   const { readScheduleUpdates } = await import("./queries");
-  return readScheduleUpdates(cursor);
+  return readScheduleUpdates(cursor, requestedOwner);
 }

@@ -52,11 +52,11 @@ test("011 escapes all dynamic HTML; long text remains intact and notification ha
   assert.equal(escapeHtml("<b>&</b>"), "&lt;b&gt;&amp;&lt;/b&gt;");
   assert.match(recipientMessage("<X>").text, /&lt;X&gt;/);
   const text = "<>&".repeat(1333) + "!";
-  const parts = tutorMessage("И".repeat(150), text);
+  const parts = tutorMessage("00000000-0000-4000-8000-000000000002", "И".repeat(150), text);
   assert.equal(parts.length, 2);
   assert.equal(parts[1].text, text);
   assert.equal(parts[1].options.parse_mode, undefined);
-  assert.match(tutorMessage("<X>", "<script>")[0].text, /&lt;script&gt;/);
+  assert.match(tutorMessage("00000000-0000-4000-8000-000000000002", "<X>", "<script>")[0].text, /&lt;script&gt;/);
   const m = studentNotification(
     "Student",
     "x".repeat(4000),
@@ -151,6 +151,7 @@ function fixture(role: BotProfile["role"] = "student") {
     recipient: async (_, t) => {
       recipient = t;
     },
+    clearUnavailableRecipient: async () => { if (!(await ports.tutors("s")).some(t=>t.id===recipient)) recipient=null; },
     receive: async (i) => {
       received.push(i);
       return {
@@ -161,7 +162,7 @@ function fixture(role: BotProfile["role"] = "student") {
         text: i.text,
       };
     },
-    notificationTarget: async () => "tutor-chat",
+    notificationTarget: async () => ({chatId: "tutor-chat", role: "tutor"}),
     send: async (_, m) => {
       sent.push(m.text);
     },
@@ -187,7 +188,7 @@ const input: BotInput = {
   chatId: "1",
   text: "Hello",
 };
-test("011 one tutor shortcut, pagination, silent cancel", async () => {
+test("011 one tutor shortcut, pagination, visible cancel", async () => {
   const f = fixture();
   await handleBotInput(
     { ...input, callbackId: "c", callbackData: "chat:choose" },
@@ -200,7 +201,8 @@ test("011 one tutor shortcut, pagination, silent cancel", async () => {
     f.ports,
   );
   assert.equal(f.recipient, null);
-  assert.equal(f.sent.length, 1);
+  assert.equal(f.sent.length, 2);
+  assert.equal(f.sent[1], "✅ Действие отменено.");
   assert.deepEqual(f.answers, ["c", "cancel"]);
   f.ports.tutors = async () => [
     { id: "a", name: "A", subjects: "A" },
@@ -256,7 +258,7 @@ test("011 source boundaries: role checks, visible polling, bounded read marker a
   assert.equal(
     (
       (await read("src/features/chats/actions.ts")).match(
-        /requireRole\("tutor"\)/g,
+        /requireRole\(\["tutor", "admin"\]\)/g,
       ) ?? []
     ).length,
     4,
@@ -269,4 +271,37 @@ test("011 source boundaries: role checks, visible polling, bounded read marker a
   const hook = await read("scripts/set-webhook.mjs");
   assert.match(hook, /\["message", "callback_query"\]/);
   assert.match(hook, /setMyCommands/);
+});
+
+
+test("012 reply button binds trusted teacher ID to last part, including emoji and byte limit",()=>{
+ const teacher="00000000-0000-4000-8000-000000000001";
+ for(const [name,body] of [["Admin","Hello"],["Long".repeat(40),"😀".repeat(4000)]]){
+ const parts=tutorMessage(teacher,name,body),button=parts.at(-1)!.options.reply_markup!.inline_keyboard[0][0];
+ assert.deepEqual(button,{text:"↩️ Ответить",callback_data:`chat:to:${teacher}`});
+ if("callback_data" in button)assert.ok(Buffer.byteLength(button.callback_data)<=64);
+ if(parts.length>1)assert.equal(parts[0].options.reply_markup,undefined);
+ }
+});
+test("012 repeated cancel visible, stale cancel safe, removed reply recipient cleared",async()=>{
+ const f=fixture();
+ const messages:ReturnType<typeof startMessage>[]=[];f.ports.send=async(_,m)=>{messages.push(m);};
+ await handleBotInput({...input,callbackId:"select",callbackData:"chat:to:t"},f.ports);assert.equal(f.recipient,"t");
+ for(let n=0;n<2;n++)await handleBotInput({...input,callbackId:`cancel${n}`,callbackData:"chat:cancel"},f.ports);
+ assert.equal(f.recipient,null);assert.equal(messages.filter(m=>m.text==="✅ Действие отменено.").length,2);
+ assert.equal(messages.at(-1)!.options.reply_markup!.inline_keyboard.flat().length,2);
+ f.ports.receive=async()=>({status:f.recipient?"sent":"choose"});await handleBotInput(input,f.ports);assert.match(messages.at(-1)!.text,/Сначала укажите/);
+ await handleBotInput({...input,callbackId:"select2",callbackData:"chat:to:t"},f.ports);
+ await handleBotInput({...input,callbackId:"other-stale",callbackData:"chat:to:removed"},f.ports);assert.equal(f.recipient,"t");
+ f.ports.tutors=async()=>[];await handleBotInput({...input,callbackId:"stale-reply",callbackData:"chat:to:t"},f.ports);assert.equal(f.recipient,null);assert.match(messages.at(-1)!.text,/Чат больше недоступен/);
+ f.ports.profile=async()=>null;f.ports.recipient=async()=>{throw Error("Stale mutation");};
+ await handleBotInput({...input,callbackId:"stale-cancel",callbackData:"chat:cancel"},f.ports);assert.match(messages.at(-1)!.text,/не связан/);
+ for(const role of ["tutor","admin"] as const){const g=fixture(role);g.ports.recipient=async()=>{throw Error("Wrong role mutation");};await handleBotInput({...input,callbackId:"cancel",callbackData:"chat:cancel"},g.ports);assert.match(g.sent[0],/Добро пожаловать/);}
+});
+test("012 assigned admin shortcut and notification use admin chat route",async()=>{
+ const f=fixture();const sent:ReturnType<typeof startMessage>[]=[];f.ports.send=async(_,m)=>{sent.push(m);};
+ f.ports.tutors=async()=>[{id:"admin",name:"Admin Teacher",subjects:"Math"}];
+ await handleBotInput({...input,callbackId:"choose",callbackData:"chat:choose"},f.ports);assert.equal(f.recipient,"admin");
+ f.ports.notificationTarget=async()=>({chatId:"admin-chat",role:"admin"});await handleBotInput(input,f.ports);
+ assert.match(JSON.stringify(sent),/https:\/\/fixture.example\/admin\/chats\?student=s/);
 });

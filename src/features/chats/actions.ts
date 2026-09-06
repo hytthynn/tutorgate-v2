@@ -9,7 +9,7 @@ import type { ChatMessage, ChatResult, ChatSnapshot } from "./types";
 export async function chatSnapshotAction(
   student: string | null,
 ): Promise<ChatResult<ChatSnapshot>> {
-  await requireRole("tutor");
+  await requireRole(["tutor", "admin"]);
   if (student !== null && !z.uuid().safeParse(student).success)
     return { error: "Ученик не найден." };
   try {
@@ -24,7 +24,7 @@ export async function chatSnapshotAction(
   }
 }
 export async function chatUnreadAction(): Promise<ChatResult<number>> {
-  await requireRole("tutor");
+  await requireRole(["tutor", "admin"]);
   try {
     const db = await createClient();
     const { data, error } = await db.rpc("chat_unread");
@@ -38,7 +38,7 @@ export async function chatMarkReadAction(
   student: string,
   message: string,
 ): Promise<ChatResult<true>> {
-  await requireRole("tutor");
+  await requireRole(["tutor", "admin"]);
   if (
     !z.uuid().safeParse(student).success ||
     !z.uuid().safeParse(message).success
@@ -60,7 +60,7 @@ export async function chatSendAction(
   student: string,
   text: string,
 ): Promise<ChatResult<ChatMessage>> {
-  const actor = await requireRole("tutor");
+  const actor = await requireRole(["tutor", "admin"]);
   if (!z.uuid().safeParse(student).success)
     return { error: "Ученик не найден." };
   if (typeof text !== "string" || !text.trim() || codePointLength(text) > 4000)
@@ -95,7 +95,7 @@ export async function chatSendAction(
     });
     if (!target) throw new Error("Chat unavailable");
     chat = target.chatId;
-    for (const part of tutorMessage(target.tutorName, target.text))
+    for (const part of tutorMessage(actor.id, target.tutorName, target.text))
       telegramId = await sendTemplate(chat, part);
     delivered = true;
   } catch {
