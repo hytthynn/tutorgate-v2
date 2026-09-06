@@ -4,7 +4,7 @@
 
 ## Стек
 
-Node.js 24.x · Next.js 16.3.4 (App Router) · React 19.2.8 · TypeScript · Supabase/PostgreSQL · Server Actions · Lucide · Recharts. Версии закреплены в `package-lock.json`; пакет 007 не обновляет зависимости и не добавляет миграций.
+Node.js 24.x · Next.js 16.3.4 (App Router) · React 19.2.8 · TypeScript · Supabase/PostgreSQL · Server Actions · Lucide · Recharts. Версии закреплены в `package-lock.json`; пакет 009 не обновляет зависимости; добавляет миграции 008 и 009.
 
 ## Быстрый старт
 
@@ -15,7 +15,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Примените SQL-миграции 001–006 по порядку. Настройка Supabase, Cron, webhook и production: [развёртывание](docs/deployment-vercel.md).
+Примените SQL-миграции 001–009 по порядку. Миграция 008 с новыми enum-значениями должна завершиться отдельным commit до 009. Для обновления уже работающей базы на 007 примените только 008 и 009; сначала проверьте их на staging. Настройка Supabase, Cron, webhook и production: [развёртывание](docs/deployment-vercel.md).
 
 ## Проверки
 
@@ -35,11 +35,12 @@ npm run test:e2e
 - Публичные: `/apply`, `/login`, `/register`, `/forgot-password`, `/reset-password`.
 - Ученик: `/student/schedule`, `/student/tutors`.
 - Репетитор: `/tutor/schedule`, `/tutor/students`, `/tutor/statistics`.
-- Администратор: `/admin/schedule`, `/admin/tutors`, `/admin/students`, `/admin/statistics`, `/admin/settings`.
+- Администратор: `/admin/schedule`, `/admin/tutors`, `/admin/students`, `/admin/statistics`, `/admin/settings`, `/admin/applications`.
 
 ## Документация
 
-- [Текущее ТЗ — пакет 008](docs/TZ_TutorGate_008_schedule_features_and_fixes.md)
+- [Текущее ТЗ — пакет 009](docs/TZ_TutorGate_009_bugs_applications_brand.md)
+- [Установка пакета 009 и ограничения проверки](docs/release-009.md)
 - [Архитектура и инварианты расписания](docs/architecture.md)
 - [База данных](docs/database.md) · [Авторизация и Telegram](docs/auth-and-telegram.md)
 - [UI](docs/ui-guidelines.md) · [Решения](docs/decisions.md) · [Известные ограничения](docs/known-issues.md)

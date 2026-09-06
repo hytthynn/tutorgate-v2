@@ -1,24 +1,32 @@
-# Авторизация и Telegram
+# Авторизация, Telegram и модерация (009)
 
-1. `/apply`: сервер проверяет Zod и rate limits; RPC транзакционно сохраняет заявку, предметы и hash deep-link token (24h). Аккаунта ещё нет.
-2. Telegram `/start`: только private chat, реальные числовые identifiers преобразуются в text; header secret сравнивается constant-time. Username должен совпасть с заявкой; при отсутствии username подтверждение запрещено.
-3. `confirm_telegram` блокирует token/application, сериализует повторы update и привязку Telegram ID. После проверки создаётся registration hash с TTL 24h. Из одного Telegram нельзя создать два профиля.
-4. Регистрационный raw token — HMAC-SHA256 от update ID и webhook secret. Он регенерируется на retry, поэтому plaintext не хранится. Если доставка сорвалась, webhook вернёт 503; retry пришлёт ту же ссылку. delivered_at предотвращает обычную повторную отправку.
-5. `/register`: только логин/пароль/повтор. Серверный `createUser` создаёт случайный alias. Auth INSERT trigger атомарно проверяет и погашает registration token, создаёт alias/profile и переводит заявку в registered. При конфликте вся вставка откатывается.
-6. `/login`: username trim/lowercase, embedded whitespace запрещён по примеру ТЗ. Service RPC получает alias; SSR signInWithPassword проходит на сервере. Browser получает случайный 256-bit tg_session вместо JWT. Пароль не хранится в собственных таблицах.
-7. `/forgot-password`: одинаковый текст для существующего и неизвестного username, ошибок доставки и rate limits. Известному Telegram через сохранённый chat ID уходит ссылка на APP_URL с TTL 30 минут.
-8. `/reset-password`: атомарный claim токена → Supabase Admin API update password → отзыв серверных сессий. Claim необратим, при сбое пользователь получает инструкцию запросить новую ссылку.
+## Жизненный цикл
 
-## Сессии
+`pending_telegram → pending_review → approved → registered`; альтернативное решение — `rejected`. `expired` относится только к неподтверждённому Telegram. Истечение регистрации не меняет `approved`.
 
-`private.sessions` хранит внутренние Supabase cookie chunks и user_id. Hash opaque handle служит ключом. HttpOnly + SameSite=Lax + Secure в production, срок 30 дней. Сервер обновляет Auth токены через @supabase/ssr. Сессию проверяет `getUser`, не доверенный `getSession`. После login handle ротируется, после logout vault удаляется, после reset отзываются сессии пользователя.
+1. `/apply`: Zod/rate limits; `submit_application` атомарно пишет заявку, предметы и SHA-256 deep-link token на 24 часа. UI предлагает подтвердить Telegram, но не обещает немедленной регистрации.
+2. Telegram webhook принимает только private chat, не-bot и равные user/chat IDs; проверяет header secret constant-time, ограничивает размер body. Username обязан совпасть. `confirm_telegram` блокирует application/token, сериализует update/identity и переводит заявку в `pending_review`. Registration token здесь НЕ создаётся.
+3. Подтверждение возвращает applicant acknowledgement и создаёт private notification rows для всех зарегистрированных admin. Решения в Telegram невозможны: обычный текст без callback/inline keyboard.
+4. `/admin/applications`: только admin; вкладки Ученики/Репетиторы и На рассмотрении/Принятые/Отклонённые. Принятые включают `approved` и `registered`; неподтверждённые не попадают в ручную очередь.
+5. Approve/reject используют getUser через requireRole(admin), затем service-only `review_application` с проверкой actor в БД и `FOR UPDATE`. Первый transition выигрывает; повтор возвращает «уже обработана». Сохраняются reviewed_at/by, snapshot имени проверившего, approved_at/rejected_at.
+6. Approve генерирует 32 cryptographically random bytes на сервере; БД получает только SHA-256 hash, TTL ровно 24 часа. Raw token живёт только во время отправки; не возвращается admin UI. URL строится исключительно через APP_URL. После commit отправляется Telegram.
+7. Ошибка доставки не отменяет решение. Admin видит warning; private token остаётся валидным, заявка остаётся approved. Статус delivery хранится в applications без token/hash. Resend доступен после expiry, известной ошибки или неразрешённого pending delivery старше двух минут (восстановление после остановки процесса). Интерфейс обновляет состояние accepted-заявок раз в минуту.
+8. Resend блокирует заявку, гасит все прежние неиспользованные registration tokens и создаёт один новый на 24 часа. Аудит решения не меняется. Late callback старой доставки не может заменить статус нового токена. После registered resend запрещён и скрыт.
+9. `/register`: серверная проверка token_status, затем Supabase Admin createUser. Auth INSERT trigger ещё раз проверяет token, verified_at и строго status=approved; application блокируется раньше token, одинаково с review/resend. В одной транзакции погашаются token, создаются alias/profile и проставляются registered/registered_at. Повторное использование или старый token после resend отклоняются.
+10. Rejected/expired history сохраняет Telegram identity. Partial unique indexes резервируют только активные заявки; unique IDs в profiles остаются без изменений. Поэтому rejected может подать новую заявку, registered — не может зарегистрироваться второй раз тем же Telegram.
 
-У browser client нет прав читать private, auth alias или Telegram identifiers. Нельзя заменять vault обычным Supabase browser sign-in: технический alias снова появится в JWT браузера.
+## Доставка и идемпотентность
 
-## Abuse protection
+`private.application_admin_notifications` имеет PK(application_id,admin_id). Перед каждым send фиксируется attempted_at compare-and-set. Повторный webhook не создаёт повторную отправку этому admin. Доставки ограничены пятью параллельными запросами; ошибка одного адресата не отменяет confirmation и не блокирует остальных. delivered_at/failed_at — аудит; logs содержат только фиксированные сообщения, без тел, ID, cookies, URL и токенов.
 
-Лимиты сохраняются в PostgreSQL, общие для всех экземпляров Vercel Function. На login 8 попыток/15 минут на username; apply 4/15 минут на Telegram; forgot 3/15 минут + 2 минуты между ссылками одному профилю; register/reset 10/15 минут на token hash. IP bucket допускает втрое больше запросов. IP на Vercel берётся из edge-controlled x-vercel-forwarded-for; вне Vercel используется общий bucket, а не произвольный X-Forwarded-For.
+Это **at-most-once attempt**, не обещание exactly-once Telegram delivery. При аварии после claim или неоднозначном сетевом timeout уведомление admin может не дойти и автоматически не повторяется, чтобы избежать дубля. Заявка всегда остаётся в очереди админ-панели. Проверяйте её независимо от уведомлений. Applicant acknowledgement может повториться при аварии после send до telegram_delivered, но ссылки регистрации в нём больше нет. Telegram sendMessage не поддерживает idempotency keys.
 
-Ссылки генерируются исключительно из APP_URL. Referrer-Policy=no-referrer не передаёт query token внешним ресурсам. Не логируйте URL с токенами, request bodies или cookies. Webhook secret нельзя менять, пока планируется доставка pending updates: HMAC использует этот secret.
+## Миграция и выпуск
 
-Публичной email-регистрации нет. Email provider в Supabase остаётся включённым для внутреннего password sign-in, публичный signup выключен. Admin bootstrap — только серверный script для уже зарегистрированного пользователя.
+008 расширяет enum и должна завершиться отдельной транзакцией. 009 переносит все незарегистрированные `telegram_verified` в `pending_review`, гасит их старые registration tokens, сохраняет registered. Legacy rows появляются в очереди; ожидающие notification rows создаются, но миграция не делает сетевых вызовов. Во время обновления согласуйте остановку старого webhook/registration flow: старая confirm signature удаляется. Сначала staging + backup, затем миграции и соответствующий application deploy. Не запускайте старый код после 009.
+
+## Сессии и восстановление
+
+Логин — normalized username, не email. Private auth aliases и opaque HttpOnly tg_session сохраняются. getUser подтверждает личность; proxy не заменяет RLS. Password reset сохраняет прежнюю схему single-use claim → Auth API → отзыв vault sessions; общая транзакция с удалённым Auth API невозможна. Пароли, Supabase service key и auth cookies не логировать.
+
+Прежние общие PostgreSQL rate limits сохранены. APP_URL — единственный источник ссылок; Referrer-Policy=no-referrer сохраняется. Публичный signup выключен. Для существующей установки администраторы — уже зарегистрированные profiles.role=admin; начальное доверенное provisioning первого администратора в пустой базе выполняется владельцем БД вне публичного flow.

@@ -1,6 +1,8 @@
 // Isolated UI fixtures. This process is never imported by application code.
 // PostgreSQL/RLS behaviour is separately tested with real migrations in PGlite.
 import http from "node:http";
+import { fileURLToPath } from "node:url";
+import { applicationFixture } from "./application-fixtures.mjs";
 import { spawn } from "node:child_process";
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const profiles = [
@@ -159,7 +161,9 @@ const server = http.createServer(async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, behavior.delay));
     if (behavior.fail) { res.writeHead(500,{"Content-Type":"application/json"}); res.end(JSON.stringify({code:"P0001",message:"Fixture failure"})); return; }
   }
-  if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
+  const applicationResult = applicationFixture(op,args,req.method,url.pathname);
+  if (applicationResult) { value=applicationResult.value; status=applicationResult.status; }
+  else if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
   else if(op==="tutor_student_availability")value=availability.filter(r=>r.tutor_id===uid);
   else if(op==="schedule_command"){
     const c=args.p_command, original=structuredClone(lessons), oldNotes=new Map(notes), oldRules=structuredClone(availability),oldPreferences=new Map(preferences);
@@ -172,7 +176,14 @@ const server = http.createServer(async (req, res) => {
       if(c.ids&&group.length!==c.ids.length)throw {code:"42501"};
       if(c.kind==="restore"){
         const target=c.target.payload;const ownedIds=lessons.filter(l=>l.tutor_id===uid).map(l=>l.id);remove(ownedIds);lessons.push(...structuredClone(target.lessons));for(const id of ownedIds)notes.delete(id);for(const [id,note] of Object.entries(target.notes))notes.set(id,note);availability.splice(0,availability.length,...availability.filter(r=>r.tutor_id!==uid),...structuredClone(target.rules));preferences.set(uid,{user_id:uid,msk_offset_hours:target.offset});
-      }else if(c.kind==="delete"){remove(c.ids);for(const id of c.ids)notes.delete(id);}
+      }else if(c.kind==="delete"){
+        const restore=group.filter(l=>l.is_transfer_target&&!c.ids.includes(l.transfer_source_id)).map(l=>l.transfer_source_id);
+        remove(c.ids);for(const id of c.ids)notes.delete(id);
+        for(const l of lessons.filter(l=>l.tutor_id===uid)){
+          if(l.is_transfer_target&&c.ids.includes(l.transfer_source_id)){l.is_transfer_target=false;l.transfer_source_id=null;l.transfer_source_starts_at=null;}
+          if(restore.includes(l.id)&&l.inactive_reason==="transferred"){l.inactive_reason=null;l.inactive_until=null;l.completed_at=null;activity(l);}
+        }
+      }
       else if(c.kind==="offset"){preferences.set(uid,{user_id:uid,msk_offset_hours:c.offset});lessons.filter(l=>l.tutor_id===uid).forEach(activity);}
       else if(c.kind==="availability"){
         for(let i=availability.length-1;i>=0;i--)if(availability[i].tutor_id===uid&&c.studentIds.includes(availability[i].student_id))availability.splice(i,1);
@@ -331,6 +342,8 @@ const child = spawn(
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54329",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "fixture-public",
       SUPABASE_SECRET_KEY: "fixture-secret",
+      TELEGRAM_BOT_TOKEN: "fixture-bot",
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --require=${fileURLToPath(new URL("./telegram-preload.cjs", import.meta.url))}`,
       TELEGRAM_BOT_USERNAME: "tutorgate_fixture_bot",
       TELEGRAM_WEBHOOK_SECRET: "fixture-webhook",
       AUTH_ALIAS_DOMAIN: "internal.test",

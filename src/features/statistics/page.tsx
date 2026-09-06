@@ -22,7 +22,7 @@ export async function StatisticsPage({
     ? (await getDirectory()).profiles.filter((p) => p.role !== "student")
     : undefined;
   return (
-    <>
+    <section className="statistics-page">
       <PageHeading
         title="Статистика"
         description={
@@ -37,6 +37,6 @@ export async function StatisticsPage({
         tutors={tutors}
         error={error}
       />
-    </>
+    </section>
   );
 }

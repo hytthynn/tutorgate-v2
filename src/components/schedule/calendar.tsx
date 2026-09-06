@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { syncScheduleAction, scheduleCommandAction } from "@/features/schedule/actions";
 import { addDays, formatDay, localParts, localToUtc, MINUTE, minutesFromMidnight, parseWeek, snapMinutes, splitLessonByLocalDays, startOfWeek, weeklySummary } from "@/features/schedule/time";
 import type { ScheduleData, ScheduleLesson, SaveState, HistoryEntry } from "@/features/schedule/types";
-import { isInactive, isMultiSelectable, isTransferAllowed, applyAvailability, overlapLanes, placeGroup, statusLabel } from "@/features/schedule/operations";
+import { isInactive, isMultiSelectable, isTransferAllowed, applyAvailability, removeLessons, overlapLanes, placeGroup, statusLabel } from "@/features/schedule/operations";
 import type { ScheduleCommand, LessonInput } from "@/features/schedule/validation";
 import { confirmHistory, replaceTemporaryLessons, type HistoryState } from "@/features/schedule/history";
 import { OperationDialog } from "./operation-dialog";
@@ -127,7 +127,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     void mutate(direction==="undo"?entry.previous:entry.next,{kind:"restore",expected:direction==="undo"?entry.after:entry.before,target:direction==="undo"?entry.before:entry.after},undefined,undefined,direction==="undo"?entry.oldRules:entry.newRules,direction==="undo"?entry.oldOffset:entry.newOffset,direction);
   }
   function actionGroup(lesson:ScheduleLesson){return selected.has(lesson.id)?lessons.filter(l=>selected.has(l.id)):[lesson];}
-  function remove(ids:string[]){if(editable&&ids.length)void mutate(lessons.filter(l=>!ids.includes(l.id)),{kind:"delete",ids},ids.length===1?"Занятие удалено.":`Удалено занятий: ${ids.length}.`);}
+  function remove(ids:string[]){if(editable&&ids.length)void mutate(removeLessons(lessons,ids,rules,offset),{kind:"delete",ids},ids.length===1?"Занятие удалено.":`Удалено занятий: ${ids.length}.`);}
   function complete(lesson:ScheduleLesson){
     const group=actionGroup(lesson);if(group.some(isInactive))return;
     const completed=!group.every(l=>l.completed),ids=group.map(l=>l.id);
@@ -319,10 +319,10 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
           if (e.key === "Delete" && editable && !pending) { e.preventDefault(); remove([...selected]); }
           if (e.key === "Enter" && grid.current?.contains(e.target as Node) && selected.size === 1) { const lesson = lessons.find((l) => selected.has(l.id)); if (lesson) { e.preventDefault(); openLesson(lesson); } }
         }}>
-    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span><span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
+    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
       {saveState === "saving" ? <Loader2 size={13} className="spin" aria-hidden="true" /> : saveState === "error" ? <CircleAlert size={13} aria-hidden="true" /> : <CircleCheck size={13} aria-hidden="true" />}
       {saveState === "saving" ? "Сохранение…" : saveState === "error" ? "Не сохранено" : "Сохранено"}
-    </span></div>
+    </span>}</div>
     <div className="schedule-mobile-day">
       <Button variant="ghost" size="sm" aria-label="Предыдущий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, -1); navigate(startOfWeek(d), d); }}><ChevronLeft size={16} /></Button>
       <strong>{dayNames[days.indexOf(mobileDate)]}, {formatDay(mobileDate)}</strong>
@@ -348,7 +348,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
             return <button key={`${lesson.id}-${day}`} type="button" data-lesson-id={lesson.id} data-date={day} data-color={lesson.color}
               data-inactive={isInactive(lesson)} data-transfer={!!lesson.isTransferTarget}
               className={`schedule-lesson ${selected.has(lesson.id) ? "is-selected" : ""} ${lesson.completed ? "is-completed" : ""} ${preview?.some(p=>p.id===lesson.id) ? "is-dragging" : ""}`}
-              style={{ left: `calc(${lane/lanes*100}% + 2px)`, width: `calc(${100/lanes}% - 4px)`, top: `${segment.startMinute / 1440 * 100}%`, height: `${(segment.endMinute - segment.startMinute) / 1440 * 100}%` }}
+              style={{ left: `calc(${lane/lanes*100}% + ${isInactive(lesson) ? 1 : lesson.color === "coral" ? 4 : 7}px)`, width: `calc(${100/lanes}% - 8px)`, top: `${segment.startMinute / 1440 * 100}%`, height: `${(segment.endMinute - segment.startMinute) / 1440 * 100}%` }}
               aria-label={label} aria-pressed={selected.has(lesson.id)} title={`${name}\n${start}–${end}\n${lesson.subjectName}\n${statusLabel(lesson)}${lesson.transferSourceStartsAt ? "\nПеренесено с "+localParts(lesson.transferSourceStartsAt,offset).date+", "+localParts(lesson.transferSourceStartsAt,offset).time : ""}`}
               onClick={(e) => { if (e.detail === 0) clickLesson(lesson); }}>
               <strong>{lesson.completed && <CircleCheck className="lesson-check" aria-hidden="true" data-testid="lesson-completed" />}{lesson.isTransferTarget?"↪ ":""}{segment.continuation ? "↳ " : ""}{name}</strong>

@@ -1,0 +1,64 @@
+TutorGate — TG-009
+
+Начните с docs/release-009.md.
+Фактические результаты: docs/verification.md.
+Полный production DoD не подтверждён: установка зависимостей, DB suites и E2E требуют внешнего окружения.
+
+Новые/изменённые файлы:
+AGENTS.md
+README.md
+docs/TZ_TutorGate_009_bugs_applications_brand.md
+docs/architecture.md
+docs/archive/README.md
+docs/archive/verification-008-incoming.md
+docs/auth-and-telegram.md
+docs/database.md
+docs/decisions.md
+docs/known-issues.md
+docs/release-009.md
+docs/verification-009-logs/README.txt
+docs/verification-009-logs/build.log
+docs/verification-009-logs/lint.log
+docs/verification-009-logs/offline-layout.json
+docs/verification-009-logs/test-docs.log
+docs/verification-009-logs/test-e2e.log
+docs/verification-009-logs/test.log
+docs/verification-009-logs/typecheck.log
+docs/verification-009-logs/unit-final.log
+docs/verification.md
+package.json
+src/app/admin/applications/page.tsx
+src/app/api/telegram/webhook/route.ts
+src/app/globals.css
+src/app/icon.svg
+src/components/forms/application-form.tsx
+src/components/layout/navigation.tsx
+src/components/schedule/calendar.tsx
+src/components/schedule/toolbar.tsx
+src/components/shared/brand.tsx
+src/components/ui/select.tsx
+src/features/applications/actions.ts
+src/features/applications/admin-actions.ts
+src/features/applications/admin-page.tsx
+src/features/applications/notifications.ts
+src/features/applications/queries.ts
+src/features/applications/review-buttons.tsx
+src/features/applications/types.ts
+src/features/people/page.tsx
+src/features/schedule/operations.ts
+src/features/settings/page.tsx
+src/features/statistics/page.tsx
+src/lib/auth/tokens.ts
+supabase/migrations/202609050008_application_statuses.sql
+supabase/migrations/202609050009_applications_review_and_transfer_delete.sql
+tests/applications-database.test.ts
+tests/database.test.ts
+tests/e2e/application-fixtures.mjs
+tests/e2e/package-009.spec.ts
+tests/e2e/schedule-features.spec.ts
+tests/e2e/server.mjs
+tests/e2e/telegram-preload.cjs
+tests/package-009.test.ts
+tests/schedule-features-database.test.ts
+tests/schedule-operations.test.ts
+tests/validation.test.ts

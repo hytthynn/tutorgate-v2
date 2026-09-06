@@ -1,0 +1,272 @@
+[
+  {
+    "name": "admin-statistics-7",
+    "width": 1366,
+    "height": 768,
+    "scrollHeight": 768,
+    "scrollWidth": 1366,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "admin-statistics-custom",
+    "width": 1366,
+    "height": 768,
+    "scrollHeight": 768,
+    "scrollWidth": 1366,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "tutor-statistics-custom",
+    "width": 1366,
+    "height": 768,
+    "scrollHeight": 768,
+    "scrollWidth": 1366,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "applications-pending_review",
+    "width": 1366,
+    "height": 768,
+    "scrollHeight": 768,
+    "scrollWidth": 1366,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "student-schedule",
+    "width": 1366,
+    "height": 768,
+    "scrollHeight": 768,
+    "scrollWidth": 1366,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "tutor-schedule",
+    "width": 1366,
+    "height": 768,
+    "scrollHeight": 768,
+    "scrollWidth": 1366,
+    "dateCursor": null,
+    "saveState": 1
+  },
+  {
+    "name": "admin-statistics-7",
+    "width": 1440,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "admin-statistics-custom",
+    "width": 1440,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "tutor-statistics-custom",
+    "width": 1440,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "applications-pending_review",
+    "width": 1440,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "student-schedule",
+    "width": 1440,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "tutor-schedule",
+    "width": 1440,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "dateCursor": null,
+    "saveState": 1
+  },
+  {
+    "name": "admin-statistics-7",
+    "width": 1920,
+    "height": 1080,
+    "scrollHeight": 1080,
+    "scrollWidth": 1920,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "admin-statistics-custom",
+    "width": 1920,
+    "height": 1080,
+    "scrollHeight": 1080,
+    "scrollWidth": 1920,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "tutor-statistics-custom",
+    "width": 1920,
+    "height": 1080,
+    "scrollHeight": 1080,
+    "scrollWidth": 1920,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "applications-pending_review",
+    "width": 1920,
+    "height": 1080,
+    "scrollHeight": 1080,
+    "scrollWidth": 1920,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "student-schedule",
+    "width": 1920,
+    "height": 1080,
+    "scrollHeight": 1080,
+    "scrollWidth": 1920,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "tutor-schedule",
+    "width": 1920,
+    "height": 1080,
+    "scrollHeight": 1080,
+    "scrollWidth": 1920,
+    "dateCursor": null,
+    "saveState": 1
+  },
+  {
+    "name": "admin-statistics-7",
+    "width": 320,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 320,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "admin-statistics-custom",
+    "width": 320,
+    "height": 900,
+    "scrollHeight": 963,
+    "scrollWidth": 320,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "tutor-statistics-custom",
+    "width": 320,
+    "height": 900,
+    "scrollHeight": 963,
+    "scrollWidth": 320,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "applications-pending_review",
+    "width": 320,
+    "height": 900,
+    "scrollHeight": 924,
+    "scrollWidth": 320,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "student-schedule",
+    "width": 320,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 320,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "tutor-schedule",
+    "width": 320,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 320,
+    "dateCursor": null,
+    "saveState": 1
+  },
+  {
+    "name": "admin-statistics-7",
+    "width": 375,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 375,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "admin-statistics-custom",
+    "width": 375,
+    "height": 900,
+    "scrollHeight": 931,
+    "scrollWidth": 375,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "tutor-statistics-custom",
+    "width": 375,
+    "height": 900,
+    "scrollHeight": 931,
+    "scrollWidth": 375,
+    "dateCursor": "pointer",
+    "saveState": 0
+  },
+  {
+    "name": "applications-pending_review",
+    "width": 375,
+    "height": 900,
+    "scrollHeight": 924,
+    "scrollWidth": 375,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "student-schedule",
+    "width": 375,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 375,
+    "dateCursor": null,
+    "saveState": 0
+  },
+  {
+    "name": "tutor-schedule",
+    "width": 375,
+    "height": 900,
+    "scrollHeight": 900,
+    "scrollWidth": 375,
+    "dateCursor": null,
+    "saveState": 1
+  }
+]

@@ -35,16 +35,38 @@ export function statusLabel(l: ScheduleLesson) {
   if (l.inactiveReason === "available_from") return `Сможет заниматься с ${l.inactiveUntil?.slice(8)}.${l.inactiveUntil?.slice(5,7)}`;
   return l.isTransferTarget ? "↪ Перенесённое занятие" : "";
 }
-/** Connected interval components share a lane count, including midnight segments. */
-export function overlapLanes<T extends { segment: { startMinute: number; endMinute: number } }>(items: T[]) {
-  const sorted = [...items].sort((a,b) => a.segment.startMinute - b.segment.startMinute);
+/** Delete a transfer pair atomically in the preview; server remains canonical. */
+export function removeLessons(lessons: ScheduleLesson[], ids: string[], rules: AvailabilityRule[], offset: number) {
+  const removed = new Set(ids);
+  const restore = new Set(lessons.filter(l => removed.has(l.id) && l.isTransferTarget && l.transferSourceId).map(l => l.transferSourceId));
+  return applyAvailability(lessons.filter(l => !removed.has(l.id)).map(l => {
+    if (l.isTransferTarget && l.transferSourceId && removed.has(l.transferSourceId))
+      return { ...l, isTransferTarget: false, transferSourceId: null, transferSourceStartsAt: null };
+    if (restore.has(l.id) && l.inactiveReason === "transferred")
+      return { ...l, inactiveReason: null, inactiveUntil: null, completed: false };
+    return l;
+  }), rules, offset);
+}
+/** Only actual conflict edges share defensive lanes. Allowed layers stay full-width.
+ * Segment bounds (not UTC day) preserve midnight continuation geometry. */
+export function overlapLanes<T extends { lesson: ScheduleLesson; segment: { startMinute: number; endMinute: number } }>(items: T[]) {
+  const sorted = [...items].sort((a,b) => a.segment.startMinute - b.segment.startMinute || a.lesson.id.localeCompare(b.lesson.id));
+  const conflicts = (a: T, b: T) => a.segment.startMinute < b.segment.endMinute && b.segment.startMinute < a.segment.endMinute && overlaps(a.lesson,b.lesson);
+  const seen = new Set<number>();
   const result: (T & { lane: number; lanes: number })[] = [];
-  for (let i=0; i<sorted.length;) {
-    let end=sorted[i].segment.endMinute, j=i+1;
-    while(j<sorted.length && sorted[j].segment.startMinute<end) { end=Math.max(end,sorted[j].segment.endMinute); j++; }
-    const laneEnds: number[]=[];
-    const component=sorted.slice(i,j).map(item => { let lane=laneEnds.findIndex(e=>e<=item.segment.startMinute); if(lane<0)lane=laneEnds.length; laneEnds[lane]=item.segment.endMinute; return {...item,lane}; });
-    result.push(...component.map(item=>({...item,lanes:laneEnds.length}))); i=j;
+  for (let i=0; i<sorted.length; i++) {
+    if (seen.has(i)) continue;
+    const component = [i]; seen.add(i);
+    for (let k=0;k<component.length;k++) for(let j=0;j<sorted.length;j++)
+      if(!seen.has(j) && conflicts(sorted[component[k]], sorted[j])) { seen.add(j); component.push(j); }
+    component.sort((a,b)=>a-b);
+    const lanes: T[][] = [];
+    const placed = component.map(index => {
+      const item=sorted[index]; let lane=lanes.findIndex(rows => !rows.some(row => conflicts(item,row)));
+      if(lane<0) { lane=lanes.length; lanes.push([]); } lanes[lane].push(item);
+      return { ...item, lane };
+    });
+    result.push(...placed.map(item => ({...item, lanes:lanes.length})));
   }
   return result;
 }

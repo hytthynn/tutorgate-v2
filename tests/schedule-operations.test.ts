@@ -27,7 +27,7 @@ test("availability date is inclusive and never reactivates transferred sources",
   assert.equal(applyAvailability([{...lesson,inactiveReason:"transferred"}],[],0)[0].inactiveReason,"transferred");
 });
 test("overlap lanes expose every card including connected overlap chains",()=>{
-  const rows=overlapLanes([{segment:{startMinute:0,endMinute:60}},{segment:{startMinute:30,endMinute:90}},{segment:{startMinute:60,endMinute:120}}]);
+  const rows=overlapLanes([{lesson,segment:{startMinute:0,endMinute:60}},{lesson:{...lesson,id:"b"},segment:{startMinute:30,endMinute:90}},{lesson:{...lesson,id:"c"},segment:{startMinute:60,endMinute:120}}]);
   assert.deepEqual(rows.map(r=>[r.lane,r.lanes]),[[0,2],[1,2],[0,2]]);
 });
 test("confirmed undo/redo stacks invert canonical snapshots; a new action clears redo",()=>{

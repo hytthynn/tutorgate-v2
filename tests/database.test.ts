@@ -34,6 +34,7 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
     name: string,
     role: "student" | "tutor",
     tg: string,
+    reviewerId?: string,
   ) {
     const deep = hash(token()),
       reg = hash(token()),
@@ -54,10 +55,16 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
     );
     const updateId = Number(tg);
     const [confirmed] = await query<{ v: { status: string } }>(
-      "select public.confirm_telegram($1,$2,$3,$4,$5,$5) v",
-      [updateId, deep, reg, name, tg],
+      "select public.confirm_telegram($1,$2,$3,$4,$4) v",
+      [updateId, deep, name, tg],
     );
     assert.equal(confirmed.v.status, "send");
+    if (reviewerId) await db.query("select public.review_application($1,$2,'approve',$3)", [reviewerId,app.id,reg]);
+    else {
+      // Test-only bootstrap: initial administrator has no existing reviewer.
+      await db.query("update public.applications set status='approved' where id=$1",[app.id]);
+      await db.query("insert into private.one_time_tokens(purpose,token_hash,application_id,expires_at) values('registration',$1,$2,now()+interval '24 hours')",[reg,app.id]);
+    }
     await db.query("insert into auth.users values($1,$2,$3::jsonb)", [
       id,
       `${name}@internal.test`,
@@ -67,10 +74,10 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
   }
   const admin = await createUser("administrator", "tutor", "10001");
   await db.query("select public.promote_admin('administrator')");
-  const tutor = await createUser("teacher", "tutor", "10002");
-  const other = await createUser("another_teacher", "tutor", "10003");
-  const student = await createUser("student_one", "student", "10004");
-  const student2 = await createUser("student_two", "student", "10005");
+  const tutor = await createUser("teacher", "tutor", "10002", admin.id);
+  const other = await createUser("another_teacher", "tutor", "10003", admin.id);
+  const student = await createUser("student_one", "student", "10004", admin.id);
+  const student2 = await createUser("student_two", "student", "10005", admin.id);
   const asUser = async (id: string, work: () => Promise<void>) => {
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [id]);
     await db.exec("set role authenticated");
@@ -110,17 +117,17 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
     },
   );
   await t.test(
-    "webhook retries use one registration token and duplicate delivery is tracked",
+    "webhook retries do not issue registration tokens and delivery is tracked",
     async () => {
       const [retry] = await query<{ v: { status: string } }>(
-        "select public.confirm_telegram($1,$2,$3,'teacher','10002','10002') v",
-        [tutor.updateId, tutor.deep, tutor.reg],
+        "select public.confirm_telegram($1,$2,'teacher','10002','10002') v",
+        [tutor.updateId, tutor.deep],
       );
       assert.equal(retry.v.status, "send");
       await db.query("select public.telegram_delivered($1)", [tutor.updateId]);
       const [done] = await query<{ v: { status: string } }>(
-        "select public.confirm_telegram($1,$2,$3,'teacher','10002','10002') v",
-        [tutor.updateId, tutor.deep, tutor.reg],
+        "select public.confirm_telegram($1,$2,'teacher','10002','10002') v",
+        [tutor.updateId, tutor.deep],
       );
       assert.equal(done.v.status, "done");
     },
@@ -245,7 +252,6 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
     "Telegram mismatch leaves token usable; an existing Telegram identity cannot register twice",
     async () => {
       const deep = hash(token());
-      const reg = hash(token());
       await db.query("select public.submit_application($1::jsonb,$2)", [
         JSON.stringify({
           role: "tutor",
@@ -259,8 +265,8 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
       const confirm = async (name: string, tg: string, update: number) =>
         (
           await query<{ v: { status: string } }>(
-            "select public.confirm_telegram($1,$2,$3,$4,$5,$5) v",
-            [update, deep, reg, name, tg],
+            "select public.confirm_telegram($1,$2,$3,$4,$4) v",
+            [update, deep, name, tg],
           )
         )[0].v.status;
       assert.equal(await confirm("wrong_username", "99999", 80001), "mismatch");
@@ -278,7 +284,7 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
     },
   );
   await t.test(
-    "expired registrations release only unregistered Telegram reservations",
+    "approved applications keep Telegram reservation after registration link expiry",
     async () => {
       const deep = hash(token());
       const reg = hash(token());
@@ -296,9 +302,10 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
         ],
       );
       await db.query(
-        "select public.confirm_telegram(90001,$1,$2,'expired_teacher','90001','90001')",
-        [deep, reg],
+        "select public.confirm_telegram(90001,$1,'expired_teacher','90001','90001')",
+        [deep],
       );
+      await db.query("select public.review_application($1,$2,'approve',$3)",[admin.id,app.id,reg]);
       await db.query(
         "update private.one_time_tokens set expires_at=now()-interval '1 second' where token_hash=$1",
         [reg],
@@ -320,8 +327,8 @@ test("real PostgreSQL migrations, registration transactions, RLS and single-use 
         "select status,telegram_user_id from public.applications where id=$1",
         [app.id],
       );
-      assert.equal(expired.status, "expired");
-      assert.equal(expired.telegram_user_id, null);
+      assert.equal(expired.status, "approved");
+      assert.equal(expired.telegram_user_id, "90001");
       assert.equal(
         (await query("select * from public.profiles where id=$1", [tutor.id]))
           .length,

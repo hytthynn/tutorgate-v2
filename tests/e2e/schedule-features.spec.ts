@@ -8,7 +8,7 @@ async function login(page:Page,role="tutor"){
   await page.goto(`/${role}/schedule?week=${week}&day=${week}`);
 }
 async function settled(page:Page){await expect(page.locator(".schedule-save-status")).toHaveText("Сохранено");}
-async function context(page:Page,n=100){await card(page,n).click({button:"right"});}
+async function context(page:Page,n=100){await card(page,n).click({button:"right",position:{x:1,y:3}});}
 test.beforeEach(async({request})=>{await request.post(`${fixture}/reset-schedule`);});
 test("removed layout elements, admin label and controlled rate",async({page})=>{
   await login(page,"admin");await page.goto("/admin/tutors");await expect(page.getByText("Администратор · Репетитор")).toHaveCount(0);
@@ -47,7 +47,7 @@ test("availability cancel, inactive read-only details, lanes, coral overlap and 
   await context(page);await page.getByRole("menuitemradio",{name:"Коралловый"}).click();await settled(page);
   const grid=await page.getByRole("group",{name:"Календарь занятий"}).boundingBox();const second=await card(page,101).boundingBox();
   await page.mouse.move(second!.x+second!.width/2,second!.y+3);await page.mouse.down();await page.mouse.move(grid!.x+grid!.width/14,grid!.y+grid!.height*10/24+3,{steps:8});await page.mouse.up();await settled(page);
-  await expect(card(page,101)).toContainText("10:00–11:00");const a=await card(page).boundingBox(),b=await card(page,101).boundingBox();expect(Math.abs(a!.x-b!.x)).toBeGreaterThan(10);
+  await expect(card(page,101)).toContainText("10:00–11:00");const a=await card(page).boundingBox(),b=await card(page,101).boundingBox();expect(Math.abs(a!.x-b!.x)).toBeLessThan(8);
   await context(page,101);await page.getByRole("menuitemradio",{name:"Коралловый"}).click();await expect(page.locator(".schedule-save-status")).toHaveText("Не сохранено");await expect(card(page,101)).toHaveAttribute("data-color","default");
 });
 test("group selection, drag, paste anchor, delete and keyboard history",async({page})=>{
@@ -65,11 +65,11 @@ test("inactive overlap remains clickable, cancel conflict rolls back, rectangle 
   await login(page);await context(page);await page.getByRole("menuitem",{name:"Заниматься с…"}).click();await page.getByLabel("Сможет заниматься с").fill(day(1));await page.getByRole("button",{name:"Сохранить",exact:true}).click();await settled(page);
   const grid=page.getByRole("group",{name:"Календарь занятий"}),box=(await grid.boundingBox())!,second=(await card(page,101).boundingBox())!;
   await page.mouse.move(second.x+second.width/2,second.y+3);await page.mouse.down();await page.mouse.move(box.x+box.width/14,box.y+box.height*10/24+3,{steps:8});await page.mouse.up();await settled(page);
-  const a=(await card(page).boundingBox())!,b=(await card(page,101).boundingBox())!;expect(Math.abs(a.x-b.x)).toBeGreaterThan(10);
+  const a=(await card(page).boundingBox())!,b=(await card(page,101).boundingBox())!;expect(Math.abs(a.x-b.x)).toBeLessThan(8);
   await page.screenshot({path:"artifacts/schedule-008-overlap.png",fullPage:true});
   await context(page);await page.getByRole("menuitem",{name:"Заниматься с…"}).click();await page.getByRole("button",{name:"Отменить заниматься с"}).click();await expect(page.locator(".schedule-save-status")).toHaveText("Не сохранено");await expect(card(page)).toHaveAttribute("data-inactive","true");
   await page.mouse.move(box.x+1,box.y+box.height*9/24);await page.mouse.down();await page.mouse.move(box.x+box.width/7-1,box.y+box.height*14/24,{steps:8});await page.mouse.up();await expect(page.locator(".is-selected")).toHaveCount(1);
   await context(page,101);await page.getByRole("menuitemradio",{name:"Коралловый"}).click();await settled(page);
   await page.mouse.move(box.x+1,box.y+box.height*9/24);await page.mouse.down();await page.mouse.move(box.x+box.width/7-1,box.y+box.height*14/24,{steps:8});await page.mouse.up();await expect(page.locator(".is-selected")).toHaveCount(0);
-  const student=await browser.newPage();try{await login(student,"student");await expect(card(student)).toHaveAttribute("data-inactive","true");await choose(student,"Сдвиг МСК","МСК+1");await settled(student);await expect(card(student)).toHaveAttribute("data-inactive","true");await student.keyboard.press("Control+z");await settled(student);await expect(student.getByRole("combobox",{name:"Сдвиг МСК"})).toHaveText("МСК");await card(student).click();await expect(student.getByRole("dialog")).toContainText("Сможет заниматься с");await expect(student.getByText("PRIVATE_TUTOR_NOTE_секрет")).toHaveCount(0);}finally{await student.close();}
+  const student=await browser.newPage();try{await login(student,"student");await expect(card(student)).toHaveAttribute("data-inactive","true");await choose(student,"Сдвиг МСК","МСК+1");await expect(student.locator(".schedule-workspace")).toHaveAttribute("aria-busy","false");await expect(card(student)).toHaveAttribute("data-inactive","true");await student.keyboard.press("Control+z");await expect(student.locator(".schedule-workspace")).toHaveAttribute("aria-busy","false");await expect(student.getByRole("combobox",{name:"Сдвиг МСК"})).toHaveText("МСК");await card(student).click({position:{x:1,y:3}});await expect(student.getByRole("dialog")).toContainText("Сможет заниматься с");await expect(student.getByText("PRIVATE_TUTOR_NOTE_секрет")).toHaveCount(0);}finally{await student.close();}
 });

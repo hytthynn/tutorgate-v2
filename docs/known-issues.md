@@ -33,7 +33,7 @@
 - Описание: сбой после sendMessage, но до записи delivered_at может привести к повтору того же сообщения.
 - Воспроизведение: остановить Function между Telegram success и telegram_delivered.
 - Причина: нет общей транзакции Telegram/PostgreSQL и idempotency key у sendMessage.
-- Решение: повтор содержит ту же single-use ссылку, новые ссылки/профили не создаются. Secret не ротировать при pending updates.
+- Решение: в 009 повтор содержит только acknowledgment без регистрационной ссылки. Admin notifications используют отдельный at-most-once ledger; см. auth-and-telegram.md.
 - Файлы: src/app/api/telegram/webhook/route.ts, src/lib/auth/tokens.ts, migration 001.
 
 ## TG-005

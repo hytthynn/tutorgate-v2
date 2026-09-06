@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { PanelLeftClose } from "lucide-react";
 export function Brand({ href = "/login" }: { href?: string }) {
   return (
     <Link href={href} className="brand" aria-label="TutorGate — главная">
       <span className="brand-mark">
-        <PanelLeftClose size={21} strokeWidth={1.7} />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 20V7a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v13" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </span>
       <span>
         Tutor<span className="brand-light">Gate</span>

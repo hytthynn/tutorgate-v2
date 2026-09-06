@@ -37,9 +37,6 @@ export async function SettingsPage() {
             </div>
           </div>
           <RateForm rate={Number(settings.data.hourly_rate)} />
-          <div className="settings-footnote">
-            Заработок рассчитывается по проведённым часам. История сохраняется после удаления предметов.
-          </div>
         </section>
         <section className="panel settings-panel">
           <div className="settings-heading">

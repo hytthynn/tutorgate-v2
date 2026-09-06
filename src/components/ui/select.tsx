@@ -87,7 +87,7 @@ export function Select({ children, value, defaultValue, onValueChange, searchabl
       aria-describedby={aria["aria-describedby"]} aria-invalid={aria["aria-invalid"]}
       aria-activedescendant={open && !searchable && filtered[active] ? `${listId}-${active}` : undefined} aria-required={required} aria-controls={listId} aria-expanded={open} aria-haspopup="listbox"
       onClick={() => open ? close() : expand()} onKeyDown={keyboard}>
-      <span>{options.find(o => o.value === selected)?.label ?? selected}</span><ChevronDown size={15} aria-hidden />
+      <span>{options.find(o => o.value === selected)?.label ?? selected}</span><ChevronDown size={16} aria-hidden />
     </button>
     {open && !disabled && container && createPortal(<div ref={popup} className="tg-select-popup" data-tg-popup tabIndex={-1} onKeyDown={keyboard}>
       {searchable && <div className="tg-select-search"><Search size={15} aria-hidden /><input ref={search} role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="Поиск в списке" autoComplete="off" value={query} onChange={e => { setQuery(e.target.value); setActive(0); }} aria-controls={listId} aria-activedescendant={filtered[active] ? `${listId}-${active}` : undefined} /></div>}

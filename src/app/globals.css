@@ -572,20 +572,6 @@ nav {
 .sidebar-bottom {
   margin-top: auto;
 }
-.sidebar-note {
-  padding: 20px 10px;
-  font-size: 10px;
-  color: #8c7e70;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #a39475;
-}
 .account {
   border-top: 1px solid var(--border);
   display: flex;
@@ -869,14 +855,16 @@ nav {
   font-size: 11px;
   display: block;
   width: 100%;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .assignment-tag > span {
   color: #b49a7f;
 }
 .table-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   font-size: 10px;
   color: #928171;
   padding: 13px 22px;
@@ -1761,8 +1749,64 @@ textarea { resize: none; font: inherit; }
   .schedule-toolbar .tg-select-trigger { padding-right: 7px; gap: 5px; }
 }
 
-input[type="date"], input[type="date"]::-webkit-calendar-picker-indicator { cursor: text; }
+input[type="date"], input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
 /* Inactivity is independent of the lesson color. SVG hatch is a state indicator. */
 .schedule-lesson[data-inactive="true"] { --lesson-color: var(--lesson-gray); background-color: color-mix(in srgb, var(--lesson-gray) 16%, var(--surface-raised)); border-color: color-mix(in srgb, var(--lesson-gray) 50%, var(--surface-raised)); color: var(--muted-foreground); cursor: default; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-2 2L2-2M0 8L8 0M6 10L10 6' stroke='%2387796c' stroke-opacity='.22'/%3E%3C/svg%3E"); }
 .schedule-lesson[data-transfer="true"] { border-left: 3px solid var(--lesson-blue); }
 .schedule-lesson[data-inactive="true"].is-selected { outline: none; }
+
+/* TG-009: intrinsic page height, no clipped overflow. Smaller desktop chart leaves
+   room for custom dates at 768px height; tall/small screens remain scrollable. */
+.dashboard-topbar { flex-shrink: 0; }
+.dashboard-content:has(.statistics-page) { padding-top: 24px; padding-bottom: 24px; }
+.statistics-page .page-heading { margin-bottom: 20px; }
+.statistics-page .chart-area { height: clamp(160px, calc(100dvh - 620px), 330px); margin-top: 20px; }
+.statistics-page .kpi-card { padding: 16px 20px; }
+.schedule-toolbar .tg-select-trigger { padding: 4px 10px; gap: 8px; }
+.tg-select-trigger > span { flex: 1; min-width: 0; }
+.tg-select-trigger > svg { flex: 0 0 16px; width: 16px; height: 16px; }
+.schedule-lesson { z-index: 3; }
+.schedule-lesson[data-color="coral"] { z-index: 2; }
+.schedule-lesson[data-inactive="true"] { z-index: 1; }
+.schedule-lesson.is-selected, .schedule-lesson:focus-visible { z-index: 4; }
+.schedule-lesson.is-dragging { z-index: 5; }
+@media (max-width: 767px) {
+  .schedule-date-selects .tg-select:nth-child(1) { width: 76px; }
+  .schedule-date-selects .tg-select:nth-child(2) { width: 100px; }
+  .schedule-toolbar .tg-select-trigger { padding: 4px 8px; gap: 6px; font-size: 12px; }
+  .statistics-page .chart-area { height: 240px; }
+}
+
+/* Moderation uses the existing warm-mocha tokens. */
+.application-tabs { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.application-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted-foreground); }
+.application-tabs a[aria-current="page"] { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+.application-count { margin: 20px 0 16px; font-size: 12px; }
+.application-list { display: grid; gap: 16px; }
+.application-card { padding: 24px; min-width: 0; }
+.application-card-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.application-card-heading h2 { font-size: 18px; overflow-wrap: anywhere; }
+.application-card-heading p { margin-top: 4px; font-size: 14px; overflow-wrap: anywhere; }
+.application-status { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; flex-shrink: 0; }
+.application-status[data-status="approved"], .application-status[data-status="registered"] { color: #bcd4aa; }
+.application-status[data-status="rejected"] { color: #e4aaa0; }
+.application-details { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px 24px; margin: 24px 0; }
+.application-details dt { color: var(--muted-foreground); font-size: 12px; margin-bottom: 4px; }
+.application-details dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.application-actions, .application-pagination { display: flex; flex-direction: row; flex-wrap: wrap; gap: 12px; }
+.application-pagination { margin-top: 24px; align-items: center; }
+.application-pagination a { min-height: 44px; display: inline-flex; align-items: center; }
+.application-empty { padding: 32px; }
+.application-empty h2 { font-size: 18px; margin-bottom: 8px; }
+@media(max-width:600px) {
+ .application-card { padding: 16px; }
+ .application-card-heading { flex-direction: column; gap: 12px; }
+ .application-details { grid-template-columns: minmax(0,1fr); gap: 16px; }
+ .application-tabs a { padding: 8px 12px; font-size: 14px; }
+ .application-card .button { max-width: 100%; white-space: normal; }
+}
+
+@media (min-width: 768px) { .statistics-page .statistics-controls { min-height: 120px; align-content: flex-start; } }
+
+.applications-page .application-card { max-width: none; width: 100%; }
+.applications-page .button { min-height: 44px; }

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { env, appUrl } from "@/lib/env";
-import { safeEqual, hash, updateToken } from "@/lib/auth/tokens";
+import { env } from "@/lib/env";
+import { safeEqual, hash } from "@/lib/auth/tokens";
 import { serviceRpc } from "@/lib/supabase/admin";
 import { sendMessage } from "@/lib/telegram/bot";
+import { notifyApplicationAdmins, type AdminNotice } from "@/features/applications/notifications";
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 300;
 const updateSchema = z.object({
   update_id: z.number().int().nonnegative().safe(),
   message: z
@@ -53,23 +54,30 @@ export async function POST(request: NextRequest) {
   )?.[1];
   if (!payload) return NextResponse.json({ ok: true });
   try {
-    const raw = updateToken(update_id, env("TELEGRAM_WEBHOOK_SECRET"));
-    const result = await serviceRpc<{ status: string; chat_id?: string }>(
+    const result = await serviceRpc<{ status: string; chat_id?: string; application_id?: string }>(
       "confirm_telegram",
       {
         p_update: update_id,
         p_hash: hash(payload),
-        p_registration_hash: hash(raw),
         p_username: message.from.username?.toLowerCase() ?? "",
         p_user: String(message.from.id),
         p_chat: String(message.chat.id),
       },
     );
+    if (result.application_id) {
+      await notifyApplicationAdmins(result.application_id, {
+        recipients: id => serviceRpc<{ admin_id: string }[]>("application_admin_recipients", { p_id: id }),
+        claim: (id, admin) => serviceRpc<AdminNotice | null>("claim_application_notification", { p_id: id, p_admin: admin }),
+        finish: (id, admin, success) => serviceRpc("finish_application_notification", { p_id: id, p_admin: admin, p_success: success }),
+        send: sendMessage,
+        log: () => console.error("Application admin notification delivery failed"),
+      });
+    }
     if (result.status === "done") return NextResponse.json({ ok: true });
     if (result.status === "send") {
       await sendMessage(
         result.chat_id!,
-        `Telegram подтверждён. Завершите регистрацию в TutorGate:\n\n${appUrl(`/register?token=${raw}`)}\n\nСсылка действует 24 часа и может быть использована один раз.`,
+        "Telegram подтверждён. Заявка отправлена на проверку. Мы пришлём сообщение после решения администратора.",
       );
       await serviceRpc("telegram_delivered", { p_update: update_id });
     } else {

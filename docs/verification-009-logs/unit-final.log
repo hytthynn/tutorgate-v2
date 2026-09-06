@@ -1,0 +1,55 @@
+
+> tutorgate@1.0.0 test:unit
+> tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts tests/filters.test.ts tests/schedule-operations.test.ts tests/package-009.test.ts tests/migration-retry.test.ts
+
+✔ directory URL always contains the complete latest search + selection (0.860787ms)
+✔ custom statistics commits only valid complete date pairs (2.032977ms)
+✔ preset periods remove dates and empty tutor without losing metric (0.208556ms)
+✔ retry takes nonblocking writer/table locks before the unchanged migration body (7.270575ms)
+✔ 009 allowed overlap stays full width: {"color":"coral"} (8.424622ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"transferred"} (0.231794ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"available_from"} (0.198138ms)
+✔ 009 same-class conflicts split defensively, unrelated people do not (0.322389ms)
+✔ 009 midnight segment adjacency does not create defensive lanes (0.142793ms)
+✔ 009 delete target restores source, availability reapplies and completion remains cleared (1.898363ms)
+✔ 009 delete source detaches target, which becomes transferable (0.25259ms)
+✔ 009 batch deletes both sides and handles multiple unrelated pairs (0.972373ms)
+✔ 009 status mapping and decision gates (0.318152ms)
+✔ 009 two-admin mock delivery is deduplicated, failures isolated and no Telegram decision buttons (1.066831ms)
+✔ 009 render contracts and token privacy (10.981271ms)
+✔ conflict classes and selection keep gray active and coral individually editable (0.788821ms)
+✔ group placement preserves offsets and chooses later common delta on tie (2.823051ms)
+✔ availability date is inclusive and never reactivates transferred sources (0.163721ms)
+✔ overlap lanes expose every card including connected overlap chains (0.871074ms)
+✔ confirmed undo/redo stacks invert canonical snapshots; a new action clears redo (0.285474ms)
+✔ temporary IDs are removed and canonical fields win (0.166415ms)
+✔ Monday weeks, month boundaries and invalid query fallback (1.619336ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.583592ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.501076ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.589719ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.376364ms)
+✔ current local week and future guards cover every MSK offset (1.767814ms)
+✔ day selector always offers seven dates including year boundary (0.499606ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (3.055654ms)
+✔ historical subject can only be omitted when unchanged (0.413423ms)
+✔ schedule never refreshes the current RSC calendar (10.912575ms)
+✔ custom selectors and global toast replace legacy mechanisms (11.717633ms)
+✔ history is unbounded but paginated, normalized names are batched (1.036945ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.806129ms)
+✔ 008 calendar uses atomic commands, group magnet and shared save state (0.666674ms)
+✔ 007 auto filters replace URLs, debounce 300ms, and preserve server directory (1.548697ms)
+✔ 007 subject selectors have no search; people selectors keep it (1.762015ms)
+✔ 007 shared loading API used by every agreed form and logout (1.275947ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (1.655675ms)
+✔ Telegram is normalized and validated (0.317249ms)
+✔ applications require consent, subjects and role-specific selection (2.5078ms)
+✔ password confirmation, hourly rate, assignment IDs (1.614161ms)
+✔ cryptographic tokens meet Telegram payload limits and are unique (0.495592ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1416.663093

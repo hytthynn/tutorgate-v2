@@ -1,34 +1,46 @@
-# Проверка пакета 008 — 05.09.2026
+# Фактические проверки — пакет 009
 
-Реализовано [ТЗ 008](TZ_TutorGate_008_schedule_features_and_fixes.md). Среда: Windows, Node 24.19.0, Next.js 16.3.4. Версии зависимостей и lockfile сохранены.
+Дата работы: 05–06.09.2026. Источник: присланные ZIP и ТЗ 009. Производственные Supabase/Telegram/Vercel не подключались и не изменялись.
 
-## Фактически выполненные проверки
+## Итог
 
-| Команда | Результат |
+Реализация и регрессионные тесты добавлены. **Полный DoD не подтверждён**: недоступен npm registry (DNS/network), в sandbox отсутствуют точные зависимости проекта. Offline npm ci также завершился ENOTCACHED. Версии зависимостей не подменялись и lockfile не обновлялся.
+
+| Проверка | Фактический результат |
 |---|---|
-| `npm ci` | Пройдена; 444 пакета установлено, аудит без уязвимостей. npm сообщил существующие peer-dependency warnings ESLint и уведомления allow-scripts |
-| `npm run lint` | Пройдена |
-| `npm run typecheck` | Пройдена |
-| `npm test` | 65/65, без пропусков; unit и реальные PostgreSQL-миграции в PGlite |
-| `npm run test:docs` | Пройдена |
-| `npm run build` | Production-сборка и генерация страниц пройдены |
-| `npm run test:e2e` | 42/42, Chromium, один worker, 4,1 минуты |
+| npm ci | Не выполнена установка: npm registry недоступен; процесс остановлен после сетевых повторов |
+| npm ci --offline --ignore-scripts | Ошибка ENOTCACHED, нет требуемых пакетов в cache |
+| npm run lint | Запущена, заблокирована: eslint отсутствует |
+| npm run typecheck | Запущена, не пройдена: отсутствуют next, React/Node typings и другие зависимости; это не успешный typecheck |
+| npm test | Запущена: unit-часть проходит, четыре DB suites не стартуют без @electric-sql/pglite |
+| npm run test:docs | Пройдена после исправления ссылок входного архива; итоговый лог приложен |
+| npm run build | Запущена, заблокирована: next отсутствует |
+| npm run test:e2e | Запущена, не стартует без @playwright/test и Next |
 
-После полного прогона выполнен `npm run test:e2e -- tests/e2e/schedule-features.spec.ts`: 8/8 за 31,7 секунды. Проверены две строки вместо трёх в компактной inactive-карточке, keyboard undo после transfer и undo личного offset ученика без потери статусов. При этом найдена и исправлена потеря сочетаний клавиш после отключения select на время pending: listener действует в пределах смонтированной страницы расписания, исключая текстовые поля, combobox и dialogs. После исправлений повторно пройдены lint, typecheck и production build.
+## Выполнено независимо от полной установки
 
-## Что проверено
+- 43 unit/contract tests проходят через предустановленный tsx: validation, dates, filters, signed client history, immutable preview, conflict-aware lanes, delete target/source/batch, application status gates и mocked two-admin notification dedupe/failure isolation.
+- Синтаксис 111 TS/TSX файлов успешно проверен esbuild отдельно от отсутствующих типовых деклараций; это НЕ замена strict typecheck.
+- `node --check` тестовых MJS/CJS файлов: успешно.
+- Offline React SSR snapshots реальных компонентов с mock integration adapters + локальный Chromium: размеры страницы проверены на 1366×768, 1440×900, 1920×1080, 320×900, 375×900. Исправлен найденный 26 px overflow статистики. На desktop статистика помещается; на узких/коротких экранах реальный scroll остаётся. Date computed cursor — pointer; student save indicator отсутствует; desktop/mobile layout без horizontal overflow.
+- Визуально осмотрены снимки статистики, pending/approved applications и tutor/student schedules. Применён прежний warm-mocha стиль, новый gate mark, разрешённые перекрытия остаются одной ширины, select текст с ellipsis не пересекает chevron.
 
-- Удаление footer/CTA, admin label, сохранение ставки и её пустое значение, client/server validation, loading, success-state forgot/reset/application/register.
-- Conflict classes и четыре ограничения tutor/student, normal↔coral, inactive overlaps, запрет coral↔coral/recolor conflict; приватные заметки и границы ролей.
-- Перенос одиночного занятия и группы, текущая/следующая неделя, запрет повторного target transfer и недели после следующей, копирование заметок, completed reset, полная атомарность ошибки группы.
-- Availability только для пары tutor/student, включительная дата, отмена, сохранение transferred inactivity, полный rollback при конфликте реактивации; inactive детали, lanes, rectangle eligibility.
-- Group drag, общий delta, paste anchor и относительное расположение, undo/redo с реальным восстановлением UUID/notes/status, подписи, scope, stale snapshots, исключение чужих данных и сохранение независимых изменений.
-- Rollover пропускает transferred source, не дублирует next-week target, очищает transfer marker recurring-копии, учитывает availability и сохраняет note/duration/color.
-- Мгновенное изменение карточек до задержанного ответа, единый SaveState, полный rollback и восстановление draft после ошибки create/edit, отсутствие RSC refresh при CRUD.
-- Desktop и mobile (320/375/430 px), responsive страницы при 375/768/1280/1440 px, мышь/touch/keyboard. Скриншот `artifacts/schedule-008-overlap.png` проверен визуально.
+Ограничение offline snapshot QA: Next runtime, Recharts rendering, Lucide module и внешние сервисы были заменены локальными adapters; это не проверка всех runtime states, hydration, popup interactions или заполненных графиков. Полная визуальная и интерактивная приёмка — после npm ci.
 
-## Границы проверки и применение
+## Добавленные проверки для полного окружения
 
-E2E использует настоящее Next-приложение и только локальный fixture-сервер `tests/e2e/server.mjs`; SQL/RLS проверяется отдельно выполнением всех миграций в PGlite. Настоящие Supabase/Auth/Telegram и production не использовались. Миграция [202609050007_schedule_features.sql](../supabase/migrations/202609050007_schedule_features.sql) подготовлена, но к рабочей Supabase не применялась. При развёртывании применить её после 006 до включения нового приложения; существующий Cron продолжает использовать обновлённую функцию rollover.
+- `tests/package-009.test.ts`: unit/contract и mock notification orchestration.
+- `tests/applications-database.test.ts`: полный набор migrations, review/token/reapply/privacy/expiry/idempotency. PGlite Promise.all проверяет единственность перехода, но не заменяет staging race из двух PostgreSQL sessions.
+- `tests/schedule-features-database.test.ts`: delete source/target/both, availability, rollback on conflict, signed Undo/Redo.
+- `tests/e2e/package-009.spec.ts`: statistics scroll/cursor, role controls, chevrons 320/375, assignments, transfer deletion, moderated registration/resend/rejection flow.
+- Existing DB/E2E assertions обновлены для новой модели; legacy versions tests не удалены.
 
-[Предыдущий итоговый отчёт 007](archive/verification-007-final.md) сохранён в архиве. Старые логи в verification-logs и материалы verification-ui относятся к прошлому пакету.
+## Что обязательно проверить до production
+
+1. Полный clean install и все команды README с закреплёнными версиями.
+2. Реальные migrations 008 → commit → 009 на копии базы; migration legacy telegram_verified и existing registered.
+3. Реальный PostgreSQL concurrency approve/reject/register/resend и snapshots.
+4. Настоящие Telegram deliveries двум admin, отказ Telegram API, повторы webhook.
+5. Реальные Next/React/Radix/Recharts состояния, заполненный график, mobile popups, keyboard flow и новые ссылки после expiry.
+
+Исторический отчёт [008](archive/verification-008-incoming.md) сохранён отдельно и не считается подтверждением текущего релиза.

@@ -1,0 +1,169 @@
+
+> tutorgate@1.0.0 test
+> tsx --test tests/*.test.ts
+
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/applications-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/vercel/sandbox/data/tutorgate/tests/applications-database.test.ts'
+  ]
+}
+
+Node.js v24.14.1
+✖ tests/applications-database.test.ts (326.681856ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/database.test.ts (435.90006ms)
+✔ directory URL always contains the complete latest search + selection (1.168695ms)
+✔ custom statistics commits only valid complete date pairs (6.689051ms)
+✔ preset periods remove dates and empty tutor without losing metric (0.236ms)
+✔ retry takes nonblocking writer/table locks before the unchanged migration body (6.455802ms)
+✔ 009 allowed overlap stays full width: {"color":"coral"} (9.128093ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"transferred"} (0.230719ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"available_from"} (0.157276ms)
+✔ 009 same-class conflicts split defensively, unrelated people do not (0.554364ms)
+✔ 009 midnight segment adjacency does not create defensive lanes (0.171843ms)
+✔ 009 delete target restores source, availability reapplies and completion remains cleared (2.134022ms)
+✔ 009 delete source detaches target, which becomes transferable (0.267129ms)
+✔ 009 batch deletes both sides and handles multiple unrelated pairs (0.174257ms)
+✔ 009 status mapping and decision gates (0.270565ms)
+✔ 009 two-admin mock delivery is deduplicated, failures isolated and no Telegram decision buttons (1.093293ms)
+✔ 009 render contracts and token privacy (23.343104ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/schedule-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/schedule-database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/schedule-database.test.ts (157.170548ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/schedule-features-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/vercel/sandbox/data/tutorgate/tests/schedule-features-database.test.ts'
+  ]
+}
+
+Node.js v24.14.1
+✖ tests/schedule-features-database.test.ts (175.822948ms)
+✔ conflict classes and selection keep gray active and coral individually editable (0.817602ms)
+✔ group placement preserves offsets and chooses later common delta on tie (3.55178ms)
+✔ availability date is inclusive and never reactivates transferred sources (0.209769ms)
+✔ overlap lanes expose every card including connected overlap chains (0.917014ms)
+✔ confirmed undo/redo stacks invert canonical snapshots; a new action clears redo (0.341706ms)
+✔ temporary IDs are removed and canonical fields win (0.184077ms)
+✔ Monday weeks, month boundaries and invalid query fallback (1.561274ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.592233ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.516417ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.613469ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.444819ms)
+✔ current local week and future guards cover every MSK offset (1.780129ms)
+✔ day selector always offers seven dates including year boundary (0.51345ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.221844ms)
+✔ historical subject can only be omitted when unchanged (0.430682ms)
+✔ schedule never refreshes the current RSC calendar (7.405958ms)
+✔ custom selectors and global toast replace legacy mechanisms (14.146661ms)
+✔ history is unbounded but paginated, normalized names are batched (0.908614ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.762272ms)
+✔ 008 calendar uses atomic commands, group magnet and shared save state (0.751015ms)
+✔ 007 auto filters replace URLs, debounce 300ms, and preserve server directory (1.11235ms)
+✔ 007 subject selectors have no search; people selectors keep it (1.749637ms)
+✔ 007 shared loading API used by every agreed form and logout (1.329257ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (1.808769ms)
+✔ Telegram is normalized and validated (0.325664ms)
+✔ applications require consent, subjects and role-specific selection (2.552346ms)
+✔ password confirmation, hourly rate, assignment IDs (1.597513ms)
+✔ cryptographic tokens meet Telegram payload limits and are unique (0.519689ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 43
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2328.427887
+
+✖ failing tests:
+
+test at tests/applications-database.test.ts:1:1
+✖ tests/applications-database.test.ts (326.681856ms)
+  'test failed'
+
+test at tests/database.test.ts:1:1
+✖ tests/database.test.ts (435.90006ms)
+  'test failed'
+
+test at tests/schedule-database.test.ts:1:1
+✖ tests/schedule-database.test.ts (157.170548ms)
+  'test failed'
+
+test at tests/schedule-features-database.test.ts:1:1
+✖ tests/schedule-features-database.test.ts (175.822948ms)
+  'test failed'

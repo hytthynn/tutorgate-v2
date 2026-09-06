@@ -8,7 +8,7 @@ import {
   hourlyRateSchema,
   assignmentSchema,
 } from "../src/lib/validation/schemas";
-import { token, hash, updateToken, safeEqual } from "../src/lib/auth/tokens";
+import { token, hash, safeEqual } from "../src/lib/auth/tokens";
 test("login is case-insensitive; embedded whitespace and non-Latin names rejected", () => {
   assert.equal(username.parse("  Ivan_2007 "), "ivan_2007");
   for (const value of [
@@ -71,13 +71,12 @@ test("password confirmation, hourly rate, assignment IDs", () => {
     false,
   );
 });
-test("tokens meet Telegram payload limits and retries produce the same link", () => {
+test("cryptographic tokens meet Telegram payload limits and are unique", () => {
   const raw = token();
   assert.match(raw, /^[\w-]{43}$/);
   assert.equal(hash(raw).length, 64);
   assert.notEqual(raw, token());
-  assert.equal(updateToken(12, "secret"), updateToken(12, "secret"));
-  assert.notEqual(updateToken(12, "secret"), updateToken(13, "secret"));
+  assert.notEqual(token(), token());
   assert.equal(safeEqual("secret", "secret"), true);
   assert.equal(safeEqual("secret", "bad"), false);
 });

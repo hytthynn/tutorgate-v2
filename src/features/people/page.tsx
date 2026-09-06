@@ -138,9 +138,8 @@ export async function PeoplePage({
                     {kind === "students" && admin ? (
                       assigned.length ? (
                         assigned.map((a) => (
-                          <span className="assignment-tag" key={a.id}>
-                            {tutors.find((t) => t.id === a.tutor_id)?.full_name}
-                            <span>· {subjectName(a.subject_id)}</span>
+                          <span className="assignment-tag" key={a.id} title={`${tutors.find((t) => t.id === a.tutor_id)?.full_name ?? "Репетитор"} · ${subjectName(a.subject_id)}`}>
+                            {tutors.find((t) => t.id === a.tutor_id)?.full_name ?? "Репетитор"}{" · "}<span>{subjectName(a.subject_id)}</span>
                           </span>
                         ))
                       ) : (
@@ -190,7 +189,6 @@ export async function PeoplePage({
             })}
             <div className="table-footer">
               {people.length} из {total}
-              <span>TutorGate / {title}</span>
             </div>
           </div>
         )}

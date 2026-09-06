@@ -40,11 +40,11 @@ Server Actions проверяют identity/роль и Zod, затем рабо�
 
 ## Клиентские состояния
 
-Календарь постоянно показывает saved/saving/error. Все мутации, включая LessonDialog и offset, участвуют в общем статусе. Optimistic rollback оставляет error до успешной записи; локальная валидация формы до запроса статус не меняет.
+Календарь tutor/admin показывает saved/saving/error; у student индикатор и кнопки Undo/Redo скрыты. Все мутации, включая LessonDialog и offset, участвуют в общем статусе. Optimistic rollback оставляет error до успешной записи; локальная валидация формы до запроса статус не меняет.
 
 DirectoryFilters оставляет получение/фильтрацию данных в PeoplePage (Server Component). Поиск откладывается на 300 мс; select применяет полный текущий draft сразу. useAutoFilters строит URL из синхронного ref, отменяет предыдущий timer, использует router.replace. Ответ собственного перехода не затирает более новый ввод; Back/Forward восстанавливают контролы. StatisticsView не remount-ится на каждый ответ: невалидная пара дат остаётся локальной, валидная применяется сразу; preset удаляет from/to.
 
-Общие loading-кнопки и визуальные правила — [UI](ui-guidelines.md). Текущее [ТЗ](TZ_TutorGate_008_schedule_features_and_fixes.md) и [фактические проверки](verification.md).
+Общие loading-кнопки и визуальные правила — [UI](ui-guidelines.md). Текущее [ТЗ](TZ_TutorGate_009_bugs_applications_brand.md) и [фактические проверки](verification.md).
 
 ## Расписание 008
 
@@ -57,3 +57,9 @@ Calendar применяет optimistic состояние до запроса, �
 Undo/redo живёт только в памяти смонтированного календаря. Сервер подписывает before/after снимки только затронутых строк, заметок, правил и offset; ключ хранится в закрытой private.schedule_signing_key. Restore проверяет подпись, владельца, область изменений и совпадение expected с текущими данными; сторонние изменения затронутых строк инвалидируют историю. Подпись нельзя получить через private RPC. Восстановление UUID, исторического предмета, заметок и статусов атомарно; exclusion constraints сохраняют силу. Незатронутые серверные строки не перезаписываются. Background sync не добавляется в историю.
 
 Внутренний clipboard хранит выбранные source IDs и геометрию. Ctrl+C не записывает персональные данные в системный clipboard. Ctrl+V требует выбранной точки текущей недели, сервер копирует актуальные приватные заметки по owned source IDs. Rollover пропускает transferred sources, учитывает availability, очищает transfer metadata у recurring copies.
+
+## Пакет 009: связанные удаления и модерация
+
+`removeLessons` моделирует транзакционное удаление: target → восстановление source с повторным применением availability; source → очистка transfer metadata у target; обе стороны в одной команде → удаление обеих без восстановления. В БД это новая ветка `schedule_command`; область signed snapshot автоматически включает все изменённые строки, а не только входные ids. Конфликт при восстановлении source откатывает всю команду. Правила RLS, владения, constraint и magnet не ослаблены. Активное занятие отрисовывается выше coral и inactive; для разрешённых пересечений lanes не выделяются, на краю остаются узкие доступные области нижних слоёв, фокус поднимает карточку.
+
+`/admin/applications` — Server Component с серверными role/status-фильтрами и пагинацией по 50 строк. Мутации — Server Actions: getUser/requireRole(admin), только applicationId от клиента, далее service-only RPC с повторной проверкой admin и блокировкой заявки. DTO не содержит Telegram numeric identifiers или token hashes. Решение сохраняется до сетевого вызова Telegram; ошибка доставки не откатывает БД. Ссылки, TTL и аудит описаны в [auth-and-telegram](auth-and-telegram.md).

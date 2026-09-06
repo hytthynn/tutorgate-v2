@@ -45,7 +45,7 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, editable, bus
       <Button variant="secondary" size="sm" disabled={busy} onClick={onToday}>Текущая</Button>
       <Button variant="secondary" size="sm" aria-label="Следующая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, 7))}><ChevronRight size={16} /></Button>
     </div>
-    <div className="schedule-controls-group schedule-edit-controls">
+    {editable && <div className="schedule-controls-group schedule-edit-controls">
       {editable&&<Tooltip text="Бинды"><Button variant="ghost" size="sm" aria-label="Бинды" onClick={onBindings}><Keyboard size={16} /></Button></Tooltip>}
       <Tooltip text="Отменить"><Button variant="ghost" size="sm" disabled={busy||!canUndo} onClick={onUndo} aria-label="Отменить"><Undo2 size={16} /></Button></Tooltip>
       <Tooltip text="Вернуть"><Button variant="ghost" size="sm" disabled={busy||!canRedo} onClick={onRedo} aria-label="Вернуть"><Redo2 size={16} /></Button></Tooltip>
@@ -56,6 +56,6 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, editable, bus
           <Button size="sm" disabled onClick={onAdd}><Plus size={16} />Добавить занятие</Button>
         </Tooltip>
       ))}
-    </div>
+    </div>}
   </div>;
 }

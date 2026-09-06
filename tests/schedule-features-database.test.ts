@@ -3,6 +3,7 @@ import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
+import { prepareScheduleMigration } from "../scripts/prepare-schedule-migration.mjs";
 import { addDays, currentWeek, localToUtc } from "../src/features/schedule/time";
 import type { ScheduleResult } from "../src/features/schedule/types";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
@@ -15,7 +16,10 @@ test("008 transactions, conflict classes, signed history and availability", asyn
       create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
       grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`);
     for (const name of (await readdir(new URL("../supabase/migrations/",import.meta.url))).filter(n=>n.endsWith(".sql")).sort())
-      await db.exec(await readFile(new URL(`../supabase/migrations/${name}`,import.meta.url),"utf8"));
+      {
+        const sql=await readFile(new URL(`../supabase/migrations/${name}`,import.meta.url),"utf8");
+        await db.exec(name==="202609050007_schedule_features.sql" ? prepareScheduleMigration(sql) : sql);
+      }
     await db.exec("alter table auth.users disable trigger user");
     for (const [n,role] of [[1,"admin"],[2,"tutor"],[3,"tutor"],[4,"student"],[5,"student"],[6,"student"]] as const) {
       await db.query("insert into auth.users(id) values($1)",[id(n)]);
@@ -66,6 +70,38 @@ test("008 transactions, conflict classes, signed history and availability", asyn
       await command(2,{kind:"restore",expected:redone.after,target:moved.before});
       await assert.rejects(command(2,{kind:"transfer",ids:[first.id],startsAt:at(14,"11:00")}),{code:"PT007"});
       await assert.rejects(command(1,{kind:"transfer",ids:[first.id],startsAt:at(0,"15:00")}),{code:"42501"});
+    });
+    await t.test("009 delete target/source/both, atomic conflicts and undo/redo", async()=>{
+      for (const side of ["target","source","both"] as const) {
+        const transfer=await command(2,{kind:"transfer",ids:[first.id],startsAt:at(1,"10:00")});
+        const target=transfer.lessons!.find(l=>l.transferSourceId===first.id)!;
+        const ids=side==="both"?[first.id,target.id]:[side==="source"?first.id:target.id];
+        const deleted=await command(2,{kind:"delete",ids});
+        const sourceAfter=deleted.lessons!.find(l=>l.id===first.id),targetAfter=deleted.lessons!.find(l=>l.id===target.id);
+        if(side==="target") {assert.equal(sourceAfter?.inactiveReason,null);assert.equal(sourceAfter?.completed,false);assert.equal(targetAfter,undefined);}
+        if(side==="source") {assert.equal(sourceAfter,undefined);assert.equal(targetAfter?.isTransferTarget,false);assert.equal(targetAfter?.transferSourceId,null);assert.equal(targetAfter?.transferSourceStartsAt,null);}
+        if(side==="both") {assert.equal(sourceAfter,undefined);assert.equal(targetAfter,undefined);}
+        const undo=await command(2,{kind:"restore",expected:deleted.after,target:deleted.before});
+        assert.equal(undo.lessons!.find(l=>l.id===first.id)?.inactiveReason,"transferred");
+        assert.equal(undo.lessons!.find(l=>l.id===target.id)?.transferSourceId,first.id);
+        const redo=await command(2,{kind:"restore",expected:undo.after,target:deleted.after});
+        assert.equal(redo.lessons!.some(l=>ids.includes(l.id)),false);
+        await command(2,{kind:"restore",expected:redo.after,target:deleted.before});
+        await command(2,{kind:"restore",expected:transfer.after,target:transfer.before});
+      }
+      const transfer=await command(2,{kind:"transfer",ids:[first.id],startsAt:at(1,"10:00")});
+      const target=transfer.lessons!.find(l=>l.transferSourceId===first.id)!;
+      const availability=await command(2,{kind:"availability",studentIds:[id(4)],availableFrom:addDays(week,1)});
+      const removed=await command(2,{kind:"delete",ids:[target.id]});
+      assert.equal(removed.lessons!.find(l=>l.id===first.id)?.inactiveReason,"available_from");
+      await command(2,{kind:"restore",expected:removed.after,target:removed.before});
+      await command(2,{kind:"restore",expected:availability.after,target:availability.before});
+      // Source can now conflict with a new active lesson: entire deletion rolls back.
+      const busy=(await save(2,5,at(0,"10:00"))).lesson!;
+      await assert.rejects(command(2,{kind:"delete",ids:[target.id]}),{code:"23P01"});
+      assert.equal((await db.query("select id from public.lessons where id=$1",[target.id])).rows.length,1);
+      await command(2,{kind:"delete",ids:[busy.id]});
+      await command(2,{kind:"restore",expected:transfer.after,target:transfer.before});
     });
     await t.test("availability applies only to tutor/student and cancellation conflicts roll back",async()=>{
       const hidden=(await save(3,4,at(1,"15:00"),60,other)).lesson!;

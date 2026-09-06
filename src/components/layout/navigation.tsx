@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
+  Inbox,
   Users,
   GraduationCap,
   ChartNoAxesCombined,
@@ -30,12 +31,13 @@ const items = [
   { key: "tutors", label: "Репетиторы", icon: GraduationCap },
   { key: "students", label: "Ученики", icon: Users },
   { key: "statistics", label: "Статистика", icon: ChartNoAxesCombined },
+  { key: "applications", label: "Заявки", icon: Inbox },
   { key: "settings", label: "Настройки", icon: Settings2 },
 ];
 const allowed = {
   student: ["schedule", "tutors"],
   tutor: ["schedule", "students", "statistics"],
-  admin: ["schedule", "tutors", "students", "statistics", "settings"],
+  admin: ["schedule", "tutors", "students", "statistics", "applications", "settings"],
 };
 const roleNames = {
   student: "Ученик",
@@ -85,10 +87,6 @@ export function Navigation({ profile }: { profile: Profile }) {
         <div className="workspace-label">ЛИЧНЫЙ КАБИНЕТ</div>
         {links}
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="status-dot" />
-            Всё начинается с знаний
-          </div>
           {account}
         </div>
       </aside>

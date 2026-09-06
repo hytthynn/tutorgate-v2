@@ -45,7 +45,7 @@ export function ApplicationForm({
           </a>
         </Button>
         <p className="field-hint">
-          В боте нажмите Start. Ссылка действует 24 часа.
+          В боте нажмите Start. Ссылка подтверждения Telegram действует 24 часа.
         </p>
       </div>
     );
@@ -86,7 +86,7 @@ export function ApplicationForm({
           label="Telegram"
           name="telegram_username"
           error={state.errors?.telegram_username}
-          hint="Сюда придёт ссылка для регистрации"
+          hint="Сюда придёт решение по заявке, а после одобрения — ссылка регистрации"
         >
           <div className="input-prefix">
             <span>@</span>
