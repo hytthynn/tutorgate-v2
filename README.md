@@ -4,7 +4,7 @@
 
 ## Стек
 
-Node.js 24.x · Next.js 16.3.4 (App Router) · React 19.2.8 · TypeScript · Supabase/PostgreSQL · Server Actions · Lucide · Recharts. Версии закреплены в `package-lock.json`; пакет 012 не обновляет версии зависимостей; добавляет отдельную миграцию 012.
+Node.js 24.x · Next.js 16.3.4 (App Router) · React 19.2.8 · TypeScript · Supabase/PostgreSQL · Server Actions · Lucide · Recharts. Версии закреплены в `package-lock.json`; пакет 012 не обновляет версии зависимостей; добавляет отдельную миграцию 012. Постоянная панель управления ботом добавлена миграцией 013.
 
 ## Быстрый старт
 
@@ -15,7 +15,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Примените SQL-миграции 001–012 по порядку. Миграция 008 с новыми enum-значениями должна завершиться отдельным commit до 009. Для обновления уже работающей базы на 011 примените только 012; сначала проверьте их на staging. Настройка Supabase, Cron, webhook и production: [развёртывание](docs/deployment-vercel.md).
+Примените SQL-миграции 001–013 по порядку. Миграция 008 с новыми enum-значениями должна завершиться отдельным commit до 009. Для базы на 012 примените 013; для базы на 011 — сначала 012, затем 013. Сначала проверьте миграции на staging. Настройка Supabase, Cron, webhook и production: [развёртывание](docs/deployment-vercel.md).
 
 ## Проверки
 

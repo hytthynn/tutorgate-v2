@@ -136,3 +136,8 @@ chat_conversations: unique student+tutor, tutor_last_read_at. chat_messages: UUI
 public.schedule_owner_context(uuid) возвращает безопасное имя, offset и availability и запускает rollover именно owner; public.schedule_lesson_note(uuid,uuid) проверяет владельца занятия. Delegated offset/offsetChanged restore запрещены. Права на private helpers отозваны у API-ролей, новые public RPC доступны только authenticated; anon ничего не получает. Прямые writes таблиц не расширены.
 
 chat_pair_active и chat_require_tutor принимают active tutor/admin. Сторона admin сообщения сохраняется sender_role=tutor. RLS остаётся participant-based без admin bypass. Service-only chat_bot_clear_unavailable_recipient очищает только неактивную пару, не затрагивая другого доступного получателя. Service-only chat_notification_target теперь возвращает JSON {chatId,role}, позволяющий выбрать /admin/chats или /tutor/chats.
+
+
+## Миграция 013: панель управления Telegram
+
+private.telegram_control_messages хранит единственный message_id для каждого личного chat_id. Таблица закрыта RLS без пользовательских grants, доступ к telegram_control_claim/telegram_control_finish есть только у service_role. Claim сериализует обновления панели посредством блокировки строки и временного токена на две минуты. Finish проверяет токен и сохраняет ID, возвращённый Bot API. Истечение lease позволяет продолжить после остановки worker; старый токен не может перезаписать новый claim. Таблица отделена от recipient state и reply mapping: отмена выбора не удаляет ID панели, текст преподавателя никогда не используется в качестве панели.

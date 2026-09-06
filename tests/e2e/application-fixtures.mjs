@@ -1,16 +1,33 @@
 // Isolated mock service/Telegram store. Not imported by production code.
 import { randomUUID } from 'node:crypto';
-const apps=[], tokens=new Map(), updates=new Map(), notices=new Map(), messages=[];
+const apps=[], tokens=new Map(), updates=new Map(), notices=new Map(), messages=[], controls=new Map(), edits=[];
 const admin='00000000-0000-4000-8000-000000000001';
 const admins=[admin,'00000000-0000-4000-8000-000000000099'];
 const stamp=()=>new Date().toISOString();
 const reply=(value,status=200)=>({value,status});
 export function applicationFixture(op,args,method,path) {
- if(path==='/fixtures/applications-reset'){apps.length=0;tokens.clear();updates.clear();notices.clear();messages.length=0;return reply(true);}
+ if(path==='/fixtures/applications-reset'){apps.length=0;tokens.clear();updates.clear();notices.clear();messages.length=0;controls.clear();edits.length=0;return reply(true);}
  if(path==='/fixtures/applications-seed'){for(const [i,name] of ['Екатерина Александровна Соколова','Александр Константинопольский'].entries())apps.push({id:randomUUID(),role:'student',full_name:name,telegram_username:'applicant_long_username_'+i,subjects:['Математика','Физика'],student_goal:'Подготовка к экзаменам и поступлению в университет',status:'pending_review',created_at:stamp(),telegram_verified_at:stamp(),reviewed_at:null,registered_at:null});return reply(true);}
- if(path==='/fixtures/applications-state') return reply({apps,messages});
+ if(path==='/fixtures/applications-state') return reply({apps,messages,edits});
  if(path==='/fixtures/applications-expire'){for(const t of tokens.values())if(t.application_id===args.id&&t.purpose==='registration')t.expires_at=new Date(Date.now()-1000).toISOString();return reply(true);}
- if(path==='/fixtures/telegram/send'){messages.push({chat_id:args.chat_id,text:args.text,reply_markup:args.reply_markup,hasButtons:!!args.reply_markup});return reply({ok:true,result:{message_id:messages.length}});}
+ if(path==='/fixtures/telegram/send'){messages.push({message_id:messages.length+1,chat_id:args.chat_id,text:args.text,reply_markup:args.reply_markup,hasButtons:!!args.reply_markup});return reply({ok:true,result:{message_id:messages.length}});}
+ if(path==='/fixtures/telegram/edit'){
+  const m=messages.find(m=>m.message_id===args.message_id&&m.chat_id===args.chat_id&&!m.deleted);
+  if(!m)return reply({ok:false,description:'Bad Request: message to edit not found'},400);
+  edits.push({message_id:args.message_id,chat_id:args.chat_id,text:args.text});
+  if(m.text===args.text&&JSON.stringify(m.reply_markup)===JSON.stringify(args.reply_markup))return reply({ok:false,description:'Bad Request: message is not modified'},400);
+  Object.assign(m,{text:args.text,reply_markup:args.reply_markup,hasButtons:!!args.reply_markup});
+  return reply({ok:true,result:{message_id:m.message_id}});
+ }
+ if(path==='/fixtures/telegram/delete-control'){const m=messages.find(m=>m.message_id===args.message_id&&m.chat_id===args.chat_id);if(m)m.deleted=true;return reply(true);}
+ if(op==='telegram_control_claim'){
+  const p=controls.get(args.p_chat)??{messageId:null,claimId:null};if(p.claimId)return reply(null);
+  p.claimId=randomUUID();controls.set(args.p_chat,p);return reply({...p});
+ }
+ if(op==='telegram_control_finish'){
+  const p=controls.get(args.p_chat);if(!p||p.claimId!==args.p_claim)return reply({code:'42501'},403);
+  p.messageId=args.p_message??p.messageId;p.claimId=null;return reply(null);
+ }
  if(path==='/fixtures/telegram/answer')return reply({ok:true});
  if(op==='submit_application') {
   const data=args.p_data,id=randomUUID();apps.push({id,...data,subjects:['Математика'],status:'pending_telegram',created_at:stamp(),telegram_verified_at:null,reviewed_at:null,reviewed_by_name:null,registered_at:null});

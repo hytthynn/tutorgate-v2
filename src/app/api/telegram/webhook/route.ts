@@ -8,6 +8,7 @@ import {
   sendTemplate,
   answerCallbackQuery,
 } from "@/lib/telegram/bot";
+import { sendControlMessage } from "@/lib/telegram/control";
 import { confirmationMessage, siteButton } from "@/lib/telegram/templates";
 import { handleBotInput } from "@/features/chats/bot-handler";
 import {
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (start) {
       const payload = start[1];
       if (!/^[\w-]{43}$/.test(payload)) {
-        await sendTemplate(chatId, confirmationMessage("invalid", appUrl("/")));
+        await sendControlMessage(chatId, confirmationMessage("invalid", appUrl("/")));
         return NextResponse.json({ ok: true });
       }
       const result = await serviceRpc<{
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
             console.error("Application admin notification delivery failed"),
         });
       if (result.status !== "done") {
-        await sendTemplate(
+        await sendControlMessage(
           result.status === "send" ? result.chat_id! : chatId,
           confirmationMessage(result.status, appUrl("/")),
         );
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
           notificationTarget: (message) =>
             serviceRpc("chat_notification_target", { p_message: message }),
           send: sendTemplate,
+          control: sendControlMessage,
           answer: answerCallbackQuery,
           url: appUrl,
           log: () => console.error("Telegram chat operation failed"),

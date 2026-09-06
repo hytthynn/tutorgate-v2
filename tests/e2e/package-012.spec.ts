@@ -15,7 +15,7 @@ test("012 admin opens target calendar, creates/edits notes and completes target 
  await expect(page.locator(".schedule-workspace")).toHaveAttribute("aria-busy","false");
  const edited=page.locator(".schedule-lesson").filter({hasText:"19:00–20:00"});await edited.click({button:"middle"});await expect(edited.getByTestId("lesson-completed")).toBeVisible();
  await page.getByRole("button",{name:"Следующая неделя",exact:true}).click();await expect(page).toHaveURL(new RegExp(`tutor=${tutor}`));
- await page.getByRole("link",{name:"← К репетиторам",exact:true}).click();await expect(page).toHaveURL("/admin/tutors");
+ await page.getByRole("link",{name:"К репетиторам",exact:true}).click();await expect(page).toHaveURL("/admin/tutors");
  // The other teacher has no assignments: the creation list cannot inherit admin students.
  await page.locator(".person-row").filter({hasText:"Дмитрий Лебедев"}).getByRole("link",{name:"Расписание",exact:true}).click();await page.getByRole("button",{name:"Добавить занятие",exact:true}).click();await expect(page.getByRole("combobox",{name:"Ученик",exact:true})).toHaveText("Нет доступных учеников");
  await page.screenshot({path:"artifacts/package-012-delegated.png",fullPage:true});

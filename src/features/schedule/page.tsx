@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/access";
 import { PageHeading } from "@/components/shared/page-heading";
@@ -13,9 +15,13 @@ export async function SchedulePage({ searchParams }: { searchParams: Promise<Rec
     <section className="schedule-page">
       <PageHeading
         title="Расписание"
+        actions={data.delegated && (
+          <Button asChild variant="secondary" size="sm" className="schedule-back">
+            <Link href="/admin/tutors"><ArrowLeft size={16} aria-hidden="true" />К репетиторам</Link>
+          </Button>
+        )}
         description={data.delegated ? `Расписание: ${data.ownerName}` : "Ваши занятия — в одном пространстве."}
       />
-      {data.delegated && <Link href="/admin/tutors">← К репетиторам</Link>}
       <ScheduleCalendar key={data.ownerId} data={data} />
     </section>
   );

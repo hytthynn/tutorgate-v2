@@ -40,6 +40,8 @@ test("desktop calendar: CRUD, selection, menu, completion and bulk delete", asyn
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(a).toContainText("10:00–11:30");
+  // Dialog closes optimistically; wait for the save before the next mutation.
+  await settled(page);
   await a.click({ button: "middle" }); await settled(page); await expect(a.getByTestId("lesson-completed")).toBeVisible();
   await a.click({ button: "right" });
   await expect(page.getByRole("menu")).toBeVisible();

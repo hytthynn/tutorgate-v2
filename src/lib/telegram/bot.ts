@@ -1,4 +1,5 @@
 import "server-only";
+import { editResult } from "./edit-result";
 import type { TelegramMessage, TelegramOptions } from "./templates";
 import { env } from "@/lib/env";
 export async function getChatUsername(chatId: string): Promise<string | null> {
@@ -20,3 +21,16 @@ export async function sendMessage(chatId:string,text:string,options:TelegramOpti
 }
 export const sendTemplate=(chat:string,m:TelegramMessage)=>sendMessage(chat,m.text,m.options);
 export async function answerCallbackQuery(id:string){const r=await fetch(`https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/answerCallbackQuery`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({callback_query_id:id}),signal:AbortSignal.timeout(8000),cache:"no-store"});if(!r.ok||!(await r.json()).ok)throw new Error("Telegram callback failed");}
+
+export async function editTemplate(chatId: string, messageId: number, message: TelegramMessage): Promise<boolean> {
+  const response = await fetch(`https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/editMessageText`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: message.text,
+      ...message.options, reply_markup: message.options.reply_markup ?? { inline_keyboard: [] },
+      link_preview_options: { is_disabled: true } }),
+    signal: AbortSignal.timeout(8000), cache: "no-store",
+  });
+  const outcome = editResult(response.status, await response.json());
+  if (outcome === "error") throw new Error("Telegram control edit failed");
+  return outcome === "edited";
+}

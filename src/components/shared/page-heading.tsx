@@ -1,11 +1,14 @@
+import type { ReactNode } from "react";
 export function PageHeading({
   title,
   description,
   count,
+  actions,
 }: {
   title: string;
   description?: string;
   count?: number;
+  actions?: ReactNode;
 }) {
   return (
     <header className="page-heading">
@@ -16,6 +19,7 @@ export function PageHeading({
         </h1>
         {description && <p>{description}</p>}
       </div>
+      {actions}
     </header>
   );
 }

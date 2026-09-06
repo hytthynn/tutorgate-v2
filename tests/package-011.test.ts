@@ -166,6 +166,7 @@ function fixture(role: BotProfile["role"] = "student") {
     send: async (_, m) => {
       sent.push(m.text);
     },
+    control: async (chat, message) => ports.send(chat, message),
     answer: async (id) => {
       answers.push(id);
     },

@@ -136,7 +136,9 @@ export function chatStatusMessage(
     admin: 28,
   };
   const rows: InlineButton[][] =
-    status === "choose"
+    ["sent", "attachment", "too_long"].includes(status)
+      ? [[{ text: "💬 Выбрать репетитора", callback_data: "chat:choose" }], [cancel]]
+      : status === "choose"
       ? [[writeButton]]
       : status === "unavailable" && hasTutors
         ? [[{ text: "💬 Выбрать репетитора", callback_data: "chat:choose" }]]

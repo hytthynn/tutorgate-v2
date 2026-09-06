@@ -1843,3 +1843,8 @@ input[type="date"], input[type="time"], input[type="date"]::-webkit-calendar-pic
 .chat-history::-webkit-scrollbar-track, .chat-directory::-webkit-scrollbar-track { background: var(--surface-raised); }
 .chat-history::-webkit-scrollbar-thumb, .chat-directory::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
 .chat-history::-webkit-scrollbar-thumb:hover, .chat-directory::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+.schedule-page .page-heading { gap: 12px; flex-wrap: wrap; }
+.schedule-page .page-heading > div { min-width: 0; }
+.schedule-page .page-heading p { overflow-wrap: anywhere; }
+.schedule-back { flex-shrink: 0; min-height: 36px; }
