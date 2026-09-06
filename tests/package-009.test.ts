@@ -60,7 +60,7 @@ test("009 two-admin mock delivery is deduplicated, failures isolated and no Tele
 test("009 render contracts and token privacy",async()=>{
  const read=(f:string)=>readFile(new URL(`../${f}`,import.meta.url),"utf8");
  const css=await read("src/app/globals.css");
- assert.match(css,/input\[type="date"\].*cursor: pointer/);assert.doesNotMatch(css,/\.sidebar-note|\.status-dot/);
+ assert.match(css,/input\[type="date"\].*cursor: text/);assert.doesNotMatch(css,/\.sidebar-note|\.status-dot/);
  const assignment=/\.assignment-tag \{([^}]+)\}/.exec(css)![1];assert.match(assignment,/white-space: nowrap/);assert.match(assignment,/text-overflow: ellipsis/);
  const people=await read("src/features/people/page.tsx");assert.match(people,/className="assignment-tag"[^\n]+title=/);assert.match(people,/\{" · "\}/);assert.doesNotMatch(people,/TutorGate \/ \{title\}/);
  assert.match(await read("src/components/schedule/toolbar.tsx"),/\{editable && <div className="schedule-controls-group schedule-edit-controls"/);

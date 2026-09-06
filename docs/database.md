@@ -50,7 +50,8 @@ erDiagram
 | inactive subjects | — | read | read | read |
 | profiles basic columns | — | self + assigned tutors | self + assigned students | all |
 | Telegram username | — | self via RPC | self via RPC | all via RPC |
-| Telegram user/chat IDs | — | — | — | — |
+| Telegram user ID | — | — | — | admin_directory_profiles only |
+| Telegram chat ID | — | — | — | — |
 | tutor_subjects | — | assigned pairs | own | all/write |
 | assignments | — | own | own | all/write |
 | settings | — | — | read | read/update |
@@ -108,3 +109,17 @@ private.schedule_signing_key содержит один случайный клю
 - `schedule_command` заменён целиком в новой миграции, без изменения прежних файлов. Delete target восстанавливает source через lesson_activity, delete source очищает metadata оставшегося target. Batch пропускает удаляемые записи; snapshot scopes включают связанные изменения. Constraint conflict откатывает всю команду.
 
 Сроки и ограничения Telegram описаны в [авторизации](auth-and-telegram.md). Новые миграции включены в PGlite suites; фактический результат их запуска указан в [verification](verification.md).
+
+## Миграция 010: состояния аккаунтов
+
+`profiles.account_status`: active / blocked / deleted, default active; blocked_at/by и deleted_at/by хранят аудит. Telegram username nullable; постоянные user/chat IDs nullable только у deleted (CHECK), уникальность сохраняется. На profiles нет новых authenticated UPDATE grants.
+
+`admin_directory_profiles()` — authenticated SECURITY DEFINER с проверкой private.is_admin; возвращает safe profile + login из private.auth_aliases, Telegram user ID, status, blocked_at. Chat ID не возвращается. Deleted скрыты; blocked остаются. Обычный `visible_profiles()` сохраняет прежний узкий DTO и возвращает только active accounts активному viewer. Имена в истории по-прежнему читаются через schedule_lesson_names с owner checks, включая tombstone-профили.
+
+`admin_change_user_role(uuid,app_role)`, `admin_set_user_blocked(uuid,boolean)`, `admin_soft_delete_user(uuid)` проверяют admin, запрещают admin-target, берут общий advisory lock расписания и target FOR UPDATE. Role change считает assignments, tutor_subjects и lessons с ends_at >= now(); P0010 сообщает числа несовместимых связей. История не удаляется, availability/rollover operational state очищается при смене роли. Trigger новых связей блокирует участников FOR SHARE; создание и перенос интервалов с blocked/deleted запрещены. Неизменные исторические участники остаются допустимыми после смены роли, в том числе при удалении предмета.
+
+Block и delete вызывают revoke_user_sessions внутри транзакции; block гасит reset tokens. Soft delete сохраняет UUID и auth.users, очищает alias/reset/Telegram/ФИО/raw_user_meta_data, записывает tombstone. Исторические lessons, notes, statistics и назначения не удаляются. Повторный delete разрешён для восстановления после сбоя внешнего Auth API; другие операции над deleted запрещены.
+
+`private.is_active_user` и restrictive RLS закрывают stale authenticated access. Public schedule_command проверяет active account и вызывает прежнее тело 009, перенесённое в закрытую private.schedule_command_009; resolver, ownership и signed snapshots сохранены. private.is_teacher/is_admin учитывают status. Rollover пропускает неактивных tutors, новые копии не создаются для неактивных students.
+
+Service-only `bind_session` берёт profile FOR SHARE, проверяет active до привязки. `session_refresh` обновляет только существующую сессию, без UPSERT: после revoke запоздалый refresh не воскрешает handle. `session_read` проверяет статус привязанного пользователя. request_reset игнорирует NULL usernames и неактивные accounts; claim_reset блокирует профиль и допускает только active. Новые private helpers не доступны anon.

@@ -12,7 +12,7 @@ async function context(page:Page,n=100){await card(page,n).click({button:"right"
 test.beforeEach(async({request})=>{await request.post(`${fixture}/reset-schedule`);});
 test("removed layout elements, admin label and controlled rate",async({page})=>{
   await login(page,"admin");await page.goto("/admin/tutors");await expect(page.getByText("Администратор · Репетитор")).toHaveCount(0);
-  await expect(page.locator(".person-row").filter({hasText:"Александр Волков"}).locator("small")).toHaveText("Администратор");
+  await expect(page.locator(".person-row").filter({hasText:"Александр Волков"}).getByText("Администратор",{exact:true})).toBeVisible();
   await expect(page.locator("footer")).toHaveCount(0);await page.goto("/admin/settings");
   const rate=page.getByLabel("Ставка за час");await rate.fill("1234.50");await page.getByRole("button",{name:"Сохранить ставку"}).click();await expect(rate).toHaveValue("1234.5");
   await rate.fill("");await page.getByRole("button",{name:"Сохранить ставку"}).click();await expect(rate).toHaveAttribute("aria-invalid","true");await expect(page.locator("#hourly_rate-error")).toBeVisible();

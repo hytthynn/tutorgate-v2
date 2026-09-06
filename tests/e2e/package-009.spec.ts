@@ -13,7 +13,7 @@ for(const role of ["admin","tutor"]) test(`009 statistics intrinsic height, date
   for(const period of ["7","custom"]) {
    await page.goto(`/${role}/statistics?period=${period}`);await expect(page.locator(".chart-area")).toBeVisible();
    expect(await page.evaluate(()=>document.documentElement.scrollHeight-document.documentElement.clientHeight)).toBeLessThanOrEqual(1);
-   if(period==="custom")for(const field of await page.locator('input[type="date"]').all())await expect(field).toHaveCSS("cursor","pointer");
+   if(period==="custom")for(const field of await page.locator('input[type="date"]').all())await expect(field).toHaveCSS("cursor","text");
   }
  }
  await page.setViewportSize({width:375,height:350});expect(await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight)).toBe(true);

@@ -12,6 +12,7 @@ export const currentProfile = cache(async (): Promise<Profile | null> => {
   } = await db.auth.getUser();
   if (!user) return null;
   const { data, error } = await db
+    // The RPC checks the current account status, including stale sessions.
     .rpc("visible_profiles")
     .eq("id", user.id)
     .single();

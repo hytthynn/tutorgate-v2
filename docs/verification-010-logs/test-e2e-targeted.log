@@ -1,0 +1,19 @@
+[WebServer] (node:10912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:21460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:20696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:27580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:23288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 tests\e2e\package-010.spec.ts:48:5 › 010 directory identifiers, nullable links, search and Telegram sync results (6.3s)
+  ok 2 tests\e2e\package-010.spec.ts:105:5 › 010 context copy preserves selection and common paste delta; other lesson replaces selection (3.4s)
+  ok 3 tests\e2e\package-010.spec.ts:120:5 › 010 empty menu uses selected mobile day and disables mutations outside current week (2.6s)
+  ok 4 tests\e2e\schedule-features.spec.ts:13:5 › removed layout elements, admin label and controlled rate (3.6s)
+
+  4 passed (19.7s)

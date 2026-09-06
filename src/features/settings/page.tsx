@@ -1,4 +1,5 @@
-import { Coins, BookOpen } from "lucide-react";
+import { Coins, BookOpen, RefreshCw } from "lucide-react";
+import { TelegramSyncForm } from "@/components/settings/telegram-sync-form";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeading } from "@/components/shared/page-heading";
@@ -63,6 +64,10 @@ export async function SettingsPage() {
               </p>
             )}
           </div>
+        </section>
+        <section className="panel settings-panel">
+          <div className="settings-heading"><span className="section-icon"><RefreshCw size={20} /></span><div><h2>Telegram</h2><p>Обновляет актуальные Telegram username у привязанных аккаунтов.</p></div></div>
+          <TelegramSyncForm />
         </section>
       </div>
     </>

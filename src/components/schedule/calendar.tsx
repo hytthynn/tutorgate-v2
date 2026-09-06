@@ -14,6 +14,7 @@ import { confirmHistory, replaceTemporaryLessons, type HistoryState } from "@/fe
 import { OperationDialog } from "./operation-dialog";
 import { LessonDialog } from "./lesson-dialog";
 import { ScheduleToolbar } from "./toolbar";
+import { EmptyContextMenu } from "./empty-context-menu";
 import { LessonContextMenu } from "./context-menu";
 
 const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -32,6 +33,8 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const {undo,redo}=historyState;
   const [operation,setOperation]=useState<{kind:"transfer"|"availability";group:ScheduleLesson[]}|null>(null);
   const clipboard=useRef<ScheduleLesson[]>([]);
+  const [clipboardCount, setClipboardCount] = useState(0);
+  const [emptyMenu, setEmptyMenu] = useState<{x:number;y:number;anchor:string}|null>(null);
   const [pasteAnchor,setPasteAnchor]=useState<string|null>(null);
   const [pending, setPending] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -70,7 +73,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     return () => { clearInterval(timer); if (edgeTimer.current) clearTimeout(edgeTimer.current); if (longTimer.current) clearTimeout(longTimer.current); };
   }, []);
   useEffect(() => {
-    function restoreWeek() { setMenu(null); }
+    function restoreWeek() { setMenu(null);setEmptyMenu(null); }
     window.addEventListener("popstate", restoreWeek);
     return () => window.removeEventListener("popstate", restoreWeek);
   }, []);
@@ -84,12 +87,12 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   function navigate(nextWeek: string, day?: string) {
     weekRef.current = nextWeek;
     const nextDay = day ?? (today >= nextWeek && today < addDays(nextWeek, 7) ? today : nextWeek);
-    mobileRef.current = nextDay; setActiveDate(nextDay); setMenu(null);
+    mobileRef.current = nextDay; setActiveDate(nextDay); setMenu(null);setEmptyMenu(null);
     const next = new URLSearchParams(params.toString()); next.set("week", nextWeek); next.set("day", nextDay);
     window.history.pushState(null, "", `${path}?${next}`);
   }
-  function closeMenu() { setMenu(null); grid.current?.focus(); }
-  function openLesson(lesson: ScheduleLesson) { setMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(lesson); }
+  function closeMenu() { setMenu(null);setEmptyMenu(null); grid.current?.focus(); }
+  function openLesson(lesson: ScheduleLesson) { setMenu(null);setEmptyMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(lesson); }
   function clickLesson(lesson: ScheduleLesson) {
     if (!isMultiSelectable(lesson)) { openLesson(lesson); return; }
     if (selected.size === 1 && selected.has(lesson.id)) openLesson(lesson);
@@ -97,7 +100,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   }
   async function mutate(next: ScheduleLesson[], command: ScheduleCommand, success?: string, rollbackWeek?: string, nextRules=rules, nextOffset=offset, historyMode?: "undo"|"redo") {
     if(lock.current)return false;
-    lock.current=true; mutationRevision.current++;setPending(true);setSaveState("saving");setMenu(null);
+    lock.current=true; mutationRevision.current++;setPending(true);setSaveState("saving");setMenu(null);setEmptyMenu(null);
     const previous=lessons, previousRules=rules, previousOffset=offset, previousSelection=selected;
     setLessons(next);setRules(nextRules);setOffset(nextOffset);setSelected(new Set([...selected].filter(id=>next.some(l=>l.id===id&&isMultiSelectable(l)))));
     let failure="Не удалось сохранить изменения. Попробуйте ещё раз.";
@@ -133,7 +136,26 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     const completed=!group.every(l=>l.completed),ids=group.map(l=>l.id);
     void mutate(lessons.map(l=>ids.includes(l.id)?{...l,completed}:l),{kind:"completed",ids,completed},"Отметка обновлена.");
   }
+  function copy(group: ScheduleLesson[]) {
+    if (!editable || lock.current) return;
+    clipboard.current = group.filter(isMultiSelectable);
+    setClipboardCount(clipboard.current.length);
+    closeMenu();
+    if (clipboard.current.length) toast.success(`Скопировано занятий: ${clipboard.current.length}`);
+  }
+  function gridAnchor(x: number, y: number) {
+    const box = grid.current!.getBoundingClientRect();
+    const day = window.matchMedia("(max-width: 767px)").matches ? mobileDate : addDays(week, Math.min(6, Math.max(0, Math.floor((x-box.left)/box.width*7))));
+    return new Date(Date.parse(localToUtc(day,"00:00",offset)) + Math.min(1435,Math.max(0,snapMinutes((y-box.top)/box.height*1440)))*MINUTE).toISOString();
+  }
+  function createHere(anchor: string) {
+    if (!editable || lock.current || startOfWeek(localParts(anchor,offset).date)!==startOfWeek(today)) return;
+    const start = localParts(anchor,offset);
+    setEditorDraft({studentId:"",subjectId:null,subjectChanged:true,date:start.date,time:start.time,durationMinutes:60,note:""});
+    setEditorErrors(undefined); closeMenu(); setEditor(null);
+  }
   function paste(){
+    if (!editable || lock.current) return;
     if(!clipboard.current.length)return;
     if(!pasteAnchor){toast.error("Сначала выберите место в расписании для вставки.");return;}
     if(startOfWeek(localParts(pasteAnchor,offset).date)!==startOfWeek(today)){toast.error("Вставлять занятия можно только в текущей неделе.");return;}
@@ -214,14 +236,14 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     const source = card ? lessons.find((l) => l.id === card.dataset.lessonId) : undefined;
     if (e.button === 1) { if (editable && source) { e.preventDefault(); complete(source); } return; }
     if (e.button !== 0) return;
-    e.preventDefault(); grid.current!.focus(); setMenu(null);
+    e.preventDefault(); grid.current!.focus(); setMenu(null);setEmptyMenu(null);
     if (!source && !editable) { setSelected(new Set()); return; }
     grid.current!.setPointerCapture(e.pointerId);
     const box = grid.current!.getBoundingClientRect();
     const segmentDate = card?.dataset.date ?? week;
     const pointerTime = Date.parse(localToUtc(segmentDate, "00:00", offset)) + (e.clientY - box.top) / box.height * 1440 * MINUTE;
     gesture.current = { origin: { x: e.clientX, y: e.clientY }, last: { x: e.clientX, y: e.clientY }, source, sourceWeek: week, grabMinutes: source ? (pointerTime - Date.parse(source.startsAt)) / MINUTE : 0, moved: false, longPress: false };
-    if (!source) {setSelected(new Set()); const mobile=window.matchMedia("(max-width: 767px)").matches;const day=mobile?mobileDate:addDays(week,Math.min(6,Math.max(0,Math.floor((e.clientX-box.left)/box.width*7))));setPasteAnchor(new Date(Date.parse(localToUtc(day,"00:00",offset))+Math.min(1435,Math.max(0,snapMinutes((e.clientY-box.top)/box.height*1440)))*MINUTE).toISOString());}
+    if (!source) {setSelected(new Set()); setPasteAnchor(gridAnchor(e.clientX,e.clientY));}
     if (source && editable && e.pointerType === "touch") {
       longTimer.current = setTimeout(() => {
         if (!gesture.current || gesture.current.moved) return;
@@ -300,11 +322,11 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const summary = weeklySummary(displayed, week, offset);
   const keyboardShortcut=useEffectEvent((event:KeyboardEvent)=>{
     if(!(event.ctrlKey||event.metaKey)||lock.current||document.querySelector('[role="dialog"]'))return;
-    if(event.target instanceof HTMLElement&&event.target.closest('input,textarea,select,[contenteditable="true"],[role="combobox"]'))return;
-    const key=event.key.toLowerCase();
-    if(key==="z"){event.preventDefault();history(event.shiftKey?"redo":"undo");}
-    if(editable&&key==="c"){event.preventDefault();clipboard.current=lessons.filter(l=>selected.has(l.id)&&isMultiSelectable(l));}
-    if(editable&&key==="v"){event.preventDefault();paste();}
+    if(event.target instanceof HTMLElement&&event.target.closest('input,textarea,select,[contenteditable],[role="combobox"]'))return;
+    const key=event.code;
+    if(key==="KeyZ"){event.preventDefault();history(event.shiftKey?"redo":"undo");}
+    if(editable&&key==="KeyC"){event.preventDefault();copy(lessons.filter(l=>selected.has(l.id)));}
+    if(editable&&key==="KeyV"){event.preventDefault();paste();}
   });
   useEffect(()=>{
     const onKeyDown=(event:KeyboardEvent)=>keyboardShortcut(event);
@@ -314,12 +336,12 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
   const contextLesson = menu ? lessons.find((l) => l.id === menu.id) : undefined;
   return <div className="schedule-workspace" aria-busy={pending} onKeyDown={(e) => {
-          if ((e.target as HTMLElement).closest("input,textarea,select,[contenteditable=true],[role=dialog]") || editor !== undefined) return;
-          if (e.key === "Escape") { setSelected(new Set()); setMenu(null); gesture.current = null; clearTimers(); setPreview(null); setRectangle(null); }
+          if ((e.target as HTMLElement).closest("input,textarea,select,[contenteditable],[role=dialog]") || editor !== undefined) return;
+          if (e.key === "Escape") { setSelected(new Set()); setMenu(null);setEmptyMenu(null); gesture.current = null; clearTimers(); setPreview(null); setRectangle(null); }
           if (e.key === "Delete" && editable && !pending) { e.preventDefault(); remove([...selected]); }
           if (e.key === "Enter" && grid.current?.contains(e.target as Node) && selected.size === 1) { const lesson = lessons.find((l) => selected.has(l.id)); if (lesson) { e.preventDefault(); openLesson(lesson); } }
         }}>
-    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
+    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null);setEmptyMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
       {saveState === "saving" ? <Loader2 size={13} className="spin" aria-hidden="true" /> : saveState === "error" ? <CircleAlert size={13} aria-hidden="true" /> : <CircleCheck size={13} aria-hidden="true" />}
       {saveState === "saving" ? "Сохранение…" : saveState === "error" ? "Не сохранено" : "Сохранено"}
     </span>}</div>
@@ -336,7 +358,17 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
         onPointerCancel={() => { gesture.current = null; clearTimers(); setPreview(null); setRectangle(null); }}
         onContextMenu={(e) => {
           const id = (e.target as HTMLElement).closest<HTMLElement>("[data-lesson-id]")?.dataset.lessonId;
-          if (editable && id && !pending) { e.preventDefault(); if(!selected.has(id)){const l=lessons.find(l=>l.id===id);setSelected(new Set(l&&isMultiSelectable(l)?[id]:[]));} setMenu({ id, x: e.clientX, y: e.clientY }); }
+          if (!editable || pending || lock.current) return;
+          e.preventDefault();
+          if (id) {
+            setEmptyMenu(null);
+            if(!selected.has(id)){const l=lessons.find(l=>l.id===id);setSelected(new Set(l&&isMultiSelectable(l)?[id]:[]));}
+            setMenu({ id, x: e.clientX, y: e.clientY });
+          } else {
+            const anchor=gridAnchor(e.clientX,e.clientY);
+            setMenu(null);setPasteAnchor(anchor);
+            setEmptyMenu({x:e.clientX,y:e.clientY,anchor});
+          }
         }}
         >
         {days.map((day) => <div key={day} className={`schedule-day ${day === today ? "is-today" : ""}`} data-date={day} data-mobile-active={day === mobileDate}>
@@ -362,7 +394,8 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     </div>
     {editor !== undefined && <LessonDialog key={editor?.id??"new"} lesson={editor} draft={editorDraft} serverErrors={editorErrors} data={{...data,offset}} date={today} onClose={()=>{setEditor(undefined);setEditorDraft(undefined);setEditorErrors(undefined);grid.current?.focus();}} onSubmitLesson={saveEditor} />}
     {operation&&<OperationDialog {...operation} today={today} offset={offset} rules={rules} onClose={()=>setOperation(null)} onSubmit={submitOperation}/>}
-    {menu&&contextLesson&&editable&&<LessonContextMenu lesson={contextLesson} group={actionGroup(contextLesson)} x={menu.x} y={menu.y} onClose={closeMenu} onCompleted={()=>complete(contextLesson)} onDelete={()=>remove(actionGroup(contextLesson).map(l=>l.id))} onTransfer={()=>{setOperation({kind:"transfer",group:actionGroup(contextLesson)});setMenu(null);}} onAvailability={()=>{setOperation({kind:"availability",group:actionGroup(contextLesson)});setMenu(null);}} onColor={color=>{
+    {emptyMenu&&editable&&<EmptyContextMenu {...emptyMenu} canPaste={clipboardCount>0} disabled={pending||startOfWeek(localParts(emptyMenu.anchor,offset).date)!==startOfWeek(today)} onClose={closeMenu} onPaste={()=>{closeMenu();paste();}} onCreate={()=>createHere(emptyMenu.anchor)}/>}
+    {menu&&contextLesson&&editable&&<LessonContextMenu onCopy={()=>copy(actionGroup(contextLesson))} lesson={contextLesson} group={actionGroup(contextLesson)} x={menu.x} y={menu.y} onClose={closeMenu} onCompleted={()=>complete(contextLesson)} onDelete={()=>remove(actionGroup(contextLesson).map(l=>l.id))} onTransfer={()=>{setOperation({kind:"transfer",group:actionGroup(contextLesson)});setMenu(null);setEmptyMenu(null);}} onAvailability={()=>{setOperation({kind:"availability",group:actionGroup(contextLesson)});setMenu(null);setEmptyMenu(null);}} onColor={color=>{
       const ids=actionGroup(contextLesson).map(l=>l.id);void mutate(lessons.map(l=>ids.includes(l.id)?{...l,color}:l),{kind:"color",ids,color},"Цвет изменён.");
     }}/>}
     <Dialog open={bindings} onOpenChange={setBindings}><DialogContent><DialogTitle>Бинды</DialogTitle><DialogDescription>Управление расписанием</DialogDescription><dl className="schedule-bindings">

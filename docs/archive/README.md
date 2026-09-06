@@ -2,6 +2,8 @@
 
 - [Отчёт 008 из входного архива](verification-008-incoming.md) — исторический, не подтверждает текущую сборку.
 - [ТЗ 008](../TZ_TutorGate_008_schedule_features_and_fixes.md).
-- [ТЗ 009](../TZ_TutorGate_009_bugs_applications_brand.md).
+- [ТЗ 009](TZ_TutorGate_009_bugs_applications_brand.md).
 
 Документы 006 и отчёт 007, на которые ссылался входной архив, в нём отсутствовали. Они не воссоздавались и не выдаются за существующие результаты.
+
+- [Проверки пакета 009](verification-009.md).

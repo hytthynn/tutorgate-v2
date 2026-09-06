@@ -14,8 +14,10 @@ export async function AdminApplicationsPage({ params }: { params: Record<string,
  const href = (r = role, b: ApplicationBucket = bucket, n = 0) => `/admin/applications?role=${r}&status=${b}&page=${n}`;
  return <section className="applications-page">
   <PageHeading title="Заявки" description="Проверка новых учеников и репетиторов после подтверждения Telegram." />
+  <div className="application-toolbar">
   <nav className="application-tabs" aria-label="Роль заявителя">{roles.map(([value,label]) => <Link key={value} href={href(value)} aria-current={value === role ? "page" : undefined}>{label}</Link>)}</nav>
   <nav className="application-tabs application-status-tabs" aria-label="Статус заявки">{buckets.map(([value,label]) => <Link key={value} href={href(role,value)} aria-current={value === bucket ? "page" : undefined}>{label}</Link>)}</nav>
+  </div>
   <p className="application-count">Заявок: {queue.total} · Время указано по МСК</p>
   {!queue.items.length && <div className="panel application-empty"><h2>Заявок пока нет</h2><p>В этом разделе появятся заявки с выбранным статусом.</p></div>}
   <div className="application-list">{queue.items.map(a => <article className="panel application-card admin-application-card" key={a.id} aria-label={`Заявка: ${a.full_name}`}>

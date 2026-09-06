@@ -37,6 +37,9 @@ const profiles = [
     telegram_username: "mikhail_kuznetsov",
   },
 ];
+for (const [i,p] of profiles.entries()) Object.assign(p,{login:i===0?"admin":i===1?"tutor":i===3?"student":`user_${i+1}`,telegram_user_id:String(100001+i),telegram_chat_id:String(100001+i),account_status:"active",blocked_at:null});
+const seedProfiles=structuredClone(profiles);
+const sessionUsers=new Map();
 const subjects = [
   "Математика",
   "Физика",
@@ -83,6 +86,7 @@ const availability=[];
 let nextLesson = 100;
 const seedSubjects=structuredClone(subjects), seedTutorSubjects=structuredClone(tutorSubjects), seedAssignments=structuredClone(assignments);
 function resetSchedule() {
+  profiles.splice(0,profiles.length,...structuredClone(seedProfiles));
   subjects.splice(0,subjects.length,...structuredClone(seedSubjects));
   tutorSubjects.splice(0,tutorSubjects.length,...structuredClone(seedTutorSubjects));
   assignments.splice(0,assignments.length,...structuredClone(seedAssignments));
@@ -98,6 +102,9 @@ function matches(row, params) {
     if (["select", "order", "offset", "limit", "subjects.is_active"].includes(key)) return true;
     if (filter === "not.is.null") return row[key] != null;
     const value = filter.slice(filter.indexOf(".") + 1);
+    if (filter.startsWith("neq.")) return String(row[key]) !== value;
+    if (filter === "is.null") return row[key] == null;
+    if (key === "id" && filter.startsWith("gt.")) return row[key] > value;
     if (filter.startsWith("eq.")) return String(row[key]) === value;
     if (filter.startsWith("lt.")) return Date.parse(row[key]) < Date.parse(value);
     if (filter.startsWith("gte.")) return Date.parse(row[key]) >= Date.parse(value);
@@ -161,9 +168,30 @@ const server = http.createServer(async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, behavior.delay));
     if (behavior.fail) { res.writeHead(500,{"Content-Type":"application/json"}); res.end(JSON.stringify({code:"P0001",message:"Fixture failure"})); return; }
   }
+  if(url.pathname === "/fixtures/users-state") {res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({profiles,sessionCount:sessions.size}));return;}
+  if(url.pathname === "/fixtures/telegram/get-chat") {
+    const p=profiles.find(p=>p.telegram_chat_id===args.chat_id);
+    const result={id:Number(args.chat_id),type:"private",...(args.chat_id==="100002"?{}:{username:p?.telegram_username+"_new"})};
+    res.writeHead(args.chat_id==="100003"?500:200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:args.chat_id!=="100003",result}));return;
+  }
   const applicationResult = applicationFixture(op,args,req.method,url.pathname);
   if (applicationResult) { value=applicationResult.value; status=applicationResult.status; }
   else if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
+  else if(op.startsWith("admin_") && ["admin_directory_profiles","admin_change_user_role","admin_set_user_blocked","admin_soft_delete_user"].includes(op)) {
+    const target=profiles.find(p=>p.id===args.p_user);
+    if(profile?.role!=="admin"||profile.account_status!=="active") {status=403;value={code:"42501"};}
+    else if(op==="admin_directory_profiles")value=profiles.filter(p=>p.account_status!=="deleted").map(p=>({id:p.id,role:p.role,full_name:p.full_name,login:p.login,telegram_username:p.telegram_username,telegram_user_id:p.telegram_user_id,account_status:p.account_status,blocked_at:p.blocked_at}));
+    else if(!target||target.role==="admin"||(target.account_status==="deleted"&&op!=="admin_soft_delete_user")) {status=403;value={code:"42501"};}
+    else if(op==="admin_change_user_role") {
+      if(assignments.some(a=>[a.student_id,a.tutor_id].includes(target.id))||tutorSubjects.some(a=>a.tutor_id===target.id)||lessons.some(l=>[l.student_id,l.tutor_id].includes(target.id)&&Date.parse(l.ends_at)>=Date.now())){status=400;value={code:"P0010",message:"Сначала снимите назначения, предметы репетитора и будущие занятия."};}
+      else {target.role=args.p_role;value=null;}
+    } else {
+      if(op==="admin_soft_delete_user")Object.assign(target,{account_status:"deleted",full_name:"Удалённый пользователь",login:null,telegram_username:null,telegram_user_id:null,telegram_chat_id:null});
+      else Object.assign(target,{account_status:args.p_blocked?"blocked":"active",blocked_at:args.p_blocked?new Date().toISOString():null});
+      if(target.account_status!=="active")for(const [hash,user] of sessionUsers)if(user===target.id){sessions.delete(hash);sessionUsers.delete(hash);}
+      value=null;
+    }
+  }
   else if(op==="tutor_student_availability")value=availability.filter(r=>r.tutor_id===uid);
   else if(op==="schedule_command"){
     const c=args.p_command, original=structuredClone(lessons), oldNotes=new Map(notes), oldRules=structuredClone(availability),oldPreferences=new Map(preferences);
@@ -270,7 +298,7 @@ const server = http.createServer(async (req, res) => {
     value = preferences.has(uid) ? [preferences.get(uid)] : [];
   } else if (url.pathname === "/auth/v1/token") {
     const name = args.email?.split("@")[0];
-    const p = profiles.find((p) => p.role === name) ?? profiles[0];
+    const p = profiles.find((p) => p.login === name) ?? profiles.find((p) => p.role === name) ?? profiles[0];
     value = {
       access_token: jwt(p.id),
       refresh_token: "fixture-refresh",
@@ -282,18 +310,19 @@ const server = http.createServer(async (req, res) => {
   } else if (url.pathname === "/auth/v1/user") value = user(uid);
   else if (op === "session_delete") { sessions.delete(args.p_hash); value = null; }
   else if (op === "session_read") value = sessions.get(args.p_hash) ?? null;
-  else if (op === "session_write") {
+  else if (op === "session_refresh") {
+    if(sessions.has(args.p_hash)) {if(args.p_cookies.length)sessions.set(args.p_hash,args.p_cookies);else sessions.delete(args.p_hash);} value=null;
+  } else if (op === "session_write") {
     sessions.set(args.p_hash, args.p_cookies);
     value = null;
   } else if (op === "lookup_alias") value = args.p_username==="fixture_new"?null:`${args.p_username}@internal.test`;
   else if (op === "rate_limit") value = true;
-  else if (op === "bind_session") value = null;
-  else if (op === "profiles")
-    value = profiles.filter(
-      (p) =>
-        !url.searchParams.get("id") ||
-        `eq.${p.id}` === url.searchParams.get("id"),
-    );
+  else if (op === "bind_session") { sessionUsers.set(args.p_hash,args.p_user);value=null; }
+  else if (op === "profiles") {
+    const rows=profiles.filter(p=>matches(p,url.searchParams));
+    if(req.method === "PATCH")for(const row of rows)Object.assign(row,args);
+    value=rows;
+  }
   else if (op === "visible_profiles") {
     value =
       profile?.role === "admin"
@@ -307,6 +336,7 @@ const server = http.createServer(async (req, res) => {
                   (a.tutor_id === uid && a.student_id === p.id),
               ),
           );
+    value = profile?.account_status === "active" ? value.filter(p=>p.account_status === "active").map(p=>({id:p.id,role:p.role,full_name:p.full_name,telegram_username:p.id===uid||profile.role==="admin"?p.telegram_username:null})) : [];
     if (url.searchParams.has("id"))
       value = value.filter((p) => `eq.${p.id}` === url.searchParams.get("id"));
   } else if (op === "subjects") value = subjects;
@@ -321,8 +351,8 @@ const server = http.createServer(async (req, res) => {
   else if(op==="claim_reset")value=id(4);
   else if(url.pathname.startsWith("/auth/v1/admin/users"))value={user:user(id(4))};
   else if (op === "token_status") value = args.p_hash ? "valid" : null;
-  if(Array.isArray(value) && ["subjects","tutor_subjects","student_tutor_assignments","visible_profiles"].includes(op)) {
-    value=value.filter(row=>matches(row,url.searchParams));
+  if(Array.isArray(value) && ["subjects","tutor_subjects","student_tutor_assignments","visible_profiles","admin_directory_profiles","profiles"].includes(op)) {
+    if(op!=="profiles"||req.method!=="PATCH")value=value.filter(row=>matches(row,url.searchParams));
     const from=Number(url.searchParams.get("offset") ?? 0), limit=Number(url.searchParams.get("limit") ?? 500); value=value.slice(from,from+limit);
   }
   if (req.headers.accept?.includes("vnd.pgrst.object") && Array.isArray(value))

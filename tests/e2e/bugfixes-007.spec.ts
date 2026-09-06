@@ -149,21 +149,21 @@ test("directory debounce, immediate selection, race, clear and Back restore", as
   await login(page, "admin"); await page.goto("/admin/tutors");
   const initialHistory = await page.evaluate(() => history.length);
   await expect(page.getByRole("button", { name: "Найти", exact: true })).toHaveCount(0);
-  await page.getByLabel("Поиск по ФИО").fill("Мария");
+  await page.getByLabel("Поиск по имени, логину, @username или Telegram ID").fill("Мария");
   // Synchronously after input, debounce has not committed a URL yet.
   expect(new URL(page.url()).searchParams.has("q")).toBe(false);
   await choose(page, "Фильтр по предмету", "Математика");
   await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("Мария");
   await expect.poll(() => new URL(page.url()).searchParams.get("subject")).toBe("00000000-0000-4000-8000-000000000010");
   await expect(page.getByText("Дмитрий Лебедев", { exact: true })).toHaveCount(0);
-  await page.getByLabel("Поиск по ФИО").fill("");
+  await page.getByLabel("Поиск по имени, логину, @username или Telegram ID").fill("");
   await expect.poll(() => new URL(page.url()).searchParams.has("q")).toBe(false);
   expect(new URL(page.url()).searchParams.has("subject")).toBe(true);
   expect(await page.evaluate(() => history.length)).toBe(initialHistory);
   await page.getByRole("link", { name: "Ученики", exact: true }).click(); await expect(page).toHaveURL("/admin/students");
   await page.goBack();
   await expect(page.getByLabel("Фильтр по предмету")).toHaveText("Математика");
-  await expect(page.getByLabel("Поиск по ФИО")).toHaveValue("");
+  await expect(page.getByLabel("Поиск по имени, логину, @username или Telegram ID")).toHaveValue("");
 });
 
 test("statistics controls auto-apply, invalid dates stay local, preset removes dates", async ({ page }) => {

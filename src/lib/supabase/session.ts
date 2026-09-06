@@ -31,8 +31,10 @@ export async function sessionClient(
             else merged.delete(c.name);
           }
           stored = [...merged].map(([name, value]) => ({ name, value }));
+          const existing = Boolean(id);
           if (!id) id = token();
-          await serviceRpc("session_write", {
+          // Refresh never upserts: an in-flight refresh cannot resurrect a revoked handle.
+          await serviceRpc(existing ? "session_refresh" : "session_write", {
             p_hash: hash(id),
             p_cookies: stored,
           });

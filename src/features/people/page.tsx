@@ -1,4 +1,6 @@
 import { DirectoryFilters } from "@/components/people/directory-filters";
+import { UserActionsMenu } from "@/components/people/user-actions-menu";
+import { isAdminDirectoryProfile, matchesPerson } from "./search";
 import { ArrowUpRight, BookOpen } from "lucide-react";
 import { getDirectory } from "./queries";
 import { PageHeading } from "@/components/shared/page-heading";
@@ -20,7 +22,7 @@ export async function PeoplePage({
 }) {
   const { profiles, subjects, assignments, tutorSubjects, viewer } =
     await getDirectory();
-  const admin = role === "admin";
+  const admin = role === "admin" && viewer.role === "admin";
   const tutors = profiles.filter(
     (p) => p.role === "tutor" || p.role === "admin",
   );
@@ -39,7 +41,7 @@ export async function PeoplePage({
     typeof searchParams.q === "string"
       ? searchParams.q.slice(0, 150).trim().toLowerCase()
       : "";
-  people = people.filter((p) => p.full_name.toLowerCase().includes(q));
+  people = people.filter((p) => matchesPerson(p, q, admin));
   if (searchParams.subject)
     people = people.filter((p) =>
       tutorSubjects.some(
@@ -129,6 +131,12 @@ export async function PeoplePage({
                     <span className="avatar">{initials(p.full_name)}</span>
                     <div>
                       <strong>{p.full_name}</strong>
+                      {admin && isAdminDirectoryProfile(p) && <div className="person-identifiers">
+                        <small>Логин: {p.login ?? "—"}</small>
+                        <small>Telegram: {p.telegram_username ? `@${p.telegram_username}` : "Нет username"}</small>
+                        <small>Telegram ID: {p.telegram_user_id ?? "—"}</small>
+                        {p.account_status === "blocked" && <span className="badge">Заблокирован</span>}
+                      </div>}
                       {admin && p.role === "admin" && (
                         <small>Администратор</small>
                       )}
@@ -158,7 +166,7 @@ export async function PeoplePage({
                   </div>
                   {admin && (
                     <div className="person-actions">
-                      <a
+                      {p.telegram_username ? <a
                         className="telegram-link"
                         href={`https://t.me/${p.telegram_username}`}
                         target="_blank"
@@ -166,7 +174,8 @@ export async function PeoplePage({
                       >
                         Открыть Telegram
                         <ArrowUpRight size={13} />
-                      </a>
+                      </a> : <span className="muted">Нет Telegram username</span>}
+                      {isAdminDirectoryProfile(p) && <UserActionsMenu profile={p} />}
                       {kind === "tutors" ? (
                         <TutorSubjectsDialog
                           tutor={p}

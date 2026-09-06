@@ -6,6 +6,7 @@ import { useActionState, useState } from "react";
 
 import { SlidersHorizontal, Plus, X, ArrowRight } from "lucide-react";
 import { adminAction } from "@/features/admin/actions";
+import { isAdminDirectoryProfile } from "@/features/people/search";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -120,7 +121,7 @@ export function AssignmentDialog({
     {} as ActionState,
   );
   const available = tutors.filter((t) =>
-    tutorSubjects.some(
+    (!isAdminDirectoryProfile(t) || t.account_status === "active") && tutorSubjects.some(
       (ts) => ts.tutor_id === t.id && ts.subject_id === selected,
     ),
   );
@@ -150,7 +151,7 @@ export function AssignmentDialog({
             </div>
           ))}
         </div>
-        <ValidatedForm  action={action} className="form-stack">
+        {(!isAdminDirectoryProfile(student) || student.account_status === "active") ? <ValidatedForm  action={action} className="form-stack">
           <input type="hidden" name="operation" value="assignment" />
           <input type="hidden" name="student_id" value={student.id} />
           <Field name="subject_id" label="Предмет" error={state.errors?.subject_id}>
@@ -202,7 +203,7 @@ export function AssignmentDialog({
             Назначить репетитора
             <ArrowRight size={15} />
           </Button>
-        </ValidatedForm>
+        </ValidatedForm> : <p className="muted">Новые назначения доступны после разблокировки аккаунта.</p>}
       </DialogContent>
     </Dialog>
   );

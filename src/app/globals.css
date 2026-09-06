@@ -1028,7 +1028,7 @@ nav {
   gap: 10px;
   margin-bottom: 24px;
 }
-.period-tabs {
+.period-tabs, .application-tabs {
   display: flex;
   background: var(--surface);
   padding: 3px;
@@ -1047,7 +1047,7 @@ nav {
   width: 1px;
   height: 1px;
 }
-.period-tabs span {
+.period-tabs span, .application-tabs a {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1058,11 +1058,11 @@ nav {
   color: #b09e8c;
   border-radius: 4px;
 }
-.period-tabs input:checked + span {
+.period-tabs input:checked + span, .application-tabs a[aria-current="page"] {
   background: var(--surface-raised);
   color: var(--foreground);
 }
-.period-tabs input:focus-visible + span {
+.period-tabs input:focus-visible + span, .application-tabs a:focus-visible {
   outline: 2px solid var(--accent);
 }
 .statistics-controls > .tg-select {
@@ -1749,7 +1749,7 @@ textarea { resize: none; font: inherit; }
   .schedule-toolbar .tg-select-trigger { padding-right: 7px; gap: 5px; }
 }
 
-input[type="date"], input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+input[type="date"], input[type="time"], input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { cursor: text; }
 /* Inactivity is independent of the lesson color. SVG hatch is a state indicator. */
 .schedule-lesson[data-inactive="true"] { --lesson-color: var(--lesson-gray); background-color: color-mix(in srgb, var(--lesson-gray) 16%, var(--surface-raised)); border-color: color-mix(in srgb, var(--lesson-gray) 50%, var(--surface-raised)); color: var(--muted-foreground); cursor: default; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-2 2L2-2M0 8L8 0M6 10L10 6' stroke='%2387796c' stroke-opacity='.22'/%3E%3C/svg%3E"); }
 .schedule-lesson[data-transfer="true"] { border-left: 3px solid var(--lesson-blue); }
@@ -1778,19 +1778,20 @@ input[type="date"], input[type="date"]::-webkit-calendar-picker-indicator { curs
 }
 
 /* Moderation uses the existing warm-mocha tokens. */
-.application-tabs { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.application-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted-foreground); }
-.application-tabs a[aria-current="page"] { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+.application-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.application-tabs { flex-direction: row; gap: 0; flex-wrap: nowrap; flex: 0 1 auto; margin: 0; min-width: 0; overflow-x: auto; }
+
+
 .application-count { margin: 20px 0 16px; font-size: 12px; }
-.application-list { display: grid; gap: 16px; }
-.application-card { padding: 24px; min-width: 0; }
-.application-card-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
-.application-card-heading h2 { font-size: 18px; overflow-wrap: anywhere; }
+.application-list { display: grid; gap: 12px; }
+.application-card { padding: 18px; min-width: 0; }
+.application-card-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.application-card-heading h2 { font-size: 16px; overflow-wrap: anywhere; }
 .application-card-heading p { margin-top: 4px; font-size: 14px; overflow-wrap: anywhere; }
 .application-status { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; flex-shrink: 0; }
 .application-status[data-status="approved"], .application-status[data-status="registered"] { color: #bcd4aa; }
 .application-status[data-status="rejected"] { color: #e4aaa0; }
-.application-details { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px 24px; margin: 24px 0; }
+.application-details { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 24px; margin: 16px 0; }
 .application-details dt { color: var(--muted-foreground); font-size: 12px; margin-bottom: 4px; }
 .application-details dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .application-actions, .application-pagination { display: flex; flex-direction: row; flex-wrap: wrap; gap: 12px; }
@@ -1801,12 +1802,16 @@ input[type="date"], input[type="date"]::-webkit-calendar-picker-indicator { curs
 @media(max-width:600px) {
  .application-card { padding: 16px; }
  .application-card-heading { flex-direction: column; gap: 12px; }
- .application-details { grid-template-columns: minmax(0,1fr); gap: 16px; }
- .application-tabs a { padding: 8px 12px; font-size: 14px; }
+ .application-details { grid-template-columns: minmax(0,1fr); gap: 12px; }
+ .application-tabs a { padding: 7px 8px; }
  .application-card .button { max-width: 100%; white-space: normal; }
 }
 
-@media (min-width: 768px) { .statistics-page .statistics-controls { min-height: 120px; align-content: flex-start; } }
+@media (min-width: 768px) { .application-toolbar { flex-wrap: nowrap; } .applications-page .button { min-height: 36px; } }
 
 .applications-page .application-card { max-width: none; width: 100%; }
-.applications-page .button { min-height: 44px; }
+@media (max-width: 767px) { .applications-page .button { min-height: 44px; } }
+
+.person-identifiers { display: grid; gap: 3px; overflow-wrap: anywhere; }
+.person-name > div { min-width: 0; }
+.person-actions { flex-wrap: wrap; }

@@ -1,46 +1,27 @@
-# Фактические проверки — пакет 009
+# Проверки пакета 010
 
-Дата работы: 05–06.09.2026. Источник: присланные ZIP и ТЗ 009. Производственные Supabase/Telegram/Vercel не подключались и не изменялись.
+Дата: 06.09.2026. Требования: [ТЗ 010](TZ_TutorGate_010_final.md).
 
-## Итог
+## Фактический прогон
 
-Реализация и регрессионные тесты добавлены. **Полный DoD не подтверждён**: недоступен npm registry (DNS/network), в sandbox отсутствуют точные зависимости проекта. Offline npm ci также завершился ENOTCACHED. Версии зависимостей не подменялись и lockfile не обновлялся.
+- `npm test`: success, 94 проверки, без пропусков. [Лог](verification-010-logs/test.log).
+- Остальные команды полного прогона выполняются; результат будет записан после завершения.
 
-| Проверка | Фактический результат |
-|---|---|
-| npm ci | Не выполнена установка: npm registry недоступен; процесс остановлен после сетевых повторов |
-| npm ci --offline --ignore-scripts | Ошибка ENOTCACHED, нет требуемых пакетов в cache |
-| npm run lint | Запущена, заблокирована: eslint отсутствует |
-| npm run typecheck | Запущена, не пройдена: отсутствуют next, React/Node typings и другие зависимости; это не успешный typecheck |
-| npm test | Запущена: unit-часть проходит, четыре DB suites не стартуют без @electric-sql/pglite |
-| npm run test:docs | Пройдена после исправления ссылок входного архива; итоговый лог приложен |
-| npm run build | Запущена, заблокирована: next отсутствует |
-| npm run test:e2e | Запущена, не стартует без @playwright/test и Next |
+## Покрытие
 
-## Выполнено независимо от полной установки
+- Все migrations 001–010 применяются в PGlite; отдельный тест применяет 010 поверх заполненной схемы 009.
+- Admin-only directory, отсутствие приватных полей у peers, NULL username и поиск по всем четырём полям без преобразования Telegram ID в number.
+- Student ↔ tutor: назначения, предметы, будущие занятия запрещают смену; прошлые занятия сохраняются. Удаление предмета после смены роли сохраняет историю.
+- Block/unblock, FOR UPDATE target, запрет admin-target, отзыв opaque sessions; запоздалые bind/refresh не восстанавливают отозванную сессию. Stale access закрыт через RPC и RLS.
+- Soft delete: alias/reset tokens/session/metadata/Telegram PII очищены, lessons, notes и completed history сохраняются; повторное удаление идемпотентно, unblock невозможен.
+- Telegram sync: максимум пять запросов одновременно; unchanged/new/NULL/API error/DB error; пропуск deleted. Browser fixtures проверяют Server Action → Bot API adapter → persistence → UI.
+- Календарь: меню занятия/пустой точки, snap, условный Paste, Create here, клавиатурная навигация, RU/EN/Meta copy/paste/undo/redo, блокировка shortcut внутри формы, отсутствие mutation-menu у student.
+- Скриншоты заявок и статистики в E2E: 320×900, 375×900, 768×1024, 1366×768, 1440×900, 1920×1080; проверяются compact padding, единая desktop-строка фильтров, gap controls/KPI, cursor=text и отсутствие horizontal overflow.
 
-- 43 unit/contract tests проходят через предустановленный tsx: validation, dates, filters, signed client history, immutable preview, conflict-aware lanes, delete target/source/batch, application status gates и mocked two-admin notification dedupe/failure isolation.
-- Синтаксис 111 TS/TSX файлов успешно проверен esbuild отдельно от отсутствующих типовых деклараций; это НЕ замена strict typecheck.
-- `node --check` тестовых MJS/CJS файлов: успешно.
-- Offline React SSR snapshots реальных компонентов с mock integration adapters + локальный Chromium: размеры страницы проверены на 1366×768, 1440×900, 1920×1080, 320×900, 375×900. Исправлен найденный 26 px overflow статистики. На desktop статистика помещается; на узких/коротких экранах реальный scroll остаётся. Date computed cursor — pointer; student save indicator отсутствует; desktop/mobile layout без horizontal overflow.
-- Визуально осмотрены снимки статистики, pending/approved applications и tutor/student schedules. Применён прежний warm-mocha стиль, новый gate mark, разрешённые перекрытия остаются одной ширины, select текст с ellipsis не пересекает chevron.
+## Границы проверки и выпуск
 
-Ограничение offline snapshot QA: Next runtime, Recharts rendering, Lucide module и внешние сервисы были заменены локальными adapters; это не проверка всех runtime states, hydration, popup interactions или заполненных графиков. Полная визуальная и интерактивная приёмка — после npm ci.
+PGlite исполняет PostgreSQL SQL и RLS, но не заменяет две независимые staging-сессии PostgreSQL/Supabase Auth. E2E использует только локальные fixtures и mock Telegram; реальные аккаунты при тестировании не менялись.
 
-## Добавленные проверки для полного окружения
+**Не выполнены и не считаются пройденными:** применение на staging Supabase, getChat с настоящим staging-ботом (смена/удаление username), реальная проверка двух конкурентных DB connections и отзыв уже открытой staging-сессии. Подтверждённая staging-среда для этих проверок не предоставлена; наличие локальных конфигурационных файлов не определяет назначение подключённой базы.
 
-- `tests/package-009.test.ts`: unit/contract и mock notification orchestration.
-- `tests/applications-database.test.ts`: полный набор migrations, review/token/reapply/privacy/expiry/idempotency. PGlite Promise.all проверяет единственность перехода, но не заменяет staging race из двух PostgreSQL sessions.
-- `tests/schedule-features-database.test.ts`: delete source/target/both, availability, rollback on conflict, signed Undo/Redo.
-- `tests/e2e/package-009.spec.ts`: statistics scroll/cursor, role controls, chevrons 320/375, assignments, transfer deletion, moderated registration/resend/rejection flow.
-- Existing DB/E2E assertions обновлены для новой модели; legacy versions tests не удалены.
-
-## Что обязательно проверить до production
-
-1. Полный clean install и все команды README с закреплёнными версиями.
-2. Реальные migrations 008 → commit → 009 на копии базы; migration legacy telegram_verified и existing registered.
-3. Реальный PostgreSQL concurrency approve/reject/register/resend и snapshots.
-4. Настоящие Telegram deliveries двум admin, отказ Telegram API, повторы webhook.
-5. Реальные Next/React/Radix/Recharts состояния, заполненный график, mobile popups, keyboard flow и новые ссылки после expiry.
-
-Исторический отчёт [008](archive/verification-008-incoming.md) сохранён отдельно и не считается подтверждением текущего релиза.
+Перед выпуском применить [миграцию 010](../supabase/migrations/202609060010_admin_user_management.sql) после 009, затем развернуть соответствующий код. Старый код не запускать с новой схемой: изменились контракты profile visibility и обновления vault. Выполнить перечисленные staging-проверки. Исторический отчёт: [009](archive/verification-009.md).

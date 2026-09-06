@@ -3,7 +3,14 @@ export type Profile = {
   id: string;
   role: Role;
   full_name: string;
-  telegram_username: string;
+  telegram_username: string | null;
+};
+export type AccountStatus = "active" | "blocked" | "deleted";
+export type AdminDirectoryProfile = Profile & {
+  login: string | null;
+  telegram_user_id: string | null;
+  account_status: AccountStatus;
+  blocked_at: string | null;
 };
 export type Subject = { id: string; name: string; is_active: boolean };
 export type Assignment = {

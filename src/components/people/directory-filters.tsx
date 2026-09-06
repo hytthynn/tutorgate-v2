@@ -16,7 +16,7 @@ export function DirectoryFilters({ kind, q, filter, options }: {
   return <div className="directory-filters" aria-busy={pending}>
     <div className="search-input">
       <Search size={16} aria-hidden="true" />
-      <input aria-label="Поиск по ФИО" name="q" placeholder="Поиск по имени…" maxLength={150}
+      <input aria-label="Поиск по имени, логину, @username или Telegram ID" name="q" placeholder="Поиск по имени, логину, @username или Telegram ID…" maxLength={150}
         value={filters.q} onChange={event => change({ q: event.target.value }, 300)} />
     </div>
     <Select searchable={kind === "students"} aria-label={kind === "tutors" ? "Фильтр по предмету" : "Фильтр по репетитору"}

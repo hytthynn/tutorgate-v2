@@ -19,7 +19,7 @@ import { allowed } from "@/lib/auth/rate-limit";
 import { token, hash } from "@/lib/auth/tokens";
 import { appUrl, env } from "@/lib/env";
 import { sendMessage } from "@/lib/telegram/bot";
-import type { ActionState } from "@/types";
+import type { ActionState, Profile } from "@/types";
 
 export async function loginAction(
   _: ActionState,
@@ -47,18 +47,26 @@ export async function loginAction(
       password: parsed.data.password,
     });
     if (error || !data.user) return { error: "Неверный логин или пароль." };
-    if (handle)
-      await serviceRpc("bind_session", {
-        p_hash: hash(handle),
-        p_user: data.user.id,
-      });
     const { data: profile } = await db
-      .from("profiles")
-      .select("role")
+      .rpc("visible_profiles")
       .eq("id", data.user.id)
       .single();
-    if (!profile) return { error: "Не удалось войти. Попробуйте ещё раз." };
-    role = profile.role;
+    // visible_profiles fails closed unless the caller's account is active.
+    if (!profile) {
+      await db.auth.signOut();
+      jar.delete(SESSION_COOKIE);
+      return { error: "Доступ к аккаунту закрыт. Обратитесь к администратору." };
+    }
+    if (handle) {
+      try {
+        await serviceRpc("bind_session", { p_hash: hash(handle), p_user: data.user.id });
+      } catch {
+        await db.auth.signOut();
+        jar.delete(SESSION_COOKIE);
+        return { error: "Доступ к аккаунту закрыт. Обратитесь к администратору." };
+      }
+    }
+    role = (profile as Profile).role;
   } catch {
     return { error: "Не удалось войти. Попробуйте ещё раз." };
   }

@@ -1,4 +1,4 @@
-# Авторизация, Telegram и модерация (009)
+# Авторизация, Telegram и управление аккаунтами (010)
 
 ## Жизненный цикл
 
@@ -30,3 +30,17 @@
 Логин — normalized username, не email. Private auth aliases и opaque HttpOnly tg_session сохраняются. getUser подтверждает личность; proxy не заменяет RLS. Password reset сохраняет прежнюю схему single-use claim → Auth API → отзыв vault sessions; общая транзакция с удалённым Auth API невозможна. Пароли, Supabase service key и auth cookies не логировать.
 
 Прежние общие PostgreSQL rate limits сохранены. APP_URL — единственный источник ссылок; Referrer-Policy=no-referrer сохраняется. Публичный signup выключен. Для существующей установки администраторы — уже зарегистрированные profiles.role=admin; начальное доверенное provisioning первого администратора в пустой базе выполняется владельцем БД вне публичного flow.
+
+## Управление аккаунтами 010
+
+После signInWithPassword loginAction читает собственный visible_profiles, который возвращает профиль только при active account. bind_session выполняется после этой проверки и повторно проверяет active под блокировкой строки. При отказе вызывается signOut и удаляется tg_session. currentProfile/requireRole используют тот же fail-closed RPC; getUser остаётся обязательным. Vault refresh обновляет существующий handle без создания новой строки, защищая от запоздалого обновления после revoke.
+
+Администратор может сменить student ↔ tutor, заблокировать/разблокировать и необратимо обезличить пользователя. Действия требуют серверной и SQL admin-проверки; аккаунты admin не управляются через этот контракт. Смена роли отзывает текущие сессии. Block удаляет vault sessions и гасит password reset tokens. Unblock разрешает новый вход и не восстанавливает прежние сессии.
+
+Soft delete атомарно стирает private alias, reset tokens, Telegram identity, ФИО и Auth user metadata, сохраняя технический UUID для истории. После commit server-only Auth Admin API повторяет metadata cleanup и устанавливает бан. При сбое внешнего API UI сообщает, что доступ уже отозван, и позволяет повторить идемпотентный delete. Отката обезличивания нет. Auth user физически не удаляется; его email — технический alias. История заявок и занятий сохраняется.
+
+## Массовая синхронизация Telegram
+
+В admin/settings третья карточка Telegram запускает syncTelegramAction с requireRole(admin). Профили читаются server-only порциями по 100 с UUID cursor; обрабатываются все non-deleted с chat ID, включая blocked. getChat вызывается по постоянному chat_id, максимум пять параллельных запросов, timeout 8 секунд. Новый username записывается lowercase, отсутствие — NULL; неизменённое значение не записывается. Ошибка отдельного API/DB запроса увеличивает счётчик и не отменяет остальные обновления.
+
+Обновление проверяет исходные username/chat ID и non-deleted status, чтобы конкурентное удаление не вернуло персональные данные. В браузер попадают только агрегированные checked/updated/removed/unchanged/errors. Bot token, raw Telegram payload и chat ID не возвращаются. Нет username — нет t.me-ссылки. Восстановление пароля по Telegram username возможно только если актуальный username существует и account active.

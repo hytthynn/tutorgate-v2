@@ -39,7 +39,7 @@ npm run test:e2e
 
 ## Документация
 
-- [Текущее ТЗ — пакет 009](docs/TZ_TutorGate_009_bugs_applications_brand.md)
+- [Текущее ТЗ — пакет 010](docs/TZ_TutorGate_010_final.md)
 - [Установка пакета 009 и ограничения проверки](docs/release-009.md)
 - [Архитектура и инварианты расписания](docs/architecture.md)
 - [База данных](docs/database.md) · [Авторизация и Telegram](docs/auth-and-telegram.md)

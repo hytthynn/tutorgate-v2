@@ -78,7 +78,7 @@ test("admin dialog constraints, filters, private session and mobile navigation",
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("textbox", { name: "Поиск по ФИО" }).fill("Мария");
+  await page.getByRole("textbox", { name: "Поиск по имени, логину, @username или Telegram ID" }).fill("Мария");
   await expect(page.getByRole("button", { name: "Найти", exact: true })).toHaveCount(0);
   await expect(page).toHaveURL(/q=/);
   await expect(page.getByText("Дмитрий Лебедев", { exact: true })).toHaveCount(
