@@ -18,7 +18,8 @@ import {
 import { allowed } from "@/lib/auth/rate-limit";
 import { token, hash } from "@/lib/auth/tokens";
 import { appUrl, env } from "@/lib/env";
-import { sendMessage } from "@/lib/telegram/bot";
+import { resetMessage } from "@/lib/telegram/templates";
+import { sendTemplate } from "@/lib/telegram/bot";
 import type { ActionState, Profile } from "@/types";
 
 export async function loginAction(
@@ -131,10 +132,7 @@ export async function forgotPasswordAction(
         p_hash: hash(raw),
       });
       if (chat)
-        await sendMessage(
-          chat,
-          `Восстановление пароля TutorGate\n\n${appUrl(`/reset-password?token=${raw}`)}\n\nСсылка действует 30 минут. Если вы не запрашивали смену пароля, просто проигнорируйте сообщение.`,
-        );
+        await sendTemplate(chat, resetMessage(appUrl(`/reset-password?token=${raw}`)));
     }
   } catch {
     console.error("Password recovery could not be delivered");

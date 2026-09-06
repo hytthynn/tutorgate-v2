@@ -73,3 +73,7 @@ Calendar использует единый copy/paste pipeline для клави
 Application tabs и period tabs используют общий CSS segmented pattern. Date/time cursor=text ограничен этими inputs и native indicators. Statistics controls имеют естественную высоту и обычный нижний margin.
 
 `/admin/applications` — Server Component с серверными role/status-фильтрами и пагинацией по 50 строк. Мутации — Server Actions: getUser/requireRole(admin), только applicationId от клиента, далее service-only RPC с повторной проверкой admin и блокировкой заявки. DTO не содержит Telegram numeric identifiers или token hashes. Решение сохраняется до сетевого вызова Telegram; ошибка доставки не откатывает БД. Ссылки, TTL и аудит описаны в [auth-and-telegram](auth-and-telegram.md).
+
+## Чат 011
+
+Один диалог на student+tutor; предметы не создают дополнительные чаты. Только active tutor пишет на /tutor/chats. Student отвечает через Telegram. Polling 5 секунд в видимой вкладке, без overlap. Mark-read ограничен ID последнего полученного сообщения. Action проверяет requireRole(tutor), RPC повторно проверяет auth.uid и назначение. Service-only Telegram delivery после commit pending, safe DTO без Telegram IDs.

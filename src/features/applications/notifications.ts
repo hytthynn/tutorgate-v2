@@ -1,7 +1,8 @@
+import { escapeHtml } from "@/lib/telegram/templates";
 // Pure transport orchestration: injected adapters are also used by mock tests.
 export type AdminNotice = { chat_id: string; role: "student" | "tutor"; full_name: string; telegram_username: string; subjects: string[]; details: string };
 export function adminNotificationText(n: AdminNotice) {
- return `Новая заявка в TutorGate\n\nРоль: ${n.role === "student" ? "Ученик" : "Репетитор"}\nФИО: ${n.full_name}\nTelegram: @${n.telegram_username}\nПредметы: ${n.subjects.join(", ")}\n${n.role === "student" ? "Цель" : "Опыт"}: ${n.details}\n\nПроверьте заявку в админ-панели.`;
+ return `📥 <b>Новая заявка в TutorGate</b>\n\n<b>Роль:</b> ${n.role === "student" ? "Ученик" : "Репетитор"}\n<b>ФИО:</b> ${escapeHtml(n.full_name)}\n<b>Telegram:</b> @${escapeHtml(n.telegram_username)}\n<b>Предметы:</b> ${escapeHtml(n.subjects.join(", "))}\n<b>${n.role === "student" ? "Цель" : "Опыт"}:</b> ${escapeHtml(n.details)}\n\nЗаявка ожидает рассмотрения в TutorGate.`;
 }
 export async function notifyApplicationAdmins(applicationId: string, ports: {
  recipients: (id: string) => Promise<{ admin_id: string }[]>;

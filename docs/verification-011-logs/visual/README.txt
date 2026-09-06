@@ -1,0 +1,1 @@
+Isolated UI QA, NOT full Next E2E. Real ChatView bundled with stubbed server actions, navigation and Button/icons. Directory markup is a CSS fixture using real globals.css. No production network calls. PNGs individually inspected; horizontal overflow absent.

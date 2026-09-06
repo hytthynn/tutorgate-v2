@@ -1,5 +1,6 @@
 // Isolated UI fixtures. This process is never imported by application code.
 // PostgreSQL/RLS behaviour is separately tested with real migrations in PGlite.
+import {chatFixture,resetChats} from "./chat-fixtures.mjs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { applicationFixture } from "./application-fixtures.mjs";
@@ -86,6 +87,7 @@ const availability=[];
 let nextLesson = 100;
 const seedSubjects=structuredClone(subjects), seedTutorSubjects=structuredClone(tutorSubjects), seedAssignments=structuredClone(assignments);
 function resetSchedule() {
+  resetChats();
   profiles.splice(0,profiles.length,...structuredClone(seedProfiles));
   subjects.splice(0,subjects.length,...structuredClone(seedSubjects));
   tutorSubjects.splice(0,tutorSubjects.length,...structuredClone(seedTutorSubjects));
@@ -155,6 +157,9 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ actionCounts: Object.fromEntries(actionCounts), lessons })); return;
   }
   if (url.pathname === "/fixtures/scenario") {
+    if(args.mode==="no-students")assignments.length=0;
+    if(args.mode==="no-subjects")subjects.length=0;
+    if(args.mode==="historical"){lessons[0].subject_id=null;lessons[0].subject_name_snapshot="Историческая математика";}
     if (args.mode === "hidden") lessons.push({ ...lessons[0], id: id(900), tutor_id: id(3), starts_at: at(0,"14:00"), ends_at: at(0,"15:00"), updated_at: new Date().toISOString() });
     if (args.mode === "full-day") for (let n=0;n<3;n++) lessons.push({ ...lessons[0], id: id(910+n), student_id: id(5), starts_at: at(1,`${String(n*8).padStart(2,"0")}:00`), ends_at: n===2 ? at(2,"00:00") : at(1,`${String((n+1)*8).padStart(2,"0")}:00`), duration_minutes:480 });
     res.writeHead(200, { "Content-Type": "application/json" }); res.end("true"); return;
@@ -174,7 +179,7 @@ const server = http.createServer(async (req, res) => {
     const result={id:Number(args.chat_id),type:"private",...(args.chat_id==="100002"?{}:{username:p?.telegram_username+"_new"})};
     res.writeHead(args.chat_id==="100003"?500:200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:args.chat_id!=="100003",result}));return;
   }
-  const applicationResult = applicationFixture(op,args,req.method,url.pathname);
+  const applicationResult = chatFixture(op,args,url.pathname,profile,profiles,assignments) ?? applicationFixture(op,args,req.method,url.pathname);
   if (applicationResult) { value=applicationResult.value; status=applicationResult.status; }
   else if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
   else if(op.startsWith("admin_") && ["admin_directory_profiles","admin_change_user_role","admin_set_user_blocked","admin_soft_delete_user"].includes(op)) {

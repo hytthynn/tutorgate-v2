@@ -1,0 +1,45 @@
+{
+  "browser": "chromium",
+  "captureMethod": "cdp",
+  "captureSize": [
+    1280,
+    900
+  ],
+  "consoleErrors": [],
+  "document": {
+    "diagnostics": {
+      "clippedOverflow": [],
+      "overlayIntersections": [],
+      "viewportOverflow": {
+        "horizontal": false,
+        "vertical": false
+      }
+    },
+    "documentSize": [
+      1280,
+      900
+    ],
+    "fontStatus": "loaded",
+    "title": "",
+    "viewportSize": [
+      1280,
+      900
+    ]
+  },
+  "exceptions": [],
+  "failedResources": [],
+  "frames": [],
+  "fullPage": false,
+  "input": "/vercel/sandbox/data/qa/student-tutors.html",
+  "output": "/vercel/sandbox/data/qa/student-tutors.png",
+  "reducedMotion": false,
+  "byteLength": 27525,
+  "sha256": "46ed65a397ed7a4a976422ab8a24e46ec262bbc1d8df5ae8500d0ef6f2a84699",
+  "dimensions": [
+    1280,
+    900
+  ],
+  "pixelSha256": "d8a6d7f942deaf2479e18b449e70590a90ef907da4de123f01bc2f02d91d7069",
+  "renderedFrameCount": 0,
+  "distinctFrameCount": 0
+}

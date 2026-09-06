@@ -1,0 +1,66 @@
+
+> tutorgate@1.0.0 test:unit
+> tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts tests/filters.test.ts tests/schedule-operations.test.ts tests/package-009.test.ts tests/migration-retry.test.ts tests/package-010.test.ts tests/package-011.test.ts
+
+✔ directory URL always contains the complete latest search + selection (0.893142ms)
+✔ custom statistics commits only valid complete date pairs (1.990593ms)
+✔ preset periods remove dates and empty tutor without losing metric (0.18688ms)
+✔ retry takes nonblocking writer/table locks before the unchanged migration body (5.704638ms)
+✔ 009 allowed overlap stays full width: {"color":"coral"} (8.606862ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"transferred"} (0.183002ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"available_from"} (0.140091ms)
+✔ 009 same-class conflicts split defensively, unrelated people do not (0.357517ms)
+✔ 009 midnight segment adjacency does not create defensive lanes (0.153227ms)
+✔ 009 delete target restores source, availability reapplies and completion remains cleared (2.470561ms)
+✔ 009 delete source detaches target, which becomes transferable (0.214408ms)
+✔ 009 batch deletes both sides and handles multiple unrelated pairs (0.174941ms)
+✔ 009 status mapping and decision gates (0.209272ms)
+✔ 009 two-admin mock delivery is deduplicated, failures isolated and no Telegram decision buttons (1.058475ms)
+✔ 009 render contracts and token privacy (12.713133ms)
+✔ 010 directory searches all admin identifiers without numeric precision loss (0.971853ms)
+✔ 010 Telegram sync persists changes/null, isolates API and persistence failures, skips deleted and limits concurrency (7.802681ms)
+✔ 011 start catalogue and secret URLs only in inline keyboards (1.196425ms)
+✔ 011 escapes all dynamic HTML; long text remains intact and notification has no reply action (0.714865ms)
+✔ 011 sentinel only for unchanged existing historical lesson; explicit empty selectors (0.27355ms)
+✔ 011 date separators use MSK midnight (16.417087ms)
+✔ 011 one tutor shortcut, pagination, silent cancel (2.492099ms)
+✔ 011 Reply passed to atomic DB resolver; duplicate update has no notification (0.37941ms)
+✔ 011 tutor/admin text and student nontext/oversize never reach chat insert (0.337671ms)
+✔ 011 removed assignment, DB failure, notification failure have distinct safe outcomes (0.426989ms)
+✔ 011 source boundaries: role checks, visible polling, bounded read marker and callback commands (9.437312ms)
+✔ conflict classes and selection keep gray active and coral individually editable (0.783709ms)
+✔ group placement preserves offsets and chooses later common delta on tie (2.867063ms)
+✔ availability date is inclusive and never reactivates transferred sources (0.200648ms)
+✔ overlap lanes expose every card including connected overlap chains (1.684805ms)
+✔ confirmed undo/redo stacks invert canonical snapshots; a new action clears redo (0.312818ms)
+✔ temporary IDs are removed and canonical fields win (0.189658ms)
+✔ Monday weeks, month boundaries and invalid query fallback (1.584365ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.576771ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.521867ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.616514ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.477229ms)
+✔ current local week and future guards cover every MSK offset (1.790219ms)
+✔ day selector always offers seven dates including year boundary (0.514848ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.264637ms)
+✔ historical subject can only be omitted when unchanged (0.439595ms)
+✔ schedule never refreshes the current RSC calendar (6.937155ms)
+✔ custom selectors and global toast replace legacy mechanisms (15.807484ms)
+✔ history is unbounded but paginated, normalized names are batched (1.848506ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.7788ms)
+✔ 008 calendar uses atomic commands, group magnet and shared save state (0.889373ms)
+✔ 007 auto filters replace URLs, debounce 300ms, and preserve server directory (1.045108ms)
+✔ 007 subject selectors have no search; people selectors keep it (0.921542ms)
+✔ 007 shared loading API used by every agreed form and logout (1.229898ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (1.765548ms)
+✔ Telegram is normalized and validated (0.360972ms)
+✔ applications require consent, subjects and role-specific selection (2.725787ms)
+✔ password confirmation, hourly rate, assignment IDs (1.711936ms)
+✔ cryptographic tokens meet Telegram payload limits and are unique (0.529252ms)
+ℹ tests 54
+ℹ suites 0
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1330.283184

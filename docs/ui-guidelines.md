@@ -46,3 +46,7 @@ ValidatedForm использует те же Zod schemas, что actions, noVali
 Inactive lesson — серая поверхность с SVG-штриховкой, muted text, явный статус, без grab/selection; owner видит read-only детали и note, может удалить или отменить availability. Transfer target сохраняет собственный цвет, добавляет стрелку и синюю левую границу. Пересекающиеся day segments распределяются по lanes; все карточки доступны мышью, включая cross-midnight continuation. Student видит статусы и lanes без owner actions.
 
 Прямоугольник выбирает только active non-coral. ПКМ по выделенной карточке сохраняет группу; color/completed/delete/transfer/availability работают по всей группе. Ctrl+C/V используют внутренний clipboard и выбранную точку; Ctrl+Z/Shift+Z и toolbar реально восстанавливают серверные данные. Pending блокирует повторную мутацию, но optimistic изменение уже видно; ошибка откатывает всю группу.
+
+## UI 011
+
+Directory padding 13px desktop / 14px mobile, identifiers в flex-строке, actions wrap и touch-targets 44px. Mocha чат: два столбца desktop, вертикальная mobile-компоновка, МСК, явные статусы. Лимит 4000 Unicode code points в UI/server/SQL; maxLength=8000 — только UTF-16 технический предел для surrogate pairs, обработчик ограничивает 4000 символов.

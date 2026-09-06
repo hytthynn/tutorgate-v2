@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useCallback,useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   Inbox,
+  MessageSquare,
   Users,
   GraduationCap,
   ChartNoAxesCombined,
@@ -14,6 +15,8 @@ import {
   ChevronRight,
   LogOut,
 } from "lucide-react";
+import { chatUnreadAction } from "@/features/chats/actions";
+import { useVisiblePolling } from "@/features/chats/use-visible-polling";
 import { Brand } from "@/components/shared/brand";
 import {
   Dialog,
@@ -30,13 +33,14 @@ const items = [
   { key: "schedule", label: "Расписание", icon: CalendarDays },
   { key: "tutors", label: "Репетиторы", icon: GraduationCap },
   { key: "students", label: "Ученики", icon: Users },
+  { key: "chats",label:"Чаты",icon:MessageSquare },
   { key: "statistics", label: "Статистика", icon: ChartNoAxesCombined },
   { key: "applications", label: "Заявки", icon: Inbox },
   { key: "settings", label: "Настройки", icon: Settings2 },
 ];
 const allowed = {
   student: ["schedule", "tutors"],
-  tutor: ["schedule", "students", "statistics"],
+  tutor: ["schedule", "students", "chats", "statistics"],
   admin: ["schedule", "tutors", "students", "statistics", "applications", "settings"],
 };
 const roleNames = {
@@ -47,6 +51,9 @@ const roleNames = {
 export function Navigation({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [unread,setUnread]=useState(0);
+  const pollUnread=useCallback(async()=>{const result=await chatUnreadAction();if(result.data!==undefined)setUnread(result.data);},[]);
+  useVisiblePolling(pollUnread,profile.role==="tutor");
   const links = (
     <nav aria-label="Основная навигация">
       {items
@@ -61,6 +68,7 @@ export function Navigation({ profile }: { profile: Profile }) {
           >
             <Icon size={17} />
             {label}
+            {key==="chats"&&unread>0&&<span className="chat-unread nav-unread" aria-label={`${unread} непрочитанных сообщений`}>{unread}</span>}
             {pathname.endsWith(`/${key}`) && (
               <ChevronRight size={14} className="nav-chevron" />
             )}

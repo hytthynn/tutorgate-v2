@@ -14,7 +14,7 @@ test("010 upgrade, admin boundaries, role transitions, sessions and preserved hi
       grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`);
     const directory = new URL("../supabase/migrations/", import.meta.url);
     const files = (await readdir(directory)).filter(n => n.endsWith(".sql")).sort();
-    for (const name of files.filter(n => !n.includes("202609060010"))) await db.exec(await readFile(new URL(name, directory), "utf8"));
+    for (const name of files.filter(n => n < "202609060010")) await db.exec(await readFile(new URL(name, directory), "utf8"));
     await db.exec("alter table auth.users disable trigger user");
     async function add(n: number, role: string) {
       await db.query("insert into auth.users values($1,$2,$3)", [id(n), `u${n}@internal.test`, { username: `user_${n}`, registration_hash: "secret" }]);
@@ -24,6 +24,7 @@ test("010 upgrade, admin boundaries, role transitions, sessions and preserved hi
     // Apply 010 over populated package 009, not just an empty database.
     await add(1, "admin"); await add(2, "tutor"); await add(3, "student");
     await db.exec(await readFile(new URL(files.find(n => n.includes("202609060010"))!, directory), "utf8"));
+    for(const name of files.filter(n=>n>"202609060010_admin_user_management.sql"))await db.exec(await readFile(new URL(name,directory),"utf8"));
     async function as<T>(n: number, work: () => Promise<T>): Promise<T> {
       await db.query("select set_config('request.jwt.claim.sub',$1,false)", [id(n)]); await db.exec("set role authenticated");
       try { return await work(); } finally { await db.exec("reset role"); }

@@ -15,9 +15,10 @@
     "telegram:webhook": "node --env-file=.env.local scripts/set-webhook.mjs",
     "admin:promote": "node --env-file=.env.local scripts/promote-admin.mjs",
     "test:e2e": "playwright test",
-    "test:unit": "tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts tests/filters.test.ts tests/schedule-operations.test.ts tests/package-009.test.ts tests/migration-retry.test.ts",
-    "test:db": "tsx --test tests/database.test.ts tests/schedule-database.test.ts tests/schedule-features-database.test.ts tests/applications-database.test.ts",
-    "test:docs": "node scripts/check-doc-links.mjs"
+    "test:unit": "tsx --test tests/schedule-time.test.ts tests/validation.test.ts tests/source-contract.test.ts tests/filters.test.ts tests/schedule-operations.test.ts tests/package-009.test.ts tests/migration-retry.test.ts tests/package-010.test.ts tests/package-011.test.ts",
+    "test:db": "tsx --test tests/database.test.ts tests/schedule-database.test.ts tests/schedule-features-database.test.ts tests/applications-database.test.ts tests/admin-users-database.test.ts tests/chat-database.test.ts",
+    "test:docs": "node scripts/check-doc-links.mjs",
+    "test:011": "tsx --test tests/package-011.test.ts tests/chat-database.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

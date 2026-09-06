@@ -122,9 +122,13 @@ test("move pending/error rolls back and error persists until next successful wri
 test("create/update loading, validation, status and failure recovery share one contract", async ({ page, request }) => {
   await login(page);
   await page.getByRole("button", { name: "Добавить занятие", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Добавить", exact: true })).toBeDisabled();
+  await choose(page, "Ученик", "Анна Смирнова");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
   await expect(status(page)).toHaveText("Сохранено"); // local schema rejection, no request
-  await choose(page, "Ученик", "Анна Смирнова"); await choose(page, "Предмет", "Математика");
+  const rejected = await (await request.get(`${fixture}/state`)).json();
+  expect(rejected.actionCounts.save_schedule_lesson ?? 0).toBe(0);
+  await choose(page, "Предмет", "Математика");
   await page.getByLabel("Начало", { exact: true }).fill("17:00");
   await behavior(request, "save_schedule_lesson", true);
   await page.getByRole("button", { name: "Добавить", exact: true }).click();

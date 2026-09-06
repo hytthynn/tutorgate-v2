@@ -123,3 +123,7 @@ Block и delete вызывают revoke_user_sessions внутри транза�
 `private.is_active_user` и restrictive RLS закрывают stale authenticated access. Public schedule_command проверяет active account и вызывает прежнее тело 009, перенесённое в закрытую private.schedule_command_009; resolver, ownership и signed snapshots сохранены. private.is_teacher/is_admin учитывают status. Rollover пропускает неактивных tutors, новые копии не создаются для неактивных students.
 
 Service-only `bind_session` берёт profile FOR SHARE, проверяет active до привязки. `session_refresh` обновляет только существующую сессию, без UPSERT: после revoke запоздалый refresh не воскрешает handle. `session_read` проверяет статус привязанного пользователя. request_reset игнорирует NULL usernames и неактивные accounts; claim_reset блокирует профиль и допускает только active. Новые private helpers не доступны anon.
+
+## Миграция 011
+
+chat_conversations: unique student+tutor, tutor_last_read_at. chat_messages: UUID, sender_role, body до 4000, pending/sent/failed, строго возрастающий внутри conversation created_at. RLS SELECT требует активного участника и назначения. Прямые writes запрещены; authenticated RPC: chat_snapshot/chat_unread/chat_mark_read/chat_send. private.telegram_chat_state, telegram_chat_updates и telegram_message_links закрыты от anon/authenticated; bot RPC только service_role. FOR SHARE участников/назначений и FOR UPDATE conversation сериализуют writes. Dedupe ledger и incoming message атомарны. Reply mapping привязан к Telegram chat ID и student.

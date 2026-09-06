@@ -1,0 +1,45 @@
+{
+  "browser": "chromium",
+  "captureMethod": "cdp",
+  "captureSize": [
+    1280,
+    900
+  ],
+  "consoleErrors": [],
+  "document": {
+    "diagnostics": {
+      "clippedOverflow": [],
+      "overlayIntersections": [],
+      "viewportOverflow": {
+        "horizontal": false,
+        "vertical": false
+      }
+    },
+    "documentSize": [
+      1280,
+      900
+    ],
+    "fontStatus": "loaded",
+    "title": "",
+    "viewportSize": [
+      1280,
+      900
+    ]
+  },
+  "exceptions": [],
+  "failedResources": [],
+  "frames": [],
+  "fullPage": false,
+  "input": "/vercel/sandbox/data/qa/admin-tutors.html",
+  "output": "/vercel/sandbox/data/qa/admin-tutors.png",
+  "reducedMotion": false,
+  "byteLength": 47821,
+  "sha256": "6e2ac0f5e0517c548303b2ef4f289ab5fcfade9cfaf931f5ecd225de55754b68",
+  "dimensions": [
+    1280,
+    900
+  ],
+  "pixelSha256": "d6d6cee809abd53886a7ee54230b969f2fb21dd50062613a42051b34a77a9814",
+  "renderedFrameCount": 0,
+  "distinctFrameCount": 0
+}

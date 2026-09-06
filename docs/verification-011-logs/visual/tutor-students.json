@@ -1,0 +1,45 @@
+{
+  "browser": "chromium",
+  "captureMethod": "cdp",
+  "captureSize": [
+    390,
+    900
+  ],
+  "consoleErrors": [],
+  "document": {
+    "diagnostics": {
+      "clippedOverflow": [],
+      "overlayIntersections": [],
+      "viewportOverflow": {
+        "horizontal": false,
+        "vertical": false
+      }
+    },
+    "documentSize": [
+      390,
+      900
+    ],
+    "fontStatus": "loaded",
+    "title": "",
+    "viewportSize": [
+      390,
+      900
+    ]
+  },
+  "exceptions": [],
+  "failedResources": [],
+  "frames": [],
+  "fullPage": false,
+  "input": "/vercel/sandbox/data/qa/tutor-students.html",
+  "output": "/vercel/sandbox/data/qa/tutor-students.png",
+  "reducedMotion": false,
+  "byteLength": 20689,
+  "sha256": "b5158abccb64bc44c26799e3c973e26804f088194f07440c1f9dd848408bfe41",
+  "dimensions": [
+    390,
+    900
+  ],
+  "pixelSha256": "72260f705528921b7afae950509fcf8fc000dcb77bda89115e4e22dac2bf2a91",
+  "renderedFrameCount": 0,
+  "distinctFrameCount": 0
+}

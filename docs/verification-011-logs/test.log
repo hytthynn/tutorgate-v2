@@ -1,0 +1,236 @@
+
+> tutorgate@1.0.0 test
+> tsx --test tests/*.test.ts
+
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/admin-users-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/vercel/sandbox/data/tutorgate/tests/admin-users-database.test.ts'
+  ]
+}
+
+Node.js v24.14.1
+✖ tests/admin-users-database.test.ts (238.97872ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/applications-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/vercel/sandbox/data/tutorgate/tests/applications-database.test.ts'
+  ]
+}
+
+Node.js v24.14.1
+✖ tests/applications-database.test.ts (217.420476ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/chat-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/chat-database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/chat-database.test.ts (183.467814ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/database.test.ts (153.727904ms)
+✔ directory URL always contains the complete latest search + selection (0.86375ms)
+✔ custom statistics commits only valid complete date pairs (2.666942ms)
+✔ preset periods remove dates and empty tutor without losing metric (0.188724ms)
+✔ retry takes nonblocking writer/table locks before the unchanged migration body (4.518937ms)
+✔ 009 allowed overlap stays full width: {"color":"coral"} (8.285839ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"transferred"} (0.170407ms)
+✔ 009 allowed overlap stays full width: {"inactiveReason":"available_from"} (0.137064ms)
+✔ 009 same-class conflicts split defensively, unrelated people do not (0.352918ms)
+✔ 009 midnight segment adjacency does not create defensive lanes (0.192948ms)
+✔ 009 delete target restores source, availability reapplies and completion remains cleared (1.891336ms)
+✔ 009 delete source detaches target, which becomes transferable (0.208456ms)
+✔ 009 batch deletes both sides and handles multiple unrelated pairs (0.166692ms)
+✔ 009 status mapping and decision gates (0.198998ms)
+✔ 009 two-admin mock delivery is deduplicated, failures isolated and no Telegram decision buttons (0.909315ms)
+✔ 009 render contracts and token privacy (9.415814ms)
+✔ 010 directory searches all admin identifiers without numeric precision loss (0.896964ms)
+✔ 010 Telegram sync persists changes/null, isolates API and persistence failures, skips deleted and limits concurrency (7.742344ms)
+✔ 011 start catalogue and secret URLs only in inline keyboards (1.12426ms)
+✔ 011 escapes all dynamic HTML; long text remains intact and notification has no reply action (0.676638ms)
+✔ 011 sentinel only for unchanged existing historical lesson; explicit empty selectors (0.258029ms)
+✔ 011 date separators use MSK midnight (15.239248ms)
+✔ 011 one tutor shortcut, pagination, silent cancel (1.489905ms)
+✔ 011 Reply passed to atomic DB resolver; duplicate update has no notification (0.378416ms)
+✔ 011 tutor/admin text and student nontext/oversize never reach chat insert (0.337963ms)
+✔ 011 removed assignment, DB failure, notification failure have distinct safe outcomes (0.425876ms)
+✔ 011 source boundaries: role checks, visible polling, bounded read marker and callback commands (8.877307ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/schedule-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/vercel/sandbox/data/tutorgate/tests/schedule-database.test.ts' ]
+}
+
+Node.js v24.14.1
+✖ tests/schedule-database.test.ts (154.758766ms)
+node:internal/modules/cjs/loader:1456
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@electric-sql/pglite'
+Require stack:
+- /vercel/sandbox/data/tutorgate/tests/schedule-features-database.test.ts
+    at node:internal/modules/cjs/loader:1456:15
+    at nextResolveSimple (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1006)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4959
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:9:4261
+    at resolveTsPaths (/vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:759)
+    at /vercel/sandbox/node_modules/tsx/dist/register-OY9cqBEN.cjs:10:1199
+    at j._resolveFilename (file:///vercel/sandbox/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1101:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/vercel/sandbox/data/tutorgate/tests/schedule-features-database.test.ts'
+  ]
+}
+
+Node.js v24.14.1
+✖ tests/schedule-features-database.test.ts (148.810506ms)
+✔ conflict classes and selection keep gray active and coral individually editable (0.794203ms)
+✔ group placement preserves offsets and chooses later common delta on tie (2.815508ms)
+✔ availability date is inclusive and never reactivates transferred sources (0.190347ms)
+✔ overlap lanes expose every card including connected overlap chains (1.865706ms)
+✔ confirmed undo/redo stacks invert canonical snapshots; a new action clears redo (0.337121ms)
+✔ temporary IDs are removed and canonical fields win (0.200857ms)
+✔ Monday weeks, month boundaries and invalid query fallback (1.534316ms)
+✔ fixed MSK conversion is independent of browser/host timezone (0.565546ms)
+✔ cross-midnight/week segments, clipped hours and count by start (0.528702ms)
+✔ actual statistics split days, zero points, current rate and clipped count (0.607301ms)
+✔ lesson form accepts minute precision and validates duration/note/date (2.40532ms)
+✔ current local week and future guards cover every MSK offset (1.769167ms)
+✔ day selector always offers seven dates including year boundary (0.488005ms)
+✔ magnet checks full duration, chooses later tie, snaps and stays in chosen day (1.218156ms)
+✔ historical subject can only be omitted when unchanged (0.433211ms)
+✔ schedule never refreshes the current RSC calendar (7.369266ms)
+✔ custom selectors and global toast replace legacy mechanisms (15.115521ms)
+✔ history is unbounded but paginated, normalized names are batched (0.778597ms)
+✔ upgrade migration retains exclusion constraints and locks private helpers (0.614012ms)
+✔ 008 calendar uses atomic commands, group magnet and shared save state (0.863164ms)
+✔ 007 auto filters replace URLs, debounce 300ms, and preserve server directory (0.98122ms)
+✔ 007 subject selectors have no search; people selectors keep it (0.797842ms)
+✔ 007 shared loading API used by every agreed form and logout (1.208739ms)
+✔ login is case-insensitive; embedded whitespace and non-Latin names rejected (1.696814ms)
+✔ Telegram is normalized and validated (0.343315ms)
+✔ applications require consent, subjects and role-specific selection (2.579056ms)
+✔ password confirmation, hourly rate, assignment IDs (2.797272ms)
+✔ cryptographic tokens meet Telegram payload limits and are unique (0.495972ms)
+ℹ tests 60
+ℹ suites 0
+ℹ pass 54
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2247.443312
+
+✖ failing tests:
+
+test at tests/admin-users-database.test.ts:1:1
+✖ tests/admin-users-database.test.ts (238.97872ms)
+  'test failed'
+
+test at tests/applications-database.test.ts:1:1
+✖ tests/applications-database.test.ts (217.420476ms)
+  'test failed'
+
+test at tests/chat-database.test.ts:1:1
+✖ tests/chat-database.test.ts (183.467814ms)
+  'test failed'
+
+test at tests/database.test.ts:1:1
+✖ tests/database.test.ts (153.727904ms)
+  'test failed'
+
+test at tests/schedule-database.test.ts:1:1
+✖ tests/schedule-database.test.ts (154.758766ms)
+  'test failed'
+
+test at tests/schedule-features-database.test.ts:1:1
+✖ tests/schedule-features-database.test.ts (148.810506ms)
+  'test failed'

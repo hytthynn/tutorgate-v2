@@ -5,17 +5,17 @@ import { requireRole } from "@/lib/auth/access";
 import { serviceRpc } from "@/lib/supabase/admin";
 import { token, hash } from "@/lib/auth/tokens";
 import { appUrl } from "@/lib/env";
-import { sendMessage } from "@/lib/telegram/bot";
+import { registrationMessage,type TelegramMessage } from "@/lib/telegram/templates";
+import { sendTemplate } from "@/lib/telegram/bot";
 import type { ReviewAction, ReviewResult } from "./types";
 async function review(applicationId: string, action: ReviewAction): Promise<ReviewResult> {
  const actor = await requireRole("admin");
  if (!z.uuid().safeParse(applicationId).success) return { error: "Заявка не найдена." };
  const raw = action === "reject" ? null : token();
  // Validate trusted APP_URL before committing a decision that requires a link.
- let text: string;
+ let message: TelegramMessage;
  try {
-  text = action === "reject" ? "Ваша заявка в TutorGate отклонена. Вы можете подать новую заявку позже."
-   : `${action === "approve" ? "Ваша заявка в TutorGate принята." : "Новая ссылка на регистрацию в TutorGate."}\n\nЗавершите регистрацию:\n${appUrl(`/register?token=${raw}`)}\n\nСсылка действует 24 часа и может быть использована один раз.`;
+  message=registrationMessage(action,action==="reject"?appUrl("/"):appUrl(`/register?token=${raw}`));
  } catch { return { error: "Не удалось подготовить сообщение. Проверьте настройки приложения." }; }
  let result: { status: string; chat_id?: string };
  try {
@@ -23,7 +23,7 @@ async function review(applicationId: string, action: ReviewAction): Promise<Revi
  } catch { return { error: "Не удалось сохранить решение. Попробуйте ещё раз." }; }
  if (result.status !== "ok") return { error: result.status === "processed" ? "Заявка уже обработана другим администратором." : "Действие недоступно для текущего статуса заявки." };
  let delivered = false, deliveryRecorded = true;
- try { await sendMessage(result.chat_id!, text); delivered = true; }
+ try { await sendTemplate(result.chat_id!, message); delivered = true; }
  catch { console.error("Application decision delivery failed"); }
  if (raw) {
   try { await serviceRpc("application_link_delivered", { p_actor: actor.id, p_id: applicationId, p_hash: hash(raw), p_success: delivered }); }

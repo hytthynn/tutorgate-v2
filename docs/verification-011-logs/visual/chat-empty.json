@@ -1,0 +1,45 @@
+{
+  "browser": "chromium",
+  "captureMethod": "cdp",
+  "captureSize": [
+    390,
+    900
+  ],
+  "consoleErrors": [],
+  "document": {
+    "diagnostics": {
+      "clippedOverflow": [],
+      "overlayIntersections": [],
+      "viewportOverflow": {
+        "horizontal": false,
+        "vertical": false
+      }
+    },
+    "documentSize": [
+      390,
+      900
+    ],
+    "fontStatus": "loaded",
+    "title": "",
+    "viewportSize": [
+      390,
+      900
+    ]
+  },
+  "exceptions": [],
+  "failedResources": [],
+  "frames": [],
+  "fullPage": false,
+  "input": "/vercel/sandbox/data/qa/empty.html",
+  "output": "/vercel/sandbox/data/qa/chat-empty.png",
+  "reducedMotion": false,
+  "byteLength": 20325,
+  "sha256": "44695ebc55f8115e5e022c5047584cd45088ac4a7607b69379156255e302d566",
+  "dimensions": [
+    390,
+    900
+  ],
+  "pixelSha256": "ed6e6ff42bb3772646a36758d55181166f040cfd208784bf4623fabec9654daf",
+  "renderedFrameCount": 0,
+  "distinctFrameCount": 0
+}

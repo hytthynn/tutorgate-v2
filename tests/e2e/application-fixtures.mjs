@@ -10,7 +10,8 @@ export function applicationFixture(op,args,method,path) {
  if(path==='/fixtures/applications-seed'){for(const [i,name] of ['Екатерина Александровна Соколова','Александр Константинопольский'].entries())apps.push({id:randomUUID(),role:'student',full_name:name,telegram_username:'applicant_long_username_'+i,subjects:['Математика','Физика'],student_goal:'Подготовка к экзаменам и поступлению в университет',status:'pending_review',created_at:stamp(),telegram_verified_at:stamp(),reviewed_at:null,registered_at:null});return reply(true);}
  if(path==='/fixtures/applications-state') return reply({apps,messages});
  if(path==='/fixtures/applications-expire'){for(const t of tokens.values())if(t.application_id===args.id&&t.purpose==='registration')t.expires_at=new Date(Date.now()-1000).toISOString();return reply(true);}
- if(path==='/fixtures/telegram/send'){messages.push({chat_id:args.chat_id,text:args.text,hasButtons:!!args.reply_markup});return reply({ok:true});}
+ if(path==='/fixtures/telegram/send'){messages.push({chat_id:args.chat_id,text:args.text,reply_markup:args.reply_markup,hasButtons:!!args.reply_markup});return reply({ok:true,result:{message_id:messages.length}});}
+ if(path==='/fixtures/telegram/answer')return reply({ok:true});
  if(op==='submit_application') {
   const data=args.p_data,id=randomUUID();apps.push({id,...data,subjects:['Математика'],status:'pending_telegram',created_at:stamp(),telegram_verified_at:null,reviewed_at:null,reviewed_by_name:null,registered_at:null});
   tokens.set(args.p_hash,{application_id:id,purpose:'telegram_application',expires_at:new Date(Date.now()+86400000).toISOString(),used_at:null});return reply(id);

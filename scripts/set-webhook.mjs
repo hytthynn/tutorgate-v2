@@ -18,7 +18,7 @@ const response = await fetch(
     body: JSON.stringify({
       url: url.toString(),
       secret_token: TELEGRAM_WEBHOOK_SECRET,
-      allowed_updates: ["message"],
+      allowed_updates: ["message", "callback_query"],
       drop_pending_updates: false,
     }),
   },
@@ -43,3 +43,7 @@ console.log(
     2,
   ),
 );
+
+const commands=await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({commands:[{command:"start",description:"Открыть меню TutorGate"}]}),signal:AbortSignal.timeout(8000)});
+if(!commands.ok||!(await commands.json()).ok)throw new Error("Could not set bot commands");
+console.log("Bot /start command configured");

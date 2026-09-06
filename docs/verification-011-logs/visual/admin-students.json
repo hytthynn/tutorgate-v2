@@ -1,0 +1,45 @@
+{
+  "browser": "chromium",
+  "captureMethod": "cdp",
+  "captureSize": [
+    390,
+    900
+  ],
+  "consoleErrors": [],
+  "document": {
+    "diagnostics": {
+      "clippedOverflow": [],
+      "overlayIntersections": [],
+      "viewportOverflow": {
+        "horizontal": false,
+        "vertical": false
+      }
+    },
+    "documentSize": [
+      390,
+      900
+    ],
+    "fontStatus": "loaded",
+    "title": "",
+    "viewportSize": [
+      390,
+      900
+    ]
+  },
+  "exceptions": [],
+  "failedResources": [],
+  "frames": [],
+  "fullPage": true,
+  "input": "/vercel/sandbox/data/qa/admin-students.html",
+  "output": "/vercel/sandbox/data/qa/admin-students.png",
+  "reducedMotion": false,
+  "byteLength": 48946,
+  "sha256": "f80959fa10a66d28c956546ed4eaa085fd203f1b44eb14c67454bd94f6a3a09f",
+  "dimensions": [
+    390,
+    900
+  ],
+  "pixelSha256": "d1dce3ae7c2d674f913bc3f91fa3ca4f9c626b0a7634aceebb8ff1bff0bf0515",
+  "renderedFrameCount": 0,
+  "distinctFrameCount": 0
+}

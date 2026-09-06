@@ -54,8 +54,8 @@ test("009 two-admin mock delivery is deduplicated, failures isolated and no Tele
  await Promise.all([notifyApplicationAdmins("a",ports),notifyApplicationAdmins("a",ports)]);
  await notifyApplicationAdmins("a",ports);
  assert.equal(sent.length,2);assert.equal(results.filter(Boolean).length,1);assert.equal(logged,1);
- for(const text of sent) {assert.match(text,/Роль: Ученик/);assert.match(text,/Предметы: Математика/);assert.doesNotMatch(text,/inline_keyboard|callback_data|register\?token/);}
- assert.match(adminNotificationText({...notice,role:"tutor",details:"3–5 лет"}),/Опыт: 3–5 лет/);
+ for(const text of sent) {assert.match(text,/Роль:<\/b> Ученик/);assert.match(text,/Предметы:<\/b> Математика/);assert.doesNotMatch(text,/inline_keyboard|callback_data|register\?token/);}
+ assert.match(adminNotificationText({...notice,role:"tutor",details:"3–5 лет"}),/Опыт:<\/b> 3–5 лет/);
 });
 test("009 render contracts and token privacy",async()=>{
  const read=(f:string)=>readFile(new URL(`../${f}`,import.meta.url),"utf8");
