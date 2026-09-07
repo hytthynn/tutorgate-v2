@@ -41,7 +41,7 @@ const updateSchema = z.object({
       id: z.string().max(256),
       from: peer,
       data: z.string().max(64).optional(),
-      message: z.object({ chat }).optional(),
+      message: z.object({ chat, message_id: z.number().int().positive().safe().optional() }).optional(),
     })
     .optional(),
 });
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (start) {
       const payload = start[1];
       if (!/^[\w-]{43}$/.test(payload)) {
-        await sendControlMessage(chatId, confirmationMessage("invalid", appUrl("/")));
+        await sendControlMessage(chatId, confirmationMessage("invalid", appUrl("/")), { newMessage: true });
         return NextResponse.json({ ok: true });
       }
       const result = await serviceRpc<{
@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
         await sendControlMessage(
           result.status === "send" ? result.chat_id! : chatId,
           confirmationMessage(result.status, appUrl("/")),
+          { newMessage: true },
         );
         if (result.status === "send")
           await serviceRpc("telegram_delivered", { p_update: update_id });
@@ -155,6 +156,7 @@ export async function POST(request: NextRequest) {
           replyId: message?.reply_to_message?.message_id,
           callbackId: callback?.id,
           callbackData: callback?.data,
+          callbackMessageId: callback?.message?.message_id,
         },
         {
           profile: (user, chatId) =>

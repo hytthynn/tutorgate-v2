@@ -10,7 +10,7 @@ function fixture() {
   const ports: ControlPorts = {
     claim: async () => { if (locked) return null; locked = true; return { claimId: "lease", messageId: id }; },
     edit: async (_, messageId) => { edited.push(messageId); return true; },
-    send: async (_, message) => { sent.push(message.text); return 42; },
+    send: async (_, message) => { sent.push(message.text); return 41 + sent.length; },
     finish: async (_, __, messageId) => { id = messageId ?? id; locked = false; },
   };
   return { ports, sent, edited };
@@ -31,6 +31,18 @@ test("deleted control is replaced once; temporary edit errors never send a repla
   f.ports.edit = async () => false;
   await updateControlMessage("1", html("Next"), f.ports);
   assert.equal(f.sent.length, 2);
+});
+test("commands and text create a new panel; buttons edit it and external buttons start a new flow", async () => {
+  const f = fixture();
+  await updateControlMessage("1", html("Start"), f.ports, { newMessage: true });
+  await updateControlMessage("1", html("Start again"), f.ports, { newMessage: true });
+  await updateControlMessage("1", html("Picker"), f.ports, { sourceMessageId: 43 });
+  assert.deepEqual(f.edited, [43]);
+  await updateControlMessage("1", html("Sent"), f.ports, { newMessage: true });
+  await updateControlMessage("1", html("Reply to teacher"), f.ports, { sourceMessageId: 900 });
+  await updateControlMessage("1", html("Cancel"), f.ports, { sourceMessageId: 45 });
+  assert.equal(f.sent.length, 4);
+  assert.deepEqual(f.edited, [43, 45]);
 });
 test("concurrent claim cannot create a second panel; audit failure does not resend", async () => {
   const f = fixture();

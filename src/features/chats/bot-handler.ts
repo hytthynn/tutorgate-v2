@@ -9,6 +9,7 @@ import {
   type BotTutor,
   type TelegramMessage,
 } from "@/lib/telegram/templates";
+import type { ControlOptions } from "./control-message";
 export type BotProfile = {
   id: string;
   role: "student" | "tutor" | "admin";
@@ -22,6 +23,7 @@ export type BotInput = {
   replyId?: number;
   callbackId?: string;
   callbackData?: string;
+  callbackMessageId?: number;
 };
 export type ReceiveResult = {
   status: string;
@@ -39,7 +41,7 @@ export type BotPorts = {
   receive: (input: BotInput) => Promise<ReceiveResult>;
   notificationTarget: (message: string) => Promise<{ chatId: string; role: "tutor" | "admin" } | null>;
   send: (chat: string, message: TelegramMessage) => Promise<unknown>;
-  control: (chat: string, message: TelegramMessage) => Promise<unknown>;
+  control: (chat: string, message: TelegramMessage, options?: ControlOptions) => Promise<unknown>;
   answer: (callback: string) => Promise<unknown>;
   url: (path: string) => string;
   log: () => void;
@@ -47,7 +49,10 @@ export type BotPorts = {
 /** Pure orchestration for the normal bot workflow. Deep-link confirmation stays separate. */
 export async function handleBotInput(input: BotInput, ports: BotPorts) {
   const home = ports.url("/"),
-    send = (m: TelegramMessage) => ports.control(input.chatId, m);
+    send = (m: TelegramMessage) => ports.control(input.chatId, m, {
+      newMessage: !input.callbackId,
+      sourceMessageId: input.callbackMessageId,
+    });
   if (input.callbackId) {
     try {
       await ports.answer(input.callbackId);

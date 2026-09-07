@@ -1,6 +1,7 @@
 import type { TelegramMessage } from "@/lib/telegram/templates";
 
 export type ControlClaim = { claimId: string; messageId: number | null };
+export type ControlOptions = { newMessage?: boolean; sourceMessageId?: number };
 export type ControlPorts = {
   claim: (chat: string) => Promise<ControlClaim | null>;
   edit: (chat: string, id: number, message: TelegramMessage) => Promise<boolean>;
@@ -9,13 +10,14 @@ export type ControlPorts = {
 };
 
 /** Only the persisted control message can be edited; callback/reply IDs are never targets. */
-export async function updateControlMessage(chat: string, message: TelegramMessage, ports: ControlPorts) {
+export async function updateControlMessage(chat: string, message: TelegramMessage, ports: ControlPorts, options: ControlOptions = {}) {
   const claim = await ports.claim(chat);
   if (!claim) throw new Error("Telegram control busy");
   let delivered = false;
   try {
     let id = claim.messageId;
-    if (id === null || !(await ports.edit(chat, id, message))) {
+    const fresh = options.newMessage || (options.sourceMessageId !== undefined && options.sourceMessageId !== id);
+    if (fresh || id === null || !(await ports.edit(chat, id, message))) {
       id = await ports.send(chat, message);
     }
     delivered = true;
