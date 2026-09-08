@@ -43,3 +43,9 @@ export async function sendMedia(chat: string, file: Blob, name: string, image: b
   if (!response.ok || !result.ok || !Number.isSafeInteger(result.result?.message_id)) throw new Error("Media delivery failed");
   return result.result.message_id;
 }
+
+export async function deleteMessage(chatId: string, messageId: number) {
+  const response = await fetch(`https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/deleteMessage`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:chatId,message_id:messageId}),signal:AbortSignal.timeout(8000),cache:"no-store"});
+  const payload = await response.json();
+  if (!payload.ok && !String(payload.description).toLowerCase().includes("message to delete not found")) throw new Error("Telegram message cleanup failed");
+}

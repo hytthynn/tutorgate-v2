@@ -7,6 +7,7 @@ globalThis.fetch = (input, init) => {
   return original('http://127.0.0.1:54329/fixtures/telegram/get-chat',init);
  if(url === 'https://api.telegram.org/botfixture-bot/sendMessage')
   return original('http://127.0.0.1:54329/fixtures/telegram/send',init);
+ if(url==='https://api.telegram.org/botfixture-bot/deleteMessage')return original('http://127.0.0.1:54329/fixtures/telegram/delete',init);
  if(url==='https://api.telegram.org/botfixture-bot/editMessageText')return original('http://127.0.0.1:54329/fixtures/telegram/edit',init);
  if(url==='https://api.telegram.org/botfixture-bot/answerCallbackQuery')return original('http://127.0.0.1:54329/fixtures/telegram/answer',init);
  if(/https:\/\/api.telegram.org\/botfixture-bot\/send(Photo|Document)$/.test(url))return original('http://127.0.0.1:54329/fixtures/telegram/media',init);

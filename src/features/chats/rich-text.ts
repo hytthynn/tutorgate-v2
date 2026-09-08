@@ -21,10 +21,16 @@ export function normalizedMarks(marks: RichMark[]): RichMark[] {
 export function spliceContent(content: RichContent, start: number, end: number, inserted: RichContent): RichContent {
   const slice = (from: number, to: number) => { let offset = 0; return content.flatMap(n => { const base = offset; offset += n.text.length; const text = n.text.slice(Math.max(0,from-base),Math.max(0,Math.min(n.text.length,to-base))); return text ? [{ ...n,text }] : []; }); };
   let remaining = 4000;
-  return [...slice(0,start), ...inserted, ...slice(end,Infinity)].flatMap(n => {
+  const limited = [...slice(0,start), ...inserted, ...slice(end,Infinity)].flatMap(n => {
     const text = [...n.text].slice(0,remaining).join(""); remaining -= [...text].length;
     return text ? [{...n,text}] : [];
   });
+  return limited.reduce<RichContent>((runs,run)=>{
+    const marks=normalizedMarks(run.marks), last=runs.at(-1);
+    if(last && JSON.stringify(last.marks)===JSON.stringify(marks)) last.text+=run.text;
+    else runs.push({text:run.text,marks});
+    return runs;
+  },[]);
 }
 export function telegramContent(content: RichContent): string[] {
   const parsed = contentSchema.parse(content);
@@ -57,4 +63,19 @@ export function fromTelegram(text: string, entities: TelegramEntity[] = []): Ric
   for (const e of valid) { boundaries.add(e.offset); boundaries.add(e.offset + e.length); }
   const sorted = [...boundaries].sort((a,b) => a-b);
   return sorted.slice(0,-1).map((start,i) => ({ text: text.slice(start,sorted[i+1]), marks: normalizedMarks(valid.filter(e => e.offset <= start && e.offset + e.length >= sorted[i+1]).map(e => ({ type: map[e.type], ...(map[e.type] === "link" ? { href: e.url ?? text.slice(e.offset,e.offset+e.length) } : {}) }))) }));
+}
+
+// Linkify plain HTTP(S)/www URLs without permitting script or data schemes.
+export function linkedContent(content: RichContent): RichContent {
+  return content.flatMap(run => {
+    if (run.marks.some(mark=>mark.type==="link"||mark.type==="code")) return [run];
+    const result: RichContent = []; let cursor=0;
+    for (const match of run.text.matchAll(/(?:https?:\/\/|www\.)[^\s<>]+/gi)) {
+      const url=match[0].replace(/[.,!?;:)\]}]+$/g,""); const start=match.index!;
+      if(start>cursor)result.push({text:run.text.slice(cursor,start),marks:run.marks});
+      const href=url.startsWith("www.")?`https://${url}`:url;
+      result.push({text:url,marks:safeLink(href)?[...run.marks,{type:"link",href}]:run.marks});cursor=start+url.length;
+    }
+    if(cursor<run.text.length)result.push({text:run.text.slice(cursor),marks:run.marks});return result.length?result:[run];
+  });
 }

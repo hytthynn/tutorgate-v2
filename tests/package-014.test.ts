@@ -42,8 +42,8 @@ test("014 attachment boundary, name sanitation and magic detection",()=>{
 test("014 role menus and callbacks fit Telegram byte limit",()=>{
   for(const role of ["student","tutor","admin"]) {
     const rows=startMessage(role,"https://fixture.example").options.reply_markup!.inline_keyboard.flat();
-    assert.ok(rows.some(b=>"url" in b && b.url==="https://t.me/tutorgate"));
+    assert.ok(rows.some(b=>"url" in b && b.url==="https://fixture.example"));
     for(const b of rows) if("callback_data" in b) assert.ok(Buffer.byteLength(b.callback_data)<=64);
-    assert.equal(rows.some(b=>"callback_data" in b && b.callback_data.startsWith("menu:apps")),role==="admin");
+    assert.equal(rows.length,role==="student"?2:1);
   }
 });

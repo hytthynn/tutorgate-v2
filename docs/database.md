@@ -1,5 +1,14 @@
 # База данных
 
+## Миграция 015
+
+`chat_attachment_budget` защищает суммарный размер вложений одного сообщения (10 МБ) даже для service writes. Deferred trigger `chat_purge_unassigned_pair` очищает conversation/messages/attachments/upload reservations и recipient state после снятия последнего назначения student–tutor; сохранение другого предмета с тем же teacher сохраняет чат. Удаление и повторная вставка назначения в одной транзакции не стирают действующий диалог.
+
+Storage очищается через API после успешного admin action. `chat_storage_gc.revoked` хранит задания для повторного удаления при сбое; `cleanup-chat-storage.mjs` сначала повторяет немедленную очистку, а после защитного срока убирает объекты ещё раз на случай действовавшего signed upload URL. Строки GC не дают доступа к файлам. Смена или исчезновение conversation ID сбрасывает клиентский кэш истории.
+
+`private.telegram_reply_state` хранит только проверенную привязку ответа ученика к сообщению преподавателя. `chat_bot_begin_reply` проверяет identity, назначение, chat ID и mapping исходного Telegram message ID. `chat_bot_receive_flow` атомарно сохраняет входящий текст/файл и возвращает доверенный контекст квитанции; после успешного приёма очищает выбранного адресата и reply state. Все новые bot/storage RPC доступны только service_role, private state закрыт от API-ролей.
+
+
 ## Пакет 014: текущие контракты
 
 Миграция `202609070014_product_polish_chat_files_hard_delete_performance.sql` применяется после 013. Исторические миграции сохранены.

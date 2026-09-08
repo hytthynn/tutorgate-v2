@@ -1,5 +1,6 @@
 "use server";
 import { z } from "zod";
+import { cleanupRevokedChatFiles } from "@/features/chats/cleanup";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
@@ -95,6 +96,9 @@ export async function adminAction(
     revalidatePath("/student", "layout");
     revalidatePath("/tutor", "layout");
     revalidatePath("/apply");
+    if (["assignment_remove","assignment","tutor_subjects","subject_remove"].includes(String(operation))) {
+      try { await cleanupRevokedChatFiles(); } catch { return { error: "Изменения сохранены, чат удалён. Очистка файлов не завершена; повторите действие или дождитесь фоновой очистки." }; }
+    }
     return {
       hourlyRate,
       success:

@@ -1,6 +1,9 @@
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const MAX_ATTACHMENTS = 10;
 export const CHAT_BUCKET = "chat-attachments";
+export function validateAttachmentTotal(files: { size: number }[]) {
+  if (files.reduce((sum,file)=>sum+file.size,0)>MAX_ATTACHMENT_BYTES) throw new Error("Общий размер файлов в сообщении не должен превышать 10 МБ.");
+}
 export const safeImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 export type AttachmentInput = { name: string; size: number; type: string };
 export function validateAttachment(file: AttachmentInput) {

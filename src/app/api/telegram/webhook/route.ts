@@ -9,6 +9,7 @@ import {
   sendMessage,
   sendTemplate,
   answerCallbackQuery,
+  deleteMessage, editTemplate,
 } from "@/lib/telegram/bot";
 import { sendControlMessage } from "@/lib/telegram/control";
 import { confirmationMessage, siteButton } from "@/lib/telegram/templates";
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
       await handleBotInput(
         {
           updateId: update_id,
+          messageId: message?.message_id,
           userId,
           chatId,
           text: message?.text ?? message?.caption,
@@ -169,15 +171,20 @@ export async function POST(request: NextRequest) {
         },
         {
           applications: botApplicationAction,
+          beginReply: input => serviceRpc("chat_bot_begin_reply",{p_user:input.userId,p_chat:input.chatId,p_message:input.callbackData!.slice(11),p_source:input.callbackMessageId}),
+          remove: deleteMessage,
+          edit: editTemplate,
           profile: (user, chatId) =>
             serviceRpc("chat_bot_profile", { p_user: user, p_chat: chatId }),
           tutors: (student) =>
             serviceRpc("chat_bot_tutors", { p_student: student }),
-          recipient: (student, tutor) =>
-            serviceRpc("chat_bot_set_recipient", {
+          recipient: async (student, tutor) => {
+            await serviceRpc("chat_bot_clear_reply",{p_student:student});
+            return serviceRpc("chat_bot_set_recipient", {
               p_student: student,
               p_tutor: tutor,
-            }),
+            });
+          },
           clearUnavailableRecipient: (student) =>
             serviceRpc("chat_bot_clear_unavailable_recipient", { p_student: student }),
           receive: receiveTelegram,

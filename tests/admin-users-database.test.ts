@@ -24,7 +24,7 @@ test("010 upgrade, admin boundaries, role transitions, sessions and preserved hi
     // Apply 010 over populated package 009, not just an empty database.
     await add(1, "admin"); await add(2, "tutor"); await add(3, "student");
     await db.exec(await readFile(new URL(files.find(n => n.includes("202609060010"))!, directory), "utf8"));
-    for(const name of files.filter(n=>n>"202609060010_admin_user_management.sql" && !n.includes("014")))await db.exec(await readFile(new URL(name,directory),"utf8"));
+    for(const name of files.filter(n=>n>"202609060010_admin_user_management.sql" && n<"202609070014"))await db.exec(await readFile(new URL(name,directory),"utf8"));
     async function as<T>(n: number, work: () => Promise<T>): Promise<T> {
       await db.query("select set_config('request.jwt.claim.sub',$1,false)", [id(n)]); await db.exec("set role authenticated");
       try { return await work(); } finally { await db.exec("reset role"); }

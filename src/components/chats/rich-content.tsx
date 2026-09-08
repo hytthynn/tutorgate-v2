@@ -1,8 +1,8 @@
 import { Fragment, type ReactNode } from "react";
-import { normalizedMarks, type RichContent } from "@/features/chats/rich-text";
+import { linkedContent, normalizedMarks, type RichContent } from "@/features/chats/rich-text";
 
 export function RichMessage({ content }: { content: RichContent }) {
-  return <>{content.map((run,i) => {
+  return <>{linkedContent(content).map((run,i) => {
     let node: ReactNode = run.text;
     for (const mark of normalizedMarks(run.marks).reverse()) {
       switch (mark.type) {

@@ -30,7 +30,7 @@ test("014 rich paste, file input, drag/drop, removal and mocked media delivery",
   await login(page);await page.goto(`/tutor/chats?student=${student}`);
   const composer=page.getByLabel("Сообщение ученику",{exact:true});
   await composer.evaluate(el=>{const data=new DataTransfer();data.setData("text/html",'<b>Жирный</b><script>window.BAD=1</script><a href="javascript:bad">Ссылка</a>');el.dispatchEvent(new ClipboardEvent("paste",{bubbles:true,cancelable:true,clipboardData:data}));});
-  await expect(page.locator(".rich-preview strong")).toHaveText("Жирный");expect(await page.evaluate(()=>"BAD" in window)).toBe(false);
+  await expect(page.locator(".rich-input strong")).toHaveText("Жирный");expect(await page.evaluate(()=>"BAD" in window)).toBe(false);
   const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=","base64");
   await page.locator('input[type="file"]').setInputFiles({name:"photo.png",mimeType:"image/png",buffer:png});await expect(page.locator(".chat-composer img")).toBeVisible();
   await page.getByRole("button",{name:"Удалить файл photo.png"}).click();await expect(page.locator(".chat-composer img")).toHaveCount(0);

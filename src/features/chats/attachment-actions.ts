@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
 import { createAdminClient, serviceRpc } from "@/lib/supabase/admin";
-import { validateAttachment, detectedImage, CHAT_BUCKET, MAX_ATTACHMENTS, type AttachmentInput } from "./attachments";
+import { validateAttachment, validateAttachmentTotal, detectedImage, CHAT_BUCKET, MAX_ATTACHMENTS, type AttachmentInput } from "./attachments";
 import { contentSchema } from "./rich-text";
 import { deliverChat } from "./delivery";
 import type { ChatMessage, ChatResult } from "./types";
@@ -25,6 +25,7 @@ export async function finalizeChatUploads(student: string, ids: string[], conten
     const parsed = contentSchema.parse(content);
     const uploads = await serviceRpc<{ id: string; storage_path: string; original_name: string; claimed_size: number }[]>("chat_upload_details", { p_actor: actor.id, p_student: student, p_ids: ids });
     const files = [];
+    validateAttachmentTotal(uploads.map(upload=>({size:Number(upload.claimed_size)})));
     for (const upload of uploads) {
       const result = await createAdminClient().storage.from(CHAT_BUCKET).download(upload.storage_path);
       if (result.error) throw result.error;
@@ -32,6 +33,7 @@ export async function finalizeChatUploads(student: string, ids: string[], conten
       if (result.data.size !== Number(upload.claimed_size)) throw new Error("Size mismatch");
       const type = detectedImage(new Uint8Array(await result.data.slice(0,16).arrayBuffer())) ?? "application/octet-stream";
       files.push({ id: upload.id, size: result.data.size, type });
+      validateAttachmentTotal(files);
     }
     const message = await serviceRpc<ChatMessage>("chat_finalize_uploads", { p_actor: actor.id, p_student: student, p_content: parsed, p_files: files });
     return { data: await deliverChat(actor.id,message) };

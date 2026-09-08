@@ -8,8 +8,8 @@ export function pasteContent(html: string): RichContent {
   function walk(node: Node, marks: RichMark[]) {
     if (node.nodeType === Node.TEXT_NODE) { content.push({text:node.textContent ?? "",marks:normalizedMarks(marks)}); return; }
     if (!(node instanceof Element) || ["SCRIPT","STYLE","IFRAME","OBJECT","SVG","MATH","TEMPLATE"].includes(node.tagName)) return;
-    if (node.tagName === "BR") { content.push({text:"\n",marks:[]}); return; }
-    const mark = tags[node.tagName];
+    if (node.tagName === "BR") { if(node.getAttribute("data-caret")!=="true") content.push({text:"\n",marks:[]}); return; }
+    const mark = node.tagName === "SPAN" && node.getAttribute("data-quote") === "true" ? "blockquote" : tags[node.tagName];
     const next = mark ? [...marks,{ type:mark,...(mark === "link" ? {href:node.getAttribute("href") ?? ""} : {}) }] : marks;
     for (const child of node.childNodes) walk(child,next);
     if (["P","DIV","BLOCKQUOTE","PRE","LI"].includes(node.tagName) && content.length && !content.at(-1)!.text.endsWith("\n")) content.push({text:"\n",marks:[]});

@@ -36,7 +36,7 @@ test("011 start catalogue and secret URLs only in inline keyboards", () => {
     assert.match(m.text, /Добро пожаловать/);
     assert.equal(
       m.options.reply_markup!.inline_keyboard.flat().length,
-      role === "student" ? 4 : role === "tutor" ? 5 : role === "admin" ? 6 : 2,
+      role === "student" ? 2 : 1,
     );
   }
   for (const m of [
@@ -195,15 +195,15 @@ test("011 one tutor shortcut, pagination, visible cancel", async () => {
     { ...input, callbackId: "c", callbackData: "chat:choose" },
     f.ports,
   );
-  assert.equal(f.recipient, "t");
-  assert.match(f.sent[0], /Вы пишете/);
+  assert.equal(f.recipient, null);
+  assert.match(f.sent[0], /Выберите репетитора/);
   await handleBotInput(
     { ...input, callbackId: "cancel", callbackData: "chat:cancel" },
     f.ports,
   );
   assert.equal(f.recipient, null);
   assert.equal(f.sent.length, 2);
-  assert.equal(f.sent[1], "✅ Действие отменено.");
+  assert.match(f.sent[1], /Выберите репетитора/);
   assert.deepEqual(f.answers, ["c", "cancel"]);
   f.ports.tutors = async () => [
     { id: "a", name: "A", subjects: "A" },
@@ -289,8 +289,8 @@ test("012 repeated cancel visible, stale cancel safe, removed reply recipient cl
  const messages:ReturnType<typeof startMessage>[]=[];f.ports.send=async(_,m)=>{messages.push(m);};
  await handleBotInput({...input,callbackId:"select",callbackData:"chat:to:t"},f.ports);assert.equal(f.recipient,"t");
  for(let n=0;n<2;n++)await handleBotInput({...input,callbackId:`cancel${n}`,callbackData:"chat:cancel"},f.ports);
- assert.equal(f.recipient,null);assert.equal(messages.filter(m=>m.text==="✅ Действие отменено.").length,2);
- assert.equal(messages.at(-1)!.options.reply_markup!.inline_keyboard.flat().length,3);
+ assert.equal(f.recipient,null);assert.equal(messages.filter(m=>m.text.includes("Выберите репетитора")).length,2);
+ assert.equal(messages.at(-1)!.options.reply_markup!.inline_keyboard.flat().length,2);
  f.ports.receive=async()=>({status:f.recipient?"sent":"choose"});await handleBotInput(input,f.ports);assert.match(messages.at(-1)!.text,/Сначала укажите/);
  await handleBotInput({...input,callbackId:"select2",callbackData:"chat:to:t"},f.ports);
  await handleBotInput({...input,callbackId:"other-stale",callbackData:"chat:to:removed"},f.ports);assert.equal(f.recipient,"t");
@@ -302,7 +302,7 @@ test("012 repeated cancel visible, stale cancel safe, removed reply recipient cl
 test("012 assigned admin shortcut and notification use admin chat route",async()=>{
  const f=fixture();const sent:ReturnType<typeof startMessage>[]=[];f.ports.send=async(_,m)=>{sent.push(m);};
  f.ports.tutors=async()=>[{id:"admin",name:"Admin Teacher",subjects:"Math"}];
- await handleBotInput({...input,callbackId:"choose",callbackData:"chat:choose"},f.ports);assert.equal(f.recipient,"admin");
+ await handleBotInput({...input,callbackId:"choose",callbackData:"chat:to:admin"},f.ports);assert.equal(f.recipient,"admin");
  f.ports.notificationTarget=async()=>({chatId:"admin-chat",role:"admin"});await handleBotInput(input,f.ports);
  assert.match(JSON.stringify(sent),/https:\/\/fixture.example\/admin\/chats\?student=s/);
 });

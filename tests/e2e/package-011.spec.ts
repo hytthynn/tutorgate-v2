@@ -50,12 +50,12 @@ test("011 send, Shift+Enter, Reply/dedupe, polling/unread, removed assignment", 
   await composer.fill("Добрый день");
   await composer.press("Shift+Enter");
   await composer.pressSequentially("Продолжение");
-  await expect(composer).toHaveValue("Добрый день\nПродолжение");
+  await expect(composer).toHaveText("Добрый день\nПродолжение");
   await composer.press("Enter");
   await expect(page.locator(".chat-bubble.is-tutor")).toContainText(
     "Продолжение",
   );
-  await expect(composer).toHaveValue("");
+  await expect(composer).toHaveText("");
   const state = await (await request.get(f + "/chat-state")).json();
   const replyId = Number(Object.keys(state.links)[0].split(":")[1]);
   const update = {

@@ -69,6 +69,24 @@ test("014 schedule, media, deletion and read contracts",async t=>{
    assert.equal(page.total,1);assert.equal(page.people.length,1);
    await assert.rejects(as(2,()=>db.query("select admin_directory_page('students')")),{code:"42501"});
  });
+ await t.test("015 aggregate budget, trusted reply source and assignment purge",async()=>{
+   for(const n of [101,102])await db.query("select chat_prepare_upload($1,$2,$3,'large.bin',6291456)",[id(2),id(4),id(n)]);
+   await assert.rejects(db.query("select chat_finalize_uploads($1,$2,$3,$4)",[id(2),id(4),'[{"text":"","marks":[]}]',JSON.stringify([101,102].map(n=>({id:id(n),size:6291456,type:"application/octet-stream"})))]),{code:"23514"});
+   await db.query("delete from private.chat_uploads where id=any($1)",[[id(101),id(102)]]);
+   await assert.rejects(db.query("select chat_bot_begin_reply('Person 4','Person 4',$1,999)",[messageId]),{code:"42501"});
+   await db.query("select chat_bot_begin_reply('Person 4','Person 4',$1,11)",[messageId]);
+   const reply=(await db.query<{v:{status:string;replyTelegramId:number;originalText:string}}>("select chat_bot_receive_flow('Person 4','Person 4',150001,'answer',null,'[{\"text\":\"answer\",\"marks\":[]}]',null) v")).rows[0].v;
+   assert.equal(reply.status,"sent");assert.equal(reply.replyTelegramId,11);assert.match(reply.originalText,/file.txt/);
+   assert.equal((await db.query("select * from private.telegram_reply_state")).rows.length,0);
+   await assert.rejects(as(2,()=>db.query("select chat_bot_reply_context('Person 4','Person 4')")),{code:"42501"});
+   await db.query("select chat_prepare_upload($1,$2,$3,'gone.txt',1)",[id(3),id(5),id(103)]);
+   await db.query("select chat_finalize_uploads($1,$2,$3,$4)",[id(3),id(5),'[{"text":"gone","marks":[]}]',JSON.stringify([{id:id(103),size:1,type:"application/octet-stream"}])]);
+   await as(1,()=>db.query("delete from student_tutor_assignments where student_id=$1 and tutor_id=$2",[id(5),id(3)]));
+   assert.equal((await db.query("select * from chat_conversations where student_id=$1 and tutor_id=$2",[id(5),id(3)])).rows.length,0);
+   assert.equal((await db.query("select * from chat_attachments where id=$1",[id(103)])).rows.length,0);
+   assert.equal((await db.query("select * from private.chat_storage_gc where revoked")).rows.length,1);
+   await as(1,()=>db.query("insert into student_tutor_assignments(student_id,tutor_id,subject_id,assigned_by) values($1,$2,$3,$4)",[id(5),id(3),subs[2],id(1)]));
+ });
  await t.test("hard deletion purges all owned data, preserves others, forbids admin, retries after Auth gap",async()=>{
    await assert.rejects(as(2,()=>db.query("select admin_prepare_hard_delete_user($1)",[id(4)])),{code:"42501"});
    await assert.rejects(as(1,()=>db.query("select admin_prepare_hard_delete_user($1)",[id(6)])),{code:"42501"});

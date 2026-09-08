@@ -1,6 +1,6 @@
 import type { TelegramEntity } from "./rich-text";
 import {
-  html, siteButton, writeButton, homeButton,
+  html, sentReceipt,
   chatStatusMessage,
   pickerMessage,
   recipientMessage,
@@ -18,6 +18,7 @@ export type BotProfile = {
 };
 export type BotInput = {
   updateId: number;
+  messageId?: number;
   userId: string;
   chatId: string;
   text?: string;
@@ -35,8 +36,15 @@ export type ReceiveResult = {
   tutorId?: string;
   studentName?: string;
   text?: string;
+  replyTelegramId?: number;
+  originalText?: string;
+  controlId?: number;
+  tutorName?: string;
 };
 export type BotPorts = {
+  beginReply?: (input: BotInput) => Promise<{name:string}>;
+  remove?: (chat: string, message: number) => Promise<unknown>;
+  edit?: (chat: string, message: number, content: TelegramMessage) => Promise<boolean>;
   applications?: (input: BotInput) => Promise<TelegramMessage>;
   profile: (user: string, chat: string) => Promise<BotProfile | null>;
   tutors: (student: string) => Promise<BotTutor[]>;
@@ -67,15 +75,17 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
   }
   const profile = await ports.profile(input.userId, input.chatId);
   if (profile?.role === "admin" && ports.applications && /^(menu:(apps|approved):|app:)/.test(input.callbackData ?? "")) { await send(await ports.applications(input)); return; }
-  if (input.callbackData === "menu:home") { await send(startMessage(profile?.role,home)); return; }
+  if (input.callbackData === "menu:home") { if(profile?.role==="student")await ports.recipient(profile.id,null); await send(startMessage(profile?.role,home)); return; }
   if (input.callbackData === "chat:cancel") {
     if (profile?.role === "student") {
       await ports.recipient(profile.id, null);
-      await send(html("✅ Действие отменено.", [[siteButton(home)], [writeButton], [homeButton]]));
+      const tutors = await ports.tutors(profile.id);
+      await send(tutors.length ? pickerMessage(tutors) : chatStatusMessage("no_tutors",home));
     } else await send(startMessage(profile?.role, home));
     return;
   }
   if (!profile || /^\/start(?:@\w+)?\s*$/.test(input.text ?? "")) {
+    if(profile?.role==="student")await ports.recipient(profile.id,null);
     await send(startMessage(profile?.role, home));
     return;
   }
@@ -94,6 +104,11 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
   };
   if (input.callbackData) {
     const tutors = await ports.tutors(profile.id);
+    if (input.callbackData.startsWith("chat:reply:") && ports.beginReply) {
+      try { const target=await ports.beginReply(input); await ports.control(input.chatId,recipientMessage(target.name),{newMessage:true}); }
+      catch { await unavailable(); }
+      return;
+    }
     if (
       input.callbackData === "chat:choose" ||
       /^chat:page:\d+$/.test(input.callbackData)
@@ -101,15 +116,8 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
       if (!tutors.length) {
         await ports.recipient(profile.id, null);
         await send(chatStatusMessage("no_tutors", home));
-      } else if (tutors.length === 1) {
-        try {
-          await ports.recipient(profile.id, tutors[0].id);
-        } catch {
-          await unavailable();
-          return;
-        }
-        await send(recipientMessage(tutors[0].name));
-      } else
+      } else {
+        await ports.recipient(profile.id,null);
         await send(
           pickerMessage(
             tutors,
@@ -118,6 +126,7 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
               : 0,
           ),
         );
+      }
     } else if (input.callbackData.startsWith("chat:to:")) {
       const tutor = tutors.find((t) => t.id === input.callbackData!.slice(8));
       if (!tutor) {
@@ -178,7 +187,13 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     ports.log();
   }
   try {
-    await send(input.media ? html("✅ <b>Файл отправлен</b>",[[writeButton],[homeButton]]) : chatStatusMessage("sent", home));
+    const receipt=sentReceipt(result.tutorId!,result.tutorName ?? "",result.text || (input.media ? `📎 ${input.media.file_name ?? "Изображение"}` : ""),result.originalText ?? undefined);
+    const edited=result.replyTelegramId && ports.edit ? await ports.edit(input.chatId,result.replyTelegramId,receipt) : false;
+    if(!edited)await ports.control(input.chatId,receipt,{newMessage:true});
+    // Delete only after the receipt exists. Delivery failure preserves the user's input.
+    for(const id of [input.messageId,result.controlId]) if(id && id!==result.replyTelegramId && ports.remove) {
+      try { await ports.remove(input.chatId,id); } catch { ports.log(); }
+    }
   } catch {
     ports.log();
   }

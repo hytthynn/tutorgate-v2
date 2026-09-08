@@ -1,7 +1,7 @@
 "use client";
 import { DraftFile, MessageFile } from "./attachments";
 import { prepareChatUpload, finalizeChatUploads } from "@/features/chats/attachment-actions";
-import { MAX_ATTACHMENTS, validateAttachment } from "@/features/chats/attachments";
+import { MAX_ATTACHMENTS, validateAttachment, validateAttachmentTotal } from "@/features/chats/attachments";
 import { RichEditor } from "./rich-editor";
 import { RichMessage } from "./rich-content";
 import { plainContent, plainText, type RichContent } from "@/features/chats/rich-text";
@@ -60,6 +60,7 @@ export function ChatView({
     if (!selected || pending) return;
     try {
       if (draftFiles.length + incoming.length > MAX_ATTACHMENTS) throw new Error("Не больше 10 файлов в сообщении.");
+      validateAttachmentTotal([...draftFiles,...incoming]);
       for (const file of incoming) { try { validateAttachment({ name: file.name, size: file.size, type: file.type }); } catch { throw new Error(`${file.name}: размер должен быть от 1 байта до 10 МБ.`); } }
       setFiles(all => ({ ...all, [selected]: [...draftFiles,...incoming] })); setSendError("");
     } catch (error) { setSendError(error instanceof Error ? error.message : "Не удалось добавить файлы."); }
@@ -91,10 +92,18 @@ export function ChatView({
       }
       setError("");
       const incoming = result.data!;
+      const nextConversations = incoming.conversations ?? previous.snapshot.conversations;
+      const previousConversation = previous.snapshot.conversations.find(c=>c.studentId===selected);
+      const nextConversation = nextConversations.find(c=>c.studentId===selected);
+      const sameConversation = previousConversation?.conversationId === nextConversation?.conversationId;
+      if (selected && previousConversation && !nextConversation) {
+        setDrafts(all=>({...all,[selected]:plainContent("")}));
+        setFiles(all=>({...all,[selected]:[]}));
+      }
       const merged = delta ? { ...previous.snapshot, ...incoming,
-        hasMore: previous.snapshot.hasMore,
-        conversations: incoming.conversations ?? previous.snapshot.conversations,
-        messages: [...new Map([...previous.snapshot.messages,...incoming.messages].map(m => [m.id,m])).values()].sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)),
+        hasMore: sameConversation && previous.snapshot.hasMore,
+        conversations: nextConversations,
+        messages: [...new Map([...(sameConversation ? previous.snapshot.messages : []),...incoming.messages].map(m => [m.id,m])).values()].sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)),
       } : incoming;
       snapshotRef.current = { student: selected, snapshot: merged };
       setSnapshot(merged);

@@ -1,6 +1,7 @@
+import { fixtureControlId } from "./application-fixtures.mjs";
 // Local fixtures only. Never imported by application code.
 import { randomUUID } from "node:crypto";
-const uploads=[], attachments=[];
+const uploads=[], attachments=[], replies=new Map();
 const cs = [],
   ms = [],
   state = new Map(),
@@ -12,7 +13,7 @@ const publicMessage = ({ id, sender_role, body, content, delivery_status, create
   ({ id, sender_role, body, content, delivery_status, created_at, attachments });
 export function resetChats() {
   cs.length = ms.length = uploads.length = attachments.length = 0;
-  state.clear();
+  state.clear(); replies.clear();
   links.clear();
   updates.clear();
   clock = Date.now();
@@ -71,6 +72,15 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
       )
         assignments.splice(i, 1);
     return ok(true);
+  }
+  if(op==="chat_revoked_storage_paths")return ok([]);
+  if(op==="chat_bot_clear_reply"){replies.delete(a.p_student);return ok(null);}
+  if(op==="chat_bot_reply_context"){const p=profiles.find(p=>p.telegram_user_id===a.p_user);return ok(replies.get(p?.id)??null);}
+  if(op==="chat_bot_begin_reply"){
+    const p=profiles.find(p=>p.telegram_user_id===a.p_user&&p.telegram_chat_id===a.p_chat);
+    const m=ms.find(m=>m.id===a.p_message&&m.id===links.get(`${a.p_chat}:${a.p_source}`));
+    const c=cs.find(c=>c.id===m?.conversation_id&&c.studentId===p?.id);
+    if(!c||!active(c.studentId,c.tutorId))return denied();replies.set(p.id,a.p_source);state.set(p.id,c.tutorId);return ok({name:profiles.find(p=>p.id===c.tutorId).full_name});
   }
   if (!op.startsWith("chat_")) return null;
   if (
@@ -207,7 +217,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
         : null,
     );
   }
-  if (op === "chat_bot_media_target" || op === "chat_bot_receive" || op === "chat_bot_receive_rich") {
+  if (op === "chat_bot_media_target" || op === "chat_bot_receive" || op === "chat_bot_receive_rich" || op === "chat_bot_receive_flow") {
     if (updates.has(a.p_update)) return ok({ status: "duplicate" });
     const s = profiles.find(
       (p) =>
@@ -230,12 +240,15 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
     const m = append(s.id, t, "student", a.p_text);m.content=a.p_content;
     if(a.p_file){const f=a.p_file;const row={id:f.id,message_id:m.id,storage_path:f.path,original_name:f.name,mime_type:f.type,size_bytes:f.size,kind:f.type.startsWith("image/")?"image":"file"};attachments.push(row);m.attachments=[row];}
     updates.add(a.p_update);
+    const original=ms.find(m=>m.id===links.get(`${a.p_chat}:${a.p_reply}`));
+    if(op==="chat_bot_receive_flow"){state.delete(s.id);replies.delete(s.id);}
     return ok({
       status: "sent",
       messageId: m.id,
       studentId: s.id,
       tutorId: t,
       studentName: s.full_name,
+      tutorName: profiles.find(p=>p.id===t).full_name, originalText: original?.body, replyTelegramId: a.p_reply, controlId: fixtureControlId(a.p_chat),
       text: a.p_text,
     });
   }

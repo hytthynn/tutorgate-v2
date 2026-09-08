@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient, serviceRpc } from "@/lib/supabase/admin";
 import { sendTemplate, sendMedia } from "@/lib/telegram/bot";
-import { tutorMessage, html } from "@/lib/telegram/templates";
+import { escapeHtml, html } from "@/lib/telegram/templates";
 import { plainContent, telegramContent } from "./rich-text";
 import { CHAT_BUCKET } from "./attachments";
 import type { ChatMessage } from "./types";
@@ -13,7 +13,10 @@ export async function deliverChat(actor: string, message: ChatMessage) {
     const target = await serviceRpc<{ chatId: string; tutorName: string } | null>("chat_delivery_target", { p_message: message.id, p_tutor: actor });
     if (!target) throw new Error("Unavailable");
     chat = target.chatId;
-    for (const part of [...tutorMessage(actor,target.tutorName,""), ...telegramContent(message.content ?? plainContent(message.body)).map(text => html(text))]) ids.push(await sendTemplate(chat,part));
+    const header=`💬 <b>Сообщение от репетитора</b>\n<b>${escapeHtml(target.tutorName)}</b>\n\n`;
+    const parts=telegramContent(message.content ?? plainContent(message.body));
+    if(parts.length && header.length+parts[0].length<3900)parts[0]=header+parts[0];else parts.unshift(header+(parts.length?"":"📎 Вложение"));
+    for (const [i,text] of parts.entries()) ids.push(await sendTemplate(chat,html(text,i===parts.length-1?[[{text:"↩️ Ответить",callback_data:`chat:reply:${message.id}`}]]:[])));
     const db = createAdminClient();
     const files = await db.from("chat_attachments").select("storage_path,original_name,mime_type,kind").eq("message_id",message.id);
     if (files.error) throw files.error;
