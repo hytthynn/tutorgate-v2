@@ -34,6 +34,7 @@ const updateSchema = z.object({
     .object({
       message_id: z.number().int().safe().optional(),
       text: z.string().max(16384).optional(),
+      media_group_id: z.string().min(1).max(128).optional(),
       caption: z.string().max(16384).optional(),
       entities: entitiesSchema.optional(), caption_entities: entitiesSchema.optional(),
       document: mediaSchema.optional(), photo: z.array(mediaSchema).max(20).optional(),
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
         {
           updateId: update_id,
           messageId: message?.message_id,
+          mediaGroupId: message?.media_group_id,
           userId,
           chatId,
           text: message?.text ?? message?.caption,

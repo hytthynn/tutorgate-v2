@@ -19,6 +19,7 @@ export type BotProfile = {
 export type BotInput = {
   updateId: number;
   messageId?: number;
+  mediaGroupId?: string;
   userId: string;
   chatId: string;
   text?: string;
@@ -31,6 +32,7 @@ export type BotInput = {
 };
 export type ReceiveResult = {
   status: string;
+  albumContinuation?: boolean;
   messageId?: string;
   studentId?: string;
   tutorId?: string;
@@ -165,7 +167,8 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     await send(chatStatusMessage("error", home));
     return;
   }
-  if (result.status === "too_large") { await send(html("⚠️ <b>Файл больше 10 МБ</b>")); return; }
+  if (result.status === "too_large") { await send(html("⚠️ <b>Общий размер файлов не должен превышать 10 МБ</b>")); return; }
+  if (result.status === "too_many" || result.status === "too_long") { await send(html(result.status === "too_many" ? "Не больше 10 файлов в сообщении." : "Подписи альбома не должны превышать 4000 символов.")); return; }
   if (result.status === "duplicate") return;
   if (result.status === "unavailable") {
     await unavailable();
@@ -180,7 +183,7 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
   // DB is already committed. Notifications are at-most-once attempts; webhook retries do not duplicate messages.
   try {
     const target = await ports.notificationTarget(result.messageId!);
-    if (target)
+    if (target && !result.albumContinuation)
       await ports.send(
         target.chatId,
         studentNotification(
@@ -195,7 +198,7 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
   try {
     const receipt=sentReceipt(result.tutorId!,result.tutorName ?? "",result.text || (input.media ? `📎 ${input.media.file_name ?? "Изображение"}` : ""),result.originalText ?? undefined);
     const edited=result.replyTelegramId && ports.edit ? await ports.edit(input.chatId,result.replyTelegramId,receipt) : false;
-    if(!edited)await ports.control(input.chatId,receipt,{newMessage:true});
+    if(!edited)await ports.control(input.chatId,receipt,{newMessage:!result.albumContinuation});
     // Delete only after the receipt exists. Delivery failure preserves the user's input.
     for(const id of [input.messageId,result.controlId]) if(id && id!==result.replyTelegramId && ports.remove) {
       try { await ports.remove(input.chatId,id); } catch { ports.log(); }

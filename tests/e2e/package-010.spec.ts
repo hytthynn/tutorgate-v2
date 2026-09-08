@@ -54,7 +54,7 @@ test("010 directory identifiers, nullable links, search and Telegram sync result
   await page.goto("/admin/settings"); await page.getByRole("button", {name:"Синхронизировать всех",exact:true}).click();
   await expect(page.getByRole("status")).toContainText("Проверено: 5 · Обновлено: 3 · Username удалён: 1 · Без изменений: 0 · Ошибки: 1");
   await page.goto("/admin/tutors?q=tutor"); const row=page.locator(".person-row");
-  await expect(row).toContainText("Нет username"); await expect(row.getByRole("link",{name:"Открыть Telegram"})).toHaveCount(0); await expect(row).toContainText("100002");
+  await expect(row).toContainText("Нет username"); await expect(row.getByRole("link",{name:"Открыть Telegram"})).toHaveAttribute("href",/start=contact_/); await expect(row).toContainText("100002");
 });
 test("010 account block/unblock, real access checks with existing opaque handle, role error and safe delete UI", async ({page,browser}) => {
   await login(page); const student=await browser.newPage();

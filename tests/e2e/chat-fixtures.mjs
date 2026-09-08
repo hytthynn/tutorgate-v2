@@ -1,7 +1,7 @@
 import { fixtureControlId } from "./application-fixtures.mjs";
 // Local fixtures only. Never imported by application code.
 import { randomUUID } from "node:crypto";
-const uploads=[], attachments=[], replies=new Map();
+const uploads=[], attachments=[], replies=new Map(), albums=new Map();
 const cs = [],
   ms = [],
   state = new Map(),
@@ -13,7 +13,7 @@ const publicMessage = ({ id, sender_role, body, content, delivery_status, create
   ({ id, sender_role, body, content, delivery_status, created_at, attachments });
 export function resetChats() {
   cs.length = ms.length = uploads.length = attachments.length = 0;
-  state.clear(); replies.clear();
+  state.clear(); replies.clear();albums.clear();
   links.clear();
   updates.clear();
   clock = Date.now();
@@ -216,6 +216,20 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
         ? {chatId: profiles.find((p) => p.id === c.tutorId).telegram_chat_id, role: profiles.find((p) => p.id === c.tutorId).role}
         : null,
     );
+  }
+  if(op==="chat_bot_album_target" || op==="chat_bot_receive_album") {
+    const student=profiles.find(p=>p.telegram_user_id===a.p_user&&p.telegram_chat_id===a.p_chat&&p.role==="student"&&p.account_status==="active");
+    if(!student)return ok({status:"unlinked"});if(updates.has(a.p_update))return ok({status:"duplicate"});
+    const key=`${student.id}:${a.p_group}`;let album=albums.get(key);
+    if(!album){const target=chatFixture("chat_bot_media_target",a,path,actor,profiles,assignments).value;if(target.status!=="ok")return ok(target);album={tutor:target.tutor,message:null};albums.set(key,album);}
+    if(!active(student.id,album.tutor))return ok({status:"unavailable"});
+    if(op==="chat_bot_album_target")return ok({status:"ok",student:student.id,tutor:album.tutor});
+    const continuation=!!album.message;
+    const m=album.message??append(student.id,album.tutor,"student","");album.message=m;
+    m.body+=(m.body&&a.p_text?"\n":"")+a.p_text;m.content=[...(m.content??[]),...a.p_content];
+    const f=a.p_file,row={id:f.id,message_id:m.id,storage_path:f.path,original_name:f.name,mime_type:f.type,size_bytes:f.size,kind:f.type.startsWith("image/")?"image":"file"};attachments.push(row);m.attachments=[...(m.attachments??[]),row];
+    updates.add(a.p_update);state.delete(student.id);replies.delete(student.id);
+    return ok({status:"sent",messageId:m.id,studentId:student.id,tutorId:album.tutor,studentName:student.full_name,tutorName:"Tutor",text:m.body+" 📎 "+m.attachments.map(f=>f.original_name).join(", "),albumContinuation:continuation,controlId:fixtureControlId(a.p_chat)});
   }
   if (op === "chat_bot_media_target" || op === "chat_bot_receive" || op === "chat_bot_receive_rich" || op === "chat_bot_receive_flow") {
     if (updates.has(a.p_update)) return ok({ status: "duplicate" });

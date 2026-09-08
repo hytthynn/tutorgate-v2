@@ -74,6 +74,7 @@ export async function syncTelegramAction(): Promise<ActionState> {
       after = batch.at(-1)!.id;
     }
     revalidatePath("/admin", "layout");
-    return { success: `Проверено: ${counts.checked} · Обновлено: ${counts.updated} · Username удалён: ${counts.removed} · Без изменений: ${counts.unchanged} · Ошибки: ${counts.errors}` };
+    const summary = `Проверено: ${counts.checked} · Обновлено: ${counts.updated} · Username удалён: ${counts.removed} · Без изменений: ${counts.unchanged} · Ошибки: ${counts.errors}`;
+    return counts.errors ? {error: `Синхронизация завершена частично. ${summary}`} : {success:summary};
   } catch { return { error: "Не удалось завершить синхронизацию. Уже сохранённые обновления не потеряны; повторите попытку." }; }
 }

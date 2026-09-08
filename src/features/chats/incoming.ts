@@ -13,7 +13,7 @@ export async function receiveTelegram(input: BotInput): Promise<ReceiveResult> {
   if (input.media) {
     if (!input.media.file_size) return { status: "error" };
     if (input.media.file_size > MAX_ATTACHMENT_BYTES) return { status: "too_large" };
-    const target = await serviceRpc<{ status: string; student: string; tutor: string }>("chat_bot_media_target", { p_user: input.userId, p_chat: input.chatId, p_reply: replyId });
+    const target = await serviceRpc<{ status: string; student: string; tutor: string }>(input.mediaGroupId ? "chat_bot_album_target" : "chat_bot_media_target", { p_user: input.userId, p_chat: input.chatId, p_reply: replyId, ...(input.mediaGroupId ? {p_group:input.mediaGroupId,p_update:input.updateId} : {}) });
     if (target.status !== "ok") return target;
     const response = await fetch(`https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/getFile`,{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_id: input.media.file_id }), signal: AbortSignal.timeout(8000) });
     const metadata = await response.json();
@@ -37,7 +37,7 @@ export async function receiveTelegram(input: BotInput): Promise<ReceiveResult> {
     if (uploaded.error) throw uploaded.error;
   }
   // On an uncertain RPC response keep the object: the transaction may have committed.
-  const result = await serviceRpc<ReceiveResult>("chat_bot_receive_flow",{ p_user: input.userId, p_chat: input.chatId, p_update: input.updateId, p_text: input.text ?? "", p_reply: replyId, p_content: content, p_file: file });
+  const result = await serviceRpc<ReceiveResult>(input.mediaGroupId ? "chat_bot_receive_album" : "chat_bot_receive_flow",{ p_user: input.userId, p_chat: input.chatId, p_update: input.updateId, p_text: input.text ?? "", ...(input.mediaGroupId ? {p_group:input.mediaGroupId} : {p_reply:replyId}), p_content: content, p_file: file });
   if (file && result.status !== "sent") await db.storage.from(CHAT_BUCKET).remove([file.path]);
   return result;
 }

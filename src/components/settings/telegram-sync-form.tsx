@@ -9,10 +9,10 @@ export function TelegramSyncForm() {
   const [result, setResult] = useState("");
   async function sync() {
     if (lock.current) return;
-    lock.current = true; setPending(true);
+    lock.current = true; setPending(true);setResult("");
     try {
       const response = await syncTelegramAction();
-      if (response.error) toast.error(response.error);
+      if (response.error) {setResult(response.error);toast.error(response.error);}
       if (response.success) setResult(response.success);
     } catch { toast.error("Не удалось завершить синхронизацию."); }
     finally { lock.current = false; setPending(false); }

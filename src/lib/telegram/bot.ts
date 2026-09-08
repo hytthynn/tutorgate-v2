@@ -10,7 +10,7 @@ export async function getChatUsername(chatId: string): Promise<string | null> {
   if (!response.ok) throw new Error("Telegram sync failed");
   const payload = await response.json();
   if (!payload.ok || payload.result?.type !== "private") throw new Error("Telegram sync failed");
-  const username: unknown = payload.result.username;
+  const username: unknown = payload.result.username ?? payload.result.active_usernames?.[0];
   if (username === undefined || username === null) return null;
   if (typeof username !== "string" || !/^[a-zA-Z0-9_]+$/.test(username)) throw new Error("Telegram sync failed");
   return username.toLowerCase();
