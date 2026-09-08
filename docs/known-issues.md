@@ -63,4 +63,4 @@
 
 ## Пакет 011
 
-Ограничения среды прежнего выпуска 011 описаны в [историческом отчёте](release-011.md). Текущие проверки — [пакет 012](verification.md). Pending возможен при потере delivery audit, exactly-once Telegram не обещается. Production Supabase/Telegram не заменяются локальными fixture проверками.
+Текущие проверки и ограничения среды — [отчёт пакета 014](verification.md). Pending возможен при потере delivery audit, exactly-once Telegram не обещается. Production Supabase/Telegram не заменяются локальными fixture проверками.

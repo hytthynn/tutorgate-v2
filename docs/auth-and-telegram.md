@@ -58,7 +58,7 @@ Soft delete атомарно стирает private alias, reset tokens, Telegra
 
 ## Изменения 011
 
-Webhook принимает message/callback_query. Deep-link /start token имеет приоритет. Связанный active profile определяется постоянной парой user/chat ID, не username. Registration/resend/reset URL только inline. Dynamic HTML экранируется. Reply имеет приоритет над recipient state, cancel очищает recipient и отвечает «✅ Действие отменено.» с student-меню. Tutor получает только «Открыть чат» и не отвечает через бота. [Ограничения доставки](release-011.md).
+Webhook принимает message/callback_query. Deep-link /start token имеет приоритет. Связанный active profile определяется постоянной парой user/chat ID, не username. Registration/resend/reset URL только inline. Dynamic HTML экранируется. Reply имеет приоритет над recipient state, cancel очищает recipient и отвечает «✅ Действие отменено.» с student-меню. Tutor получает только «Открыть чат» и не отвечает через бота. [Проверки и ограничения доставки](verification.md).
 
 
 ## Чаты 012

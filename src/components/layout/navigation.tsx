@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { chatUnreadAction } from "@/features/chats/actions";
 import { useVisiblePolling } from "@/features/chats/use-visible-polling";
-import { SupportLink } from "@/components/shared/support-link";
 import { Brand } from "@/components/shared/brand";
 import {
   Dialog,
@@ -97,7 +96,6 @@ export function Navigation({ profile }: { profile: Profile }) {
         <div className="workspace-label">ЛИЧНЫЙ КАБИНЕТ</div>
         {links}
         <div className="sidebar-bottom">
-          <SupportLink />
           {account}
         </div>
       </aside>
@@ -113,7 +111,6 @@ export function Navigation({ profile }: { profile: Profile }) {
             <DialogTitle>Личный кабинет</DialogTitle>
             <DialogDescription>{roleNames[profile.role]}</DialogDescription>
             {links}
-            <SupportLink />
           {account}
           </DialogContent>
         </Dialog>

@@ -46,12 +46,11 @@ npm run test:e2e
 
 ## Документация
 
-- [Текущее ТЗ — пакет 012](docs/TZ_TutorGate_012_chat_admin_schedule_ui_fixes.md)
+- [Текущее ТЗ — пакет 014](docs/TZ_TutorGate_014_schedule_chat_bot_accounts_performance.md)
 - [Результаты проверки пакета 012](docs/verification.md)
 - [Архитектура и инварианты расписания](docs/architecture.md)
 - [База данных](docs/database.md) · [Авторизация и Telegram](docs/auth-and-telegram.md)
 - [UI](docs/ui-guidelines.md) · [Решения](docs/decisions.md) · [Известные ограничения](docs/known-issues.md)
-- [История поставок](docs/archive/README.md)
 
 ## Production
 

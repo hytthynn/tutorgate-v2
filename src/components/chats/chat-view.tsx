@@ -5,9 +5,9 @@ import { MAX_ATTACHMENTS, validateAttachment } from "@/features/chats/attachment
 import { RichEditor } from "./rich-editor";
 import { RichMessage } from "./rich-content";
 import { plainContent, plainText, type RichContent } from "@/features/chats/rich-text";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MessageSquare, Send } from "lucide-react";
+import { CheckCheck, MessageSquare, Paperclip, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   chatPreviousAction,
@@ -22,6 +22,7 @@ import type { ChatSnapshot } from "@/features/chats/types";
 import { CHAT_TIME_ZONE, chatDateLabel } from "@/features/chats/dates";
 const day = (value: string) =>
   new Date(value).toLocaleDateString("ru-RU", { timeZone: CHAT_TIME_ZONE });
+const initials = (name: string) => name.trim().split(/\s+/).slice(0,2).map(word => word[0]).join("");
 export function ChatView({
   initial,
   initialError,
@@ -49,6 +50,10 @@ export function ChatView({
     [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<Record<string, File[]>>({});
   const [dragging, setDragging] = useState(false);
+  const [search, setSearch] = useState("");
+  const history = useRef<HTMLDivElement>(null);
+  const nearBottom = useRef(true);
+  const scrollState = useRef({ student: initialStudent, first: "", last: "", height: 0 });
   const fileInput = useRef<HTMLInputElement>(null);
   const draftFiles = selected ? files[selected] ?? [] : [];
   function addFiles(incoming: File[]) {
@@ -62,8 +67,7 @@ export function ChatView({
   const requestId = useRef(0),
     sending = useRef(false),
     selectedRef = useRef(selected),
-    acknowledged = useRef<Record<string, string>>({}),
-    bottom = useRef<HTMLDivElement>(null);
+    acknowledged = useRef<Record<string, string>>({});
   useEffect(() => {
     selectedRef.current = selected;
     const requests = requestId;
@@ -106,8 +110,8 @@ export function ChatView({
   useVisiblePolling(refresh);
   const current = snapshot.conversations.find((c) => c.studentId === selected),
     hasCurrent = !!current;
-  const messages = loadedFor === selected ? snapshot.messages : [],
-    lastId = messages.at(-1)?.id;
+  const messages = useMemo(() => loadedFor === selected ? snapshot.messages : [], [loadedFor, selected, snapshot.messages]);
+  const lastId = messages.at(-1)?.id;
   // Acknowledge only the last message actually rendered for this visible conversation.
   useEffect(() => {
     if (!selected || !lastId || !hasCurrent) return;
@@ -154,15 +158,20 @@ export function ChatView({
       document.removeEventListener("visibilitychange", mark);
     };
   }, [selected, lastId, hasCurrent]);
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
-  }, [selected, lastId]);
+  useLayoutEffect(() => {
+    const el = history.current; if (!el) return;
+    const previous = scrollState.current, first = messages[0]?.id ?? "";
+    if (previous.student !== selected || !previous.last || (previous.last !== lastId && nearBottom.current)) el.scrollTop = el.scrollHeight;
+    else if (first !== previous.first) el.scrollTop += el.scrollHeight - previous.height;
+    scrollState.current = { student: selected, first, last: lastId ?? "", height: el.scrollHeight };
+  }, [selected, lastId, messages]);
   const content = selected ? (drafts[selected] ?? plainContent("")) : plainContent("");
   const draft = plainText(content);
   async function send() {
     if (
       !selected ||
       !current ||
+      loadedFor !== selected ||
       sending.current ||
       (!draft.trim() && !draftFiles.length) ||
       codePointLength(draft) > 4000
@@ -178,7 +187,7 @@ export function ChatView({
       for (const file of draftFiles) {
         const prepared = await prepareChatUpload(student,{ name: file.name, size: file.size, type: file.type });
         if (prepared.error) { setSendError(`${file.name}: ${prepared.error}`); return; }
-        const uploaded = await fetch(prepared.data!.url,{ method: "PUT", body: file, headers: { "Content-Type": "application/octet-stream" } });
+        const uploaded = await fetch(prepared.data!.url,{ method: "PUT", body: file, headers: { "Content-Type": "application/octet-stream" }, signal: AbortSignal.timeout(60000) });
         if (!uploaded.ok) { setSendError(`${file.name}: загрузка не удалась.`); return; }
         ids.push(prepared.data!.id);
       }
@@ -192,6 +201,7 @@ export function ChatView({
         [student]: all[student] === content ? plainContent("") : all[student],
       }));
       setFiles(all => ({ ...all, [student]: [] }));
+      nearBottom.current = true;
       await refresh();
     } catch {
       setSendError(
@@ -223,11 +233,13 @@ export function ChatView({
             Ученики{" "}
             <span className="muted">{snapshot.conversations.length}</span>
           </div>
+          <label className="chat-search"><Search size={16} aria-hidden /><input aria-label="Поиск диалогов" placeholder="Найти ученика" value={search} onChange={event => setSearch(event.target.value)} /></label>
           {!snapshot.conversations.length && (
             <p className="chat-empty">Пока нет назначенных учеников.</p>
           )}
           <div className="chat-contacts">
-            {snapshot.conversations.map((c) => (
+            {search.trim() && !snapshot.conversations.some(c => c.studentName.toLocaleLowerCase("ru").includes(search.trim().toLocaleLowerCase("ru"))) && <p className="chat-empty">Никого не нашли. Попробуйте другое имя.</p>}
+            {snapshot.conversations.filter(c => c.studentName.toLocaleLowerCase("ru").includes(search.trim().toLocaleLowerCase("ru"))).map((c) => (
               <button
                 type="button"
                 key={c.studentId}
@@ -241,7 +253,8 @@ export function ChatView({
                   setSendError("");
                 }}
               >
-                <span className="chat-contact-top">
+                <span className="chat-avatar" aria-hidden>{initials(c.studentName)}</span>
+                <span className="chat-contact-content"><span className="chat-contact-top">
                   <strong>{c.studentName}</strong>
                   {c.unread > 0 && (
                     <span
@@ -266,6 +279,7 @@ export function ChatView({
                     })}
                   </time>
                 )}
+                </span>
               </button>
             ))}
           </div>
@@ -286,7 +300,9 @@ export function ChatView({
           ) : (
             <>
               <header className="chat-heading">
-                <h2>{current.studentName}</h2>
+                <span className="chat-avatar" aria-hidden>{initials(current.studentName)}</span>
+                <div><h2>{current.studentName}</h2><p>Переписка через Telegram</p></div>
+                <MessageSquare size={20} className="chat-heading-icon" aria-hidden />
               </header>
               {snapshot.hasMore && loadedFor === selected && (
                 <Button variant="ghost" size="sm" loading={loading} onClick={async () => {
@@ -304,6 +320,8 @@ export function ChatView({
               )}
               <div
                 className="chat-history"
+                ref={history}
+                onScroll={event => { const el = event.currentTarget; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }}
                 role="region"
                 aria-label="История сообщений"
                 tabIndex={0}
@@ -315,9 +333,7 @@ export function ChatView({
                 ) : (
                   <>
                     {!messages.length && (
-                      <p className="chat-empty">
-                        Сообщений пока нет. Напишите ученику первым.
-                      </p>
+                      <div className="chat-empty-thread"><MessageSquare size={26} aria-hidden /><h3>Начните разговор</h3><p>Сообщений пока нет. Напишите ученику первым.</p></div>
                     )}
                     {messages.map((m, i) => (
                       <Fragment key={m.id}>
@@ -336,7 +352,7 @@ export function ChatView({
                               : "Сообщение ученика"
                           }
                         >
-                          <p><RichMessage content={m.content ?? plainContent(m.body)} /></p>
+                          {m.body && <p><RichMessage content={m.content ?? plainContent(m.body)} /></p>}
                           {m.attachments?.map(file => <MessageFile key={file.id} file={file} />)}
                           <footer>
                             <span>
@@ -352,6 +368,7 @@ export function ChatView({
                                 },
                               )}
                             </time>
+                            {m.sender_role === "tutor" && m.delivery_status === "sent" && <CheckCheck size={14} aria-label="Доставлено в Telegram" />}
                           </footer>
                           {m.sender_role === "tutor" &&
                             m.delivery_status === "failed" && (
@@ -370,7 +387,6 @@ export function ChatView({
                     ))}
                   </>
                 )}
-                <div ref={bottom} />
               </div>
               <form
                 className={`chat-composer ${dragging ? "is-file-drop" : ""}`}
@@ -389,25 +405,24 @@ export function ChatView({
                 )}
                 {dragging && <p>Перетащите файлы сюда</p>}
                 <input ref={fileInput} type="file" multiple hidden onChange={event => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
-                <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => fileInput.current?.click()}>Прикрепить файл</Button>
-                {draftFiles.map((file,i) => <DraftFile key={`${file.name}-${i}`} file={file} remove={() => { if (!pending) setFiles(all => ({ ...all, [selected!]: draftFiles.filter((_,index) => index !== i) })); }} />)}
-                <label htmlFor="chat-message">Сообщение ученику</label>
-                <RichEditor value={content} disabled={pending} onChange={value => setDrafts(all => ({ ...all, [selected!]: value }))} onSend={() => void send()} />
+                {!!draftFiles.length && <div className="chat-draft-files">{draftFiles.map((file,i) => <DraftFile key={`${file.name}-${i}`} file={file} remove={() => { if (!pending) setFiles(all => ({ ...all, [selected!]: draftFiles.filter((_,index) => index !== i) })); }} />)}</div>}
+                <label className="sr-only" htmlFor="chat-message">Сообщение ученику</label>
+                <RichEditor value={content} disabled={pending} onChange={value => setDrafts(all => ({ ...all, [selected!]: value }))} onSend={() => void send()} onFiles={addFiles} />
                 <div className="chat-composer-bottom">
+                  <Button type="button" variant="ghost" size="icon" aria-label="Прикрепить файл" title="Прикрепить файл · до 10 МБ" disabled={pending} onClick={() => fileInput.current?.click()}><Paperclip size={20} /></Button>
                   <span id="chat-composer-help">
                     {codePointLength(draft)} / 4000{" "}
-                    <span className="chat-key-hint">
-                      · Enter — отправить, Shift+Enter — новая строка
-                    </span>
+                    <span className="sr-only">Enter — отправить, Shift+Enter — новая строка</span>
                   </span>
                   <Button
+                    className="chat-send"
                     type="submit"
                     loading={pending}
                     loadingText="Отправляем…"
                     disabled={(!draft.trim() && !draftFiles.length) || loadedFor !== selected}
                   >
                     <Send size={16} aria-hidden />
-                    Отправить
+                    <span>Отправить</span>
                   </Button>
                 </div>
               </form>
