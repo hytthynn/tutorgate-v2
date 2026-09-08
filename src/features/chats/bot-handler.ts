@@ -42,6 +42,7 @@ export type ReceiveResult = {
   tutorName?: string;
 };
 export type BotPorts = {
+  contact?: (input: BotInput, id: string) => Promise<TelegramMessage>;
   beginReply?: (input: BotInput) => Promise<{name:string}>;
   remove?: (chat: string, message: number) => Promise<unknown>;
   edit?: (chat: string, message: number, content: TelegramMessage) => Promise<boolean>;
@@ -74,6 +75,11 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     if (!input.callbackData) return;
   }
   const profile = await ports.profile(input.userId, input.chatId);
+  const contact = /^\/start(?:@\w+)?\s+contact_([0-9a-f-]{36})\s*$/i.exec(input.text ?? "");
+  if (contact) {
+    await send(profile?.role === "admin" && ports.contact ? await ports.contact(input,contact[1]) : html("Профиль доступен только администратору TutorGate."));
+    return;
+  }
   if (profile?.role === "admin" && ports.applications && /^(menu:(apps|approved):|app:)/.test(input.callbackData ?? "")) { await send(await ports.applications(input)); return; }
   if (input.callbackData === "menu:home") { if(profile?.role==="student")await ports.recipient(profile.id,null); await send(startMessage(profile?.role,home)); return; }
   if (input.callbackData === "chat:cancel") {

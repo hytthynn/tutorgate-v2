@@ -61,7 +61,7 @@ const cancel: InlineButton = { text: "✕ Отмена", callback_data: "chat:ca
 export const homeButton: InlineButton = { text: "🏠 Главное меню", callback_data: "menu:home" };
 export const supportButton: InlineButton = { text: "🆘 Поддержка", url: "https://t.me/tutorgate" };
 export function startMessage(role: string | undefined, url: string) {
-  return html(catalogue[role === "student" ? 1 : role === "tutor" ? 2 : role === "admin" ? 3 : 4], [[siteButton(url)],...(role === "student" ? [[writeButton]] : [])]);
+  return html(catalogue[role === "student" ? 1 : role === "tutor" ? 2 : role === "admin" ? 3 : 4], [[siteButton(url)],...(role === "student" ? [[writeButton]] : []),[supportButton]]);
 }
 export function confirmationMessage(status: string, url: string) {
   const codes: Record<string, number> = {

@@ -58,6 +58,11 @@ export function RichEditor({ value, onChange, disabled, onSend, onFiles }: { val
     // Read and whitelist the DOM. Pasted HTML is never inserted directly.
     return spliceContent([],0,0,pasteContent(el.innerHTML));
   }
+  function syncStyles() {
+    const {start} = locate(); let offset=0;
+    const run=read().find(run=>{offset+=run.text.length;return offset>=start;});
+    setActive((run?.marks ?? []).filter(mark=>mark.type!=="link").map(mark=>mark.type as Style));
+  }
   function format(type: Style) {
     const {start,end} = locate();
     if (start === end) { setActive(active.includes(type) ? active.filter(mark=>mark!==type) : [...active,type]); ref.current?.focus(); return; }
@@ -78,12 +83,12 @@ export function RichEditor({ value, onChange, disabled, onSend, onFiles }: { val
   return <div className="rich-editor">
     <div className="rich-toolbar" role="toolbar" aria-label="Форматирование сообщения">{(Object.keys(controls) as Style[]).map(type => {const [label,Icon]=controls[type];return <Button key={type} type="button" variant="ghost" size="icon" aria-label={label} title={label} aria-pressed={active.includes(type)} disabled={disabled} onMouseDown={event=>event.preventDefault()} onClick={()=>format(type)}><Icon size={16} aria-hidden /></Button>;})}</div>
     <div ref={ref} id="chat-message" className="rich-input" role="textbox" aria-label="Сообщение ученику" aria-multiline="true" aria-disabled={disabled} aria-describedby="chat-composer-help" contentEditable={!disabled} suppressContentEditableWarning data-placeholder="Напишите сообщение…"
-      onMouseUp={()=>{locate();setActive([]);}} onKeyUp={()=>locate()}
+      onMouseUp={()=>syncStyles()} onKeyUp={event=>{if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(event.key)) syncStyles();else locate();}}
       onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;const next=read();emitted.current=JSON.stringify(next);onChange(next);}}
       onInput={()=>{if(composing.current)return;const position=locate();const next=read();emitted.current=JSON.stringify(next);onChange(next);if(plainText(next).length < (ref.current?.textContent?.length ?? 0))commit(next,Math.min(position.end,plainText(next).length));}}
       onPaste={event=>{event.preventDefault();if(event.clipboardData.files.length){onFiles(Array.from(event.clipboardData.files));return;}const html=event.clipboardData.getData("text/html");insert(html?pasteContent(html):[{text:event.clipboardData.getData("text/plain"),marks:[]}]);}}
       onDrop={event=>{event.preventDefault();}}
-      onBeforeInput={event=>{const input=event.nativeEvent as InputEvent;if(!composing.current&&active.length&&input.data&&(!input.inputType||input.inputType==="insertText")){event.preventDefault();insert([{text:input.data,marks:active.map(type=>({type}))}]);}}}
+      onBeforeInput={event=>{const input=event.nativeEvent as InputEvent;if(!composing.current&&input.data&&(!input.inputType||input.inputType==="insertText")){event.preventDefault();insert([{text:input.data,marks:active.map(type=>({type}))}]);}}}
       onKeyDown={event=>{
         if((event.ctrlKey||event.metaKey)&&["b","i","u"].includes(event.key.toLowerCase())){event.preventDefault();format(event.key.toLowerCase()==="b"?"bold":event.key.toLowerCase()==="i"?"italic":"underline");}
         if(event.key==="Enter"&&!event.nativeEvent.isComposing){event.preventDefault();if(event.shiftKey)insert([{text:"\n",marks:[]}]);else onSend();}

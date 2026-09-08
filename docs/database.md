@@ -1,5 +1,11 @@
 # База данных
 
+## Миграция 016
+
+`202609080016_application_search.sql` применяется после 015. Service-only `admin_applications_search` проверяет активного администратора, ищет по имени и Telegram username без учёта регистра, убирает начальный `@`, фильтрует до подсчёта и пагинации по 50 записей. Символы `%` и `_` ищутся буквально. Старый RPC сохранён для исторических клиентов.
+
+`bot_directory_contact` повторно проверяет Telegram user ID, private chat ID и роль активного администратора; возвращает профиль только в доверенный webhook. Ссылка с сайта содержит UUID профиля, а не Telegram peer. Чужие роли не могут получить контакт через deep link.
+
 ## Миграция 015
 
 `chat_attachment_budget` защищает суммарный размер вложений одного сообщения (10 МБ) даже для service writes. Deferred trigger `chat_purge_unassigned_pair` очищает conversation/messages/attachments/upload reservations и recipient state после снятия последнего назначения student–tutor; сохранение другого предмета с тем же teacher сохраняет чат. Удаление и повторная вставка назначения в одной транзакции не стирают действующий диалог.

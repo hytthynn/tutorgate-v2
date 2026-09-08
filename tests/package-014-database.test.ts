@@ -20,6 +20,21 @@ test("014 schedule, media, deletion and read contracts",async t=>{
  const subs=(await db.query<{id:string}>("select id from subjects order by id limit 3")).rows.map(r=>r.id);
  await as(1,async()=>{for(const n of [1,2,3,6])await db.query("select public.set_tutor_subjects($1,$2)",[id(n),subs]);
  for(const [s,teacher,sub] of [[4,2,subs[0]],[4,1,subs[1]],[5,6,subs[0]],[5,3,subs[2]]] as const)await db.query("insert into student_tutor_assignments(student_id,tutor_id,subject_id,assigned_by) values($1,$2,$3,$4)",[id(s),id(teacher),sub,id(1)]);});
+ await t.test("016 application search filters before pagination and protects access",async()=>{
+   for(let n=0;n<52;n++)await db.query("insert into applications(role,full_name,telegram_username,student_goal,privacy_accepted_at,status) values('student',$1,$2,'Goal',now(),'pending_review')",[n===0?"Анна Иванова":"Other",n===0?"search_target":`search_${n}`]);
+   const search=async(q:string,offset=0)=>(await db.query<{v:{total:number;items:{full_name:string}[]}}>("select public.admin_applications_search($1,'student','pending_review',$2,$3) v",[id(1),offset,q])).rows[0].v;
+   assert.equal((await search("АННА")).total,1);assert.equal((await search(" @SEARCH_TARGET ")).items[0].full_name,"Анна Иванова");
+   assert.equal((await search("Other",50)).items.length,1);assert.equal((await search("%" )).total,0);
+   await assert.rejects(db.query("select public.admin_applications_search($1,'student','pending_review',0,'')",[id(2)]),{code:"42501"});
+   await assert.rejects(as(1,()=>search("")),{code:"42501"});
+   await db.query("update profiles set telegram_user_id='100002' where id=$1",[id(2)]);
+   const contact=(await db.query<{v:{userId:string}}>("select public.bot_directory_contact('Person 1','Person 1',$1) v",[id(2)])).rows[0].v;
+   assert.equal(contact.userId,"100002");
+   await assert.rejects(db.query("select public.bot_directory_contact('Person 1','wrong',$1)",[id(2)]),{code:"42501"});
+   await assert.rejects(db.query("select public.bot_directory_contact('100002','Person 2',$1)",[id(1)]),{code:"42501"});
+   await db.query("update profiles set telegram_user_id='Person 2' where id=$1",[id(2)]);
+   await db.exec("delete from applications where telegram_username like 'search_%'");
+ });
  const cmd=(value:unknown)=>as(2,async()=>(await db.query<{v:ScheduleResult}>("select schedule_command($1,$2) v",[id(2),JSON.stringify(value)])).rows[0].v);
  const week=currentWeek(0), start=localToUtc(week,"10:00",0);
  const input={kind:"create",studentId:id(4),subjectId:subs[0],startsAt:start,durationMinutes:60,note:"private"};

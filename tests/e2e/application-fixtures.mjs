@@ -53,9 +53,10 @@ export function applicationFixture(op,args,method,path) {
   return reply({chat_id:args.p_admin,role:a.role,full_name:a.full_name,telegram_username:a.telegram_username,subjects:a.subjects,details:a.student_goal??a.teaching_experience});
  }
  if(op==='finish_application_notification')return reply(null);
- if(['review_application','admin_applications','application_link_delivered'].includes(op)&&args.p_actor!==admin)return reply({code:'42501'},403);
- if(op==='admin_applications'){
-  const filtered=apps.filter(a=>a.role===args.p_role&&(args.p_bucket==='approved'?['approved','registered'].includes(a.status):a.status===args.p_bucket));
+ if(['review_application','admin_applications','admin_applications_search','application_link_delivered'].includes(op)&&args.p_actor!==admin)return reply({code:'42501'},403);
+ if(op==='admin_applications'||op==='admin_applications_search'){
+  const needle=(args.p_q??'').trim().toLowerCase().replace(/^@/,'');
+  const filtered=apps.filter(a=>(!needle||a.full_name.toLowerCase().includes(needle)||a.telegram_username.toLowerCase().includes(needle))&&a.role===args.p_role&&(args.p_bucket==='approved'?['approved','registered'].includes(a.status):a.status===args.p_bucket));
   const items=filtered.slice(args.p_offset,args.p_offset+50).map(a=>{
    const safe={...a};
    delete safe.telegram_user_id;

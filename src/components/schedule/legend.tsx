@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { Palette } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export function ScheduleLegend() {
   const [open, setOpen] = useState(false);
   return <>
-    <Button variant="ghost" size="icon" aria-label="Обозначения цветов" title="Обозначения цветов" onClick={() => setOpen(true)}><Palette size={17} aria-hidden /></Button>
+    <Tooltip text="Обозначения"><Button variant="ghost" size="icon" aria-label="Обозначения цветов" onClick={() => setOpen(true)}><Palette size={17} aria-hidden /></Button></Tooltip>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent>
       <DialogTitle>Обозначения цветов</DialogTitle>
       <DialogDescription>Статус занятия имеет приоритет над основным цветом.</DialogDescription>

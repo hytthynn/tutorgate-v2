@@ -36,7 +36,7 @@ test("011 start catalogue and secret URLs only in inline keyboards", () => {
     assert.match(m.text, /Добро пожаловать/);
     assert.equal(
       m.options.reply_markup!.inline_keyboard.flat().length,
-      role === "student" ? 2 : 1,
+      role === "student" ? 3 : 2,
     );
   }
   for (const m of [
@@ -305,4 +305,13 @@ test("012 assigned admin shortcut and notification use admin chat route",async()
  await handleBotInput({...input,callbackId:"choose",callbackData:"chat:to:admin"},f.ports);assert.equal(f.recipient,"admin");
  f.ports.notificationTarget=async()=>({chatId:"admin-chat",role:"admin"});await handleBotInput(input,f.ports);
  assert.match(JSON.stringify(sent),/https:\/\/fixture.example\/admin\/chats\?student=s/);
+});
+
+test("016 bot contact links require admin before calling the contact port",async()=>{
+ for(const role of ["student","tutor","admin"] as const){
+  const f=fixture(role);let calls=0;
+  f.ports.contact=async()=>{calls++;return startMessage("admin",url);};
+  await handleBotInput({...input,text:"/start contact_00000000-0000-4000-8000-000000000002"},f.ports);
+  assert.equal(calls,role==="admin"?1:0);
+ }
 });

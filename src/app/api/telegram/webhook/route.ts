@@ -12,7 +12,7 @@ import {
   deleteMessage, editTemplate,
 } from "@/lib/telegram/bot";
 import { sendControlMessage } from "@/lib/telegram/control";
-import { confirmationMessage, siteButton } from "@/lib/telegram/templates";
+import { confirmationMessage, siteButton, html, escapeHtml, homeButton } from "@/lib/telegram/templates";
 import { handleBotInput } from "@/features/chats/bot-handler";
 import {
   notifyApplicationAdmins,
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   try {
     const start =
       !callback && /^\/start(?:@\w+)?\s+(\S+)\s*$/.exec(message?.text ?? "");
-    if (start) {
+    if (start && !/^contact_[0-9a-f-]{36}$/i.test(start[1])) {
       const payload = start[1];
       if (!/^[\w-]{43}$/.test(payload)) {
         await sendControlMessage(chatId, confirmationMessage("invalid", appUrl("/")), { newMessage: true });
@@ -171,6 +171,10 @@ export async function POST(request: NextRequest) {
         },
         {
           applications: botApplicationAction,
+          contact: async (input,id) => {
+            const target = await serviceRpc<{name:string;userId:string} | null>("bot_directory_contact",{p_user:input.userId,p_chat:input.chatId,p_id:id});
+            return target ? html(`<b>${escapeHtml(target.name)}</b>`,[[{text:"Открыть профиль Telegram",url:`tg://user?id=${target.userId}`}],[homeButton]]) : html("Telegram этого пользователя недоступен.",[[homeButton]]);
+          },
           beginReply: input => serviceRpc("chat_bot_begin_reply",{p_user:input.userId,p_chat:input.chatId,p_message:input.callbackData!.slice(11),p_source:input.callbackMessageId}),
           remove: deleteMessage,
           edit: editTemplate,

@@ -161,6 +161,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ actionCounts: Object.fromEntries(actionCounts), lessons, notes:Object.fromEntries(notes) })); return;
   }
   if (url.pathname === "/fixtures/scenario") {
+    if(args.mode==="no-usernames")for(const p of profiles)if(p.role!=="admin")p.telegram_username=null;
     if(args.mode==="no-students")assignments.length=0;
     if(args.mode==="no-subjects")subjects.length=0;
     if(args.mode==="historical"){lessons[0].subject_id=null;lessons[0].subject_name_snapshot="Историческая математика";}
@@ -186,6 +187,11 @@ const server = http.createServer(async (req, res) => {
   const applicationResult = chatFixture(op,args,url.pathname,profile,profiles,assignments) ?? applicationFixture(op,args,req.method,url.pathname);
   if (applicationResult) { value=applicationResult.value; status=applicationResult.status; }
   else if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
+  else if(op==="bot_directory_contact") {
+    const actor=profiles.find(p=>p.telegram_user_id===args.p_user&&p.telegram_chat_id===args.p_chat&&p.role==="admin"&&p.account_status==="active");
+    const target=profiles.find(p=>p.id===args.p_id&&p.account_status!=="deleted");
+    if(!actor){status=403;value={code:"42501"};}else value=target?{name:target.full_name,userId:target.telegram_user_id}:null;
+  }
   else if(op==="admin_pending_deletions")value=[];
   else if(op==="admin_directory_page") {
     const tutors=profiles.filter(p=>["tutor","admin"].includes(p.role)&&p.account_status!=="deleted");

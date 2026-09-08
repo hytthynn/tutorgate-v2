@@ -44,6 +44,6 @@ test("014 role menus and callbacks fit Telegram byte limit",()=>{
     const rows=startMessage(role,"https://fixture.example").options.reply_markup!.inline_keyboard.flat();
     assert.ok(rows.some(b=>"url" in b && b.url==="https://fixture.example"));
     for(const b of rows) if("callback_data" in b) assert.ok(Buffer.byteLength(b.callback_data)<=64);
-    assert.equal(rows.length,role==="student"?2:1);
+    assert.equal(rows.length,role==="student"?3:2);
   }
 });

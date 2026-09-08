@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+import { telegramProfileUrl } from "./telegram-link";
 import { PendingDeletions } from "@/components/people/pending-deletions";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -175,15 +177,15 @@ export async function PeoplePage({
                   {admin && (
                     <div className="person-actions">
                       {kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <Link className="telegram-link" href={p.id === viewer.id ? "/admin/schedule" : `/admin/schedule?tutor=${p.id}`}><CalendarDays size={14} />Расписание</Link>}
-                      {p.telegram_username ? <a
+                      {telegramProfileUrl(p, env("TELEGRAM_BOT_USERNAME")) ? <a
                         className="telegram-link"
-                        href={`https://t.me/${p.telegram_username}`}
+                        href={telegramProfileUrl(p, env("TELEGRAM_BOT_USERNAME"))!}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
                         Открыть Telegram
                         <ArrowUpRight size={13} />
-                      </a> : <span className="muted">Нет Telegram username</span>}
+                      </a> : <span className="muted">Telegram не привязан</span>}
                       {isAdminDirectoryProfile(p) && <UserActionsMenu profile={p} />}
                       {kind === "tutors" ? (
                         <TutorSubjectsDialog

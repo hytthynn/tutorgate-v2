@@ -1,5 +1,6 @@
 "use client";
-import { useCallback,useEffect,useState } from "react";
+import { useCallback,useEffect,useState,useRef } from "react";
+import { useMessageSound } from "@/features/chats/use-message-sound";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -52,9 +53,14 @@ export function Navigation({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [unread,setUnread]=useState(0);
-  const pollUnread=useCallback(async()=>{const result=await chatUnreadAction();if(result.data!==undefined)setUnread(result.data);},[]);
+  const sound=useMessageSound(profile.role!=="student"), previousUnread=useRef<number | null>(null);
+  const pollUnread=useCallback(async()=>{const result=await chatUnreadAction();if(result.data!==undefined){
+    if(previousUnread.current!==null && result.data>previousUnread.current)sound();
+    previousUnread.current=result.data;setUnread(result.data);
+  }},[sound]);
+  useEffect(()=>{window.addEventListener("tutorgate:chat-sound",sound);return()=>window.removeEventListener("tutorgate:chat-sound",sound);},[sound]);
   useVisiblePolling(pollUnread,profile.role!=="student" && !pathname.endsWith("/chats"));
-  useEffect(() => { const receive = (event: Event) => { const n = (event as CustomEvent<number>).detail; if (Number.isFinite(n)) setUnread(n); }; window.addEventListener("tutorgate:chat-unread",receive); return () => window.removeEventListener("tutorgate:chat-unread",receive); },[]);
+  useEffect(() => { const receive = (event: Event) => { const n = (event as CustomEvent<number>).detail; if (Number.isFinite(n)) { previousUnread.current=n;setUnread(n); } }; window.addEventListener("tutorgate:chat-unread",receive); return () => window.removeEventListener("tutorgate:chat-unread",receive); },[]);
   const links = (
     <nav aria-label="Основная навигация">
       {items

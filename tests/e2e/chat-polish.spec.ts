@@ -12,6 +12,8 @@ test.beforeEach(async ({request}) => { await request.post(fixture + "/reset-sche
 test("chat polish: support position, legend next to bindings and responsive composer", async ({page}) => {
   await login(page);
   const bindings = await page.getByRole("button", {name:"Бинды",exact:true}).boundingBox();
+  await page.getByRole("button",{name:"Обозначения цветов"}).hover();
+  await expect(page.getByRole("tooltip")).toHaveText("Обозначения");
   const legend = await page.getByRole("button", {name:"Обозначения цветов"}).boundingBox();
   expect(Math.abs(bindings!.y-legend!.y)).toBeLessThan(3);
   expect(legend!.x).toBeGreaterThan(bindings!.x);
@@ -72,4 +74,39 @@ test("015 formatting at caret and aggregate upload limit",async({page})=>{
  await page.locator('input[type="file"]').setInputFiles({name:"second.bin",mimeType:"application/octet-stream",buffer:Buffer.alloc(5*1024*1024)});
  await expect(page.locator(".chat-composer").getByRole("alert")).toContainText("Общий размер файлов");
  await expect(page.locator(".chat-draft-file")).toHaveCount(1);
+});
+
+test("016 every formatting toggle stops formatting subsequent typing",async({page})=>{
+ await login(page);await page.goto(`/tutor/chats?student=${student}`);
+ const input=page.getByLabel("Сообщение ученику",{exact:true});
+ for (const [name,tag] of [["Жирный","strong"],["Курсив","em"],["Подчёркивание","u"],["Зачёркивание","s"],["Цитата","span[data-quote]"],["Моноширинный","code"]]) {
+   await input.fill("");await input.click();
+   const button=page.getByRole("button",{name,exact:true});
+   await button.click();await input.pressSequentially("styled");
+   await button.click();await input.pressSequentially(" plain");
+   await expect(input).toHaveText("styled plain");await expect(input.locator(tag)).toHaveText("styled");
+   await expect(button).toHaveAttribute("aria-pressed","false");
+ }
+ await expect(page.getByText("Переписка через Telegram",{exact:true})).toHaveCount(0);
+ await page.locator('input[type="file"]').setInputFiles(Array.from({length:10},(_,i)=>({name:`file${i}.txt`,mimeType:"text/plain",buffer:Buffer.from("file")})));
+ const strip=page.locator(".chat-draft-files");
+ await expect(strip).toHaveCSS("scrollbar-width","thin");
+ await strip.evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+ expect(await strip.evaluate(el=>el.scrollLeft)).toBeGreaterThan(0);
+ await page.screenshot({path:"artifacts/chat-016-scroll.png"});
+});
+
+test("016 application search retains filters and compact cards fit mobile",async({page,request})=>{
+ await request.post(fixture+"/applications-seed");
+ await page.goto("/login");await page.getByLabel("Логин",{exact:true}).fill("admin");await page.getByLabel("Пароль",{exact:true}).fill("fixture-password");await page.getByRole("button",{name:"Войти",exact:true}).click();await expect(page).toHaveURL("/admin/schedule");
+ await page.goto("/admin/applications?role=student&status=pending_review");
+ const search=page.getByLabel("Поиск заявок по имени или Telegram");
+ await expect(page.locator(".admin-application-card")).toHaveCount(2);
+ await search.fill("Екатерина");await expect(page.locator(".admin-application-card")).toHaveCount(1);
+ await expect(page.locator(".admin-application-card")).toContainText("Соколова");
+ await search.fill("@applicant_long_username_1");await expect(page.locator(".admin-application-card")).toContainText("Константинопольский");
+ await expect(page).toHaveURL(/role=student&status=pending_review&q=/);
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`artifacts/applications-016-${width}.png`,fullPage:true});}
+ await search.fill("no_match");await expect(page.getByRole("heading",{name:"Ничего не найдено"})).toBeVisible();
+ await search.fill("");await expect(page.locator(".admin-application-card")).toHaveCount(2);
 });

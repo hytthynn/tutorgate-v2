@@ -105,6 +105,12 @@ export function ChatView({
         conversations: nextConversations,
         messages: [...new Map([...(sameConversation ? previous.snapshot.messages : []),...incoming.messages].map(m => [m.id,m])).values()].sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)),
       } : incoming;
+      if (previous.student === selected && (sameConversation || !previousConversation?.conversationId)) {
+        const known = new Set(previous.snapshot.messages.map(message=>message.id));
+        const newSelected = incoming.messages.some(message=>message.sender_role==="student" && !known.has(message.id));
+        const newElsewhere = nextConversations.some(conversation=>conversation.studentId!==selected && conversation.unread > (previous.snapshot.conversations.find(old=>old.studentId===conversation.studentId)?.unread ?? 0));
+        if (newSelected || newElsewhere) window.dispatchEvent(new Event("tutorgate:chat-sound"));
+      }
       snapshotRef.current = { student: selected, snapshot: merged };
       setSnapshot(merged);
       window.dispatchEvent(new CustomEvent("tutorgate:chat-unread", { detail: merged.totalUnread }));
@@ -303,14 +309,14 @@ export function ChatView({
               <p>
                 {selected
                   ? "Проверьте назначение или выберите другой диалог."
-                  : "Сообщения ученика из Telegram появятся здесь."}
+                  : ""}
               </p>
             </div>
           ) : (
             <>
               <header className="chat-heading">
                 <span className="chat-avatar" aria-hidden>{initials(current.studentName)}</span>
-                <div><h2>{current.studentName}</h2><p>Переписка через Telegram</p></div>
+                <div><h2>{current.studentName}</h2></div>
                 <MessageSquare size={20} className="chat-heading-icon" aria-hidden />
               </header>
               {snapshot.hasMore && loadedFor === selected && (
