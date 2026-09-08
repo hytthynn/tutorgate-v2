@@ -62,7 +62,7 @@ test("010 account block/unblock, real access checks with existing opaque handle,
     await login(student,"student"); await page.goto("/admin/students");
     const row=page.locator(".person-row").filter({hasText:"Анна Смирнова"});
     async function action(label:string) {
-      await row.getByRole("button",{name:"Действия: Анна Смирнова"}).click(); await page.getByRole("menuitem",{name:label,exact:true}).click(); await page.getByRole("button",{name:"Подтвердить",exact:true}).click();
+      await row.getByRole("button",{name:"Действия: Анна Смирнова"}).click(); await page.getByRole("menuitem",{name:label,exact:true}).click(); await page.getByRole("button",{name:label === "Удалить аккаунт" ? "Удалить аккаунт полностью" : "Подтвердить",exact:true}).click();
     }
     await action("Сделать репетитором"); await expect(page.getByText("Сначала снимите назначения, предметы репетитора и будущие занятия.",{exact:true})).toBeVisible(); await page.keyboard.press("Escape");
     await action("Заблокировать"); await expect(row).toContainText("Заблокирован");
@@ -120,7 +120,13 @@ test("010 context copy preserves selection and common paste delta; other lesson 
 test("010 empty menu uses selected mobile day and disables mutations outside current week", async ({page}) => {
   await page.setViewportSize({width:375,height:900}); await login(page,"tutor");
   const date=new Date(`${week}T00:00:00Z`);date.setUTCDate(date.getUTCDate()+1);const day=date.toISOString().slice(0,10);
-  await page.goto(`/tutor/schedule?week=${week}&day=${day}`);const snapped=await emptyPoint(page,6,800);
+  await page.goto(`/tutor/schedule?week=${week}&day=${day}`);
+  let snapped = "";
+  // Synthetic events do not wait for hydration the way user interactions do.
+  await expect(async () => {
+    snapped = await emptyPoint(page,6,800);
+    await expect(page.getByRole("menuitem",{name:"Создать занятие здесь"})).toBeVisible();
+  }).toPass({timeout:10000});
   await page.getByRole("menuitem",{name:"Создать занятие здесь"}).click();
   await expect(page.locator('input[name="date"]')).toHaveValue(day);await expect(page.getByLabel("Начало",{exact:true})).toHaveValue(snapped);await page.keyboard.press("Escape");
   date.setUTCDate(date.getUTCDate()+7);const future=date.toISOString().slice(0,10);

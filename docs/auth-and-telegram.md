@@ -1,5 +1,16 @@
 # Авторизация, Telegram и управление аккаунтами (010)
 
+## Пакет 014
+
+Ограничения plain-text-only/attachments-unsupported пакетов 011–013 отменены. Web ↔ Telegram поддерживает текст, изображения и документы до 10 МБ, включая сообщение только с файлом. Входящий файл проверяется до скачивания, затем поток ограничивается фактическими байтами и timeout. Reply на каждую доставленную часть восстанавливает пару через private mapping. Частичный успех помечается failed, успешно доставленные части не пересылаются автоматически.
+
+Форматирование хранится структурированно: bold/italic/underline/strike/code/link/blockquote. React renderer не вставляет HTML; Telegram serializer экранирует текст и атрибуты, делит длинные сообщения на закрытые фрагменты. Ссылки только http/https. Paste читается в отсоединённом DOM, неподдерживаемые активные узлы отбрасываются. Telegram UTF-16 entities преобразуются в те же runs.
+
+Главное меню зависит от роли и использует control panel 013. Admin может просматривать pending/approved заявки, принимать, отклонять и отправлять новую ссылку при can_resend. Service-only wrapper находит active admin по user+chat identity и вызывает прежний `review_application`; блокировка строки и правило первого решения общие с сайтом. Удаления/блокировки из Telegram отсутствуют. Поддержка: https://t.me/tutorgate.
+
+Удаление аккаунта теперь физическое DB/Storage/Auth с ledger и повтором незавершённой очистки. Staging roundtrip файлов, реальная доставка, signed URL TTL и внешние сбои Auth/Storage требуют отдельного smoke перед production; локальные проверки используют только fixtures.
+
+
 ## Жизненный цикл
 
 `pending_telegram → pending_review → approved → registered`; альтернативное решение — `rejected`. `expired` относится только к неподтверждённому Telegram. Истечение регистрации не меняет `approved`.

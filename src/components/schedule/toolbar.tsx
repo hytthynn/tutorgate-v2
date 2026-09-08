@@ -1,4 +1,5 @@
 "use client";
+import { ScheduleLegend } from "./legend";
 import { Select } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Keyboard, Undo2, Redo2, Plus } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -45,6 +46,7 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, canEditOffset
       <Button variant="secondary" size="sm" disabled={busy} onClick={onToday}>Текущая</Button>
       <Button variant="secondary" size="sm" aria-label="Следующая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, 7))}><ChevronRight size={16} /></Button>
     </div>
+    <ScheduleLegend />
     {editable && <div className="schedule-controls-group schedule-edit-controls">
       {editable&&<Tooltip text="Бинды"><Button variant="ghost" size="sm" aria-label="Бинды" onClick={onBindings}><Keyboard size={16} /></Button></Tooltip>}
       <Tooltip text="Отменить"><Button variant="ghost" size="sm" disabled={busy||!canUndo} onClick={onUndo} aria-label="Отменить"><Undo2 size={16} /></Button></Tooltip>

@@ -1,5 +1,6 @@
+import type { TelegramEntity } from "./rich-text";
 import {
-  html, siteButton, writeButton,
+  html, siteButton, writeButton, homeButton,
   chatStatusMessage,
   pickerMessage,
   recipientMessage,
@@ -20,6 +21,8 @@ export type BotInput = {
   userId: string;
   chatId: string;
   text?: string;
+  entities?: TelegramEntity[];
+  media?: { file_id: string; file_size?: number; file_name?: string };
   replyId?: number;
   callbackId?: string;
   callbackData?: string;
@@ -34,6 +37,7 @@ export type ReceiveResult = {
   text?: string;
 };
 export type BotPorts = {
+  applications?: (input: BotInput) => Promise<TelegramMessage>;
   profile: (user: string, chat: string) => Promise<BotProfile | null>;
   tutors: (student: string) => Promise<BotTutor[]>;
   recipient: (student: string, tutor: string | null) => Promise<unknown>;
@@ -62,10 +66,12 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     if (!input.callbackData) return;
   }
   const profile = await ports.profile(input.userId, input.chatId);
+  if (profile?.role === "admin" && ports.applications && /^(menu:(apps|approved):|app:)/.test(input.callbackData ?? "")) { await send(await ports.applications(input)); return; }
+  if (input.callbackData === "menu:home") { await send(startMessage(profile?.role,home)); return; }
   if (input.callbackData === "chat:cancel") {
     if (profile?.role === "student") {
       await ports.recipient(profile.id, null);
-      await send(html("✅ Действие отменено.", [[siteButton(home)], [writeButton]]));
+      await send(html("✅ Действие отменено.", [[siteButton(home)], [writeButton], [homeButton]]));
     } else await send(startMessage(profile?.role, home));
     return;
   }
@@ -128,11 +134,11 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     }
     return;
   }
-  if (input.text === undefined || !input.text.trim()) {
+  if (!input.media && (input.text === undefined || !input.text.trim())) {
     await send(chatStatusMessage("attachment", home));
     return;
   }
-  if (codePointLength(input.text) > 4000) {
+  if (codePointLength(input.text ?? "") > 4000) {
     await send(chatStatusMessage("too_long", home));
     return;
   }
@@ -144,6 +150,7 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     await send(chatStatusMessage("error", home));
     return;
   }
+  if (result.status === "too_large") { await send(html("⚠️ <b>Файл больше 10 МБ</b>")); return; }
   if (result.status === "duplicate") return;
   if (result.status === "unavailable") {
     await unavailable();
@@ -163,7 +170,7 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
         target.chatId,
         studentNotification(
           result.studentName!,
-          result.text!,
+          result.text || (input.media ? "📎 Файл" : ""),
           ports.url(`/${target.role}/chats?student=${result.studentId}`),
         ),
       );
@@ -171,7 +178,7 @@ export async function handleBotInput(input: BotInput, ports: BotPorts) {
     ports.log();
   }
   try {
-    await send(chatStatusMessage("sent", home));
+    await send(input.media ? html("✅ <b>Файл отправлен</b>",[[writeButton],[homeButton]]) : chatStatusMessage("sent", home));
   } catch {
     ports.log();
   }

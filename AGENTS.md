@@ -21,6 +21,7 @@ Server Components по умолчанию; клиентские — формы, 
 
 - Сохранять RLS, owner-checks, exclusion constraints и серверный magnet.
 - Клиентский preview учитывает только загруженные видимые занятия. Ответ `result.lessons`/`rules`/`offset` канонический.
+- Пакет 014: базовый coral запрещает изменение даты/времени/длительности в UI и DB; drag не переключает недели. Визуальный цвет: inactive > completed green > transfer blue > base. Начальная загрузка ограничена неделей.
 - Snap 5 минут, полная длительность, при равенстве — позже, последний старт 23:55, окончание может пересечь полночь.
 - Обычное создание/paste только в текущей локальной неделе, drag не в будущую; dedicated transfer разрешён в текущую/следующую реальную неделю; offset = UTC+3+сохранённый сдвиг.
 - Неделя/день локальны через History API, CRUD календаря без refresh/revalidatePath.
@@ -34,7 +35,7 @@ Server Components по умолчанию; клиентские — формы, 
 
 Warm mocha — tokens в globals.css; без gradients/glow/тяжёлых теней. Focus-visible, подписи иконок, responsive без horizontal overflow. Предметы без поиска; ученики/репетиторы searchable. Loading через общий Button; asChild только навигация. Ошибки полей inline, общие сообщения Toaster. Автофильтры используют replace, единый актуальный draft и debounce ФИО 300 мс.
 
-Добавлять регрессии. Не объявлять команду пройденной, если она не выполнялась. Текущее [ТЗ](docs/TZ_TutorGate_012_chat_admin_schedule_ui_fixes.md), [проверки](docs/verification.md). История — только docs/archive.
+Добавлять регрессии. Не объявлять команду пройденной, если она не выполнялась. Текущее [ТЗ](docs/TZ_TutorGate_014_schedule_chat_bot_accounts_performance.md), [проверки](docs/verification.md). История — только docs/archive.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

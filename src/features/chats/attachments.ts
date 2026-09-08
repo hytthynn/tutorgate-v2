@@ -1,0 +1,19 @@
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+export const MAX_ATTACHMENTS = 10;
+export const CHAT_BUCKET = "chat-attachments";
+export const safeImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+export type AttachmentInput = { name: string; size: number; type: string };
+export function validateAttachment(file: AttachmentInput) {
+  if (!Number.isSafeInteger(file.size) || file.size < 1 || file.size > MAX_ATTACHMENT_BYTES) throw new Error("Размер файла должен быть от 1 байта до 10 МБ.");
+  const name = file.name.replace(/[\u0000-\u001f\u007f/\\]/g, "_").trim().slice(0,200);
+  if (!name) throw new Error("Укажите имя файла.");
+  return { name, size: file.size, type: file.type.slice(0,100) || "application/octet-stream" };
+}
+export function detectedImage(bytes: Uint8Array): string | null {
+  const hex = (n: number) => Array.from(bytes.slice(0,n), x => x.toString(16).padStart(2,"0")).join("");
+  if (hex(3) === "ffd8ff") return "image/jpeg";
+  if (hex(8) === "89504e470d0a1a0a") return "image/png";
+  if (["474946383761","474946383961"].includes(hex(6))) return "image/gif";
+  if (hex(4) === "52494646" && String.fromCharCode(...bytes.slice(8,12)) === "WEBP") return "image/webp";
+  return null;
+}

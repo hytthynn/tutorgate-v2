@@ -7,7 +7,6 @@ export function Brand({ href = "/login" }: { href?: string }) {
       </span>
       <span>
         Tutor<span className="brand-light">Gate</span>
-        <span className="brand-dot">.</span>
       </span>
     </Link>
   );

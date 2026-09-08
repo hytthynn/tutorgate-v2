@@ -36,7 +36,7 @@ test("011 start catalogue and secret URLs only in inline keyboards", () => {
     assert.match(m.text, /Добро пожаловать/);
     assert.equal(
       m.options.reply_markup!.inline_keyboard.flat().length,
-      role === "student" ? 2 : 1,
+      role === "student" ? 4 : role === "tutor" ? 5 : role === "admin" ? 6 : 2,
     );
   }
   for (const m of [
@@ -266,7 +266,7 @@ test("011 source boundaries: role checks, visible polling, bounded read marker a
   );
   const view = await read("src/components/chats/chat-view.tsx");
   assert.match(view, /chatMarkReadAction\(selected,\s*lastId\)/);
-  assert.match(view, /последние 200/);
+  assert.match(view, /Загрузить предыдущие/);
   assert.doesNotMatch(view, /telegram_chat_id|SUPABASE_SECRET_KEY|serviceRpc/);
   assert.match(await read("src/features/chats/use-visible-polling.ts"), /5000/);
   const hook = await read("scripts/set-webhook.mjs");
@@ -290,7 +290,7 @@ test("012 repeated cancel visible, stale cancel safe, removed reply recipient cl
  await handleBotInput({...input,callbackId:"select",callbackData:"chat:to:t"},f.ports);assert.equal(f.recipient,"t");
  for(let n=0;n<2;n++)await handleBotInput({...input,callbackId:`cancel${n}`,callbackData:"chat:cancel"},f.ports);
  assert.equal(f.recipient,null);assert.equal(messages.filter(m=>m.text==="✅ Действие отменено.").length,2);
- assert.equal(messages.at(-1)!.options.reply_markup!.inline_keyboard.flat().length,2);
+ assert.equal(messages.at(-1)!.options.reply_markup!.inline_keyboard.flat().length,3);
  f.ports.receive=async()=>({status:f.recipient?"sent":"choose"});await handleBotInput(input,f.ports);assert.match(messages.at(-1)!.text,/Сначала укажите/);
  await handleBotInput({...input,callbackId:"select2",callbackData:"chat:to:t"},f.ports);
  await handleBotInput({...input,callbackId:"other-stale",callbackData:"chat:to:removed"},f.ports);assert.equal(f.recipient,"t");

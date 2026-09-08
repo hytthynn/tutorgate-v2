@@ -3,6 +3,7 @@ import { validDate } from "../features/schedule/time";
 export type DirectoryFilterState = { q: string; filter: string };
 export function directoryQuery(state: DirectoryFilterState, key: "subject" | "tutor", base = "") {
   const query = new URLSearchParams(base);
+  query.delete("page");
   const q = state.q.trim();
   if (q) query.set("q", q); else query.delete("q");
   if (state.filter) query.set(key, state.filter); else query.delete(key);

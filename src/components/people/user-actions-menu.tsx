@@ -53,8 +53,8 @@ export function UserActionsMenu({ profile }: { profile: AdminDirectoryProfile })
     <Dialog open={operation!==null} onOpenChange={value => { if (!pending && !value) {setOperation(null);trigger.current?.focus();} }}><DialogContent onCloseAutoFocus={event=>{event.preventDefault();trigger.current?.focus();}}>
       <DialogTitle>{actions.find(a => a.value === operation)?.label ?? "Действия пользователя"}</DialogTitle>
       <DialogDescription>{profile.full_name} · Логин: {profile.login ?? "—"}</DialogDescription>
-      <div className="form-stack"><p>{operation === "delete" ? "Удаление необратимо: персональные данные будут обезличены, доступ закрыт. История занятий и статистика сохранятся." : operation === "block" ? "Активные сессии будут завершены. Вход будет закрыт до разблокировки." : operation === "unblock" ? "Пользователь снова сможет войти в TutorGate." : "Роль изменится только при отсутствии назначений, предметов и текущих/будущих занятий. Потребуется повторный вход."}</p>
-        <Button variant={operation === "delete" ? "destructive" : "default"} loading={pending} loadingText="Сохраняем…" onClick={submit}>Подтвердить</Button>
+      <div className="form-stack"><p>{operation === "delete" ? "Аккаунт и связанные данные будут удалены без возможности восстановления: расписание, статистика, переписка, файлы и доступ. Действие необратимо." : operation === "block" ? "Активные сессии будут завершены. Вход будет закрыт до разблокировки." : operation === "unblock" ? "Пользователь снова сможет войти в TutorGate." : "Роль изменится только при отсутствии назначений, предметов и текущих/будущих занятий. Потребуется повторный вход."}</p>
+        <Button variant={operation === "delete" ? "destructive" : "default"} loading={pending} loadingText="Сохраняем…" onClick={submit}>{operation === "delete" ? "Удалить аккаунт полностью" : "Подтвердить"}</Button>
         <Button variant="secondary" disabled={pending} onClick={() => {setOperation(null);trigger.current?.focus();}}>Отмена</Button></div>
     </DialogContent></Dialog></>;
 }

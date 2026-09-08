@@ -42,38 +42,13 @@ export async function getSchedule(weekParam: unknown, requestedOwner?: unknown):
   const { ownerId, offset } = context;
   const now = new Date();
   const week = parseWeek(weekParam, offset, now);
-  const rows = await readLessons(null, null, user.role === "student" ? { studentId: user.id } : { tutorId: ownerId });
   const db = await createClient();
-  const lessons = await normalizeLessons(rows);
-  if (user.role === "student") return { now: now.toISOString(), role: user.role, week, offset, lessons, students: [], subjects: [], ownerId: user.id, canEdit: false, canEditOffset: true, delegated: false };
-  const assignments: { student_id: string; subject_id: string }[] = [];
-  const subjects: { subject_id: string; subjects: { id: string; name: string } | { id: string; name: string }[] }[] = [];
-  const profiles: { id: string; role: string; full_name: string }[] = [];
-  for (let page = 0; ; page++) {
-    const result = await db.from("student_tutor_assignments").select("student_id,subject_id").eq("tutor_id", ownerId).order("id").range(page*500,page*500+499);
-    if (result.error) throw new Error("Не удалось загрузить назначения.");
-    assignments.push(...result.data); if (result.data.length < 500) break;
-  }
-  for (let page = 0; ; page++) {
-    const result = await db.from("tutor_subjects").select("subject_id,subjects!inner(id,name,is_active)").eq("tutor_id", ownerId).eq("subjects.is_active", true).order("subject_id").range(page*500,page*500+499);
-    if (result.error) throw new Error("Не удалось загрузить предметы.");
-    subjects.push(...result.data); if (result.data.length < 500) break;
-  }
-  for (let page = 0; ; page++) {
-    const result = await db.rpc("visible_profiles").select("id,full_name,role").order("id").range(page*500,page*500+499);
-    if (result.error) throw new Error("Не удалось загрузить учеников.");
-    // visible_profiles returns TABLE; the untyped RPC select also infers a single row.
-    if (!Array.isArray(result.data)) throw new Error("Не удалось загрузить учеников.");
-    profiles.push(...result.data); if (result.data.length < 500) break;
-  }
-  const studentIds = new Set(assignments.map(a => a.student_id));
-  const availability = context.rules;
-  return { now: now.toISOString(), role: user.role, week, offset, lessons, ownerId, ownerName: context.ownerName, delegated: context.delegated, canEdit: true, canEditOffset: !context.delegated,
-    studentAvailability: availability,
-    students: profiles.filter(p => p.role === "student" && studentIds.has(p.id)).map(p => ({ id: p.id, name: p.full_name })),
-    assignments: assignments.map(a => ({ studentId: a.student_id, subjectId: a.subject_id })),
-    subjects: subjects.flatMap(s => (Array.isArray(s.subjects) ? s.subjects : [s.subjects]).map(subject => ({ id: subject.id, name: subject.name }))),
-  };
+  const { data, error } = await db.rpc("schedule_week_snapshot", { p_owner: ownerId, p_week: week });
+  if (error) throw new Error("Не удалось загрузить неделю.");
+  const snapshot = data as Pick<ScheduleData, "lessons" | "students" | "subjects" | "assignments">;
+  return { ...snapshot, now: now.toISOString(), role: user.role, week, offset, ownerId,
+    ownerName: context.ownerName, delegated: context.delegated, canEdit: user.role !== "student",
+    canEditOffset: !context.delegated, studentAvailability: context.rules };
 }
 
 export async function normalizeLessons(rows: LessonRow[]): Promise<ScheduleLesson[]> {

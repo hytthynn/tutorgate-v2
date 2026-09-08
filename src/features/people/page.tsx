@@ -1,3 +1,5 @@
+import { PendingDeletions } from "@/components/people/pending-deletions";
+import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import { DirectoryFilters } from "@/components/people/directory-filters";
@@ -20,16 +22,18 @@ export async function PeoplePage({
 }: {
   kind: "tutors" | "students";
   role: Role;
-  searchParams: { q?: string; subject?: string; tutor?: string };
+  searchParams: { q?: string; subject?: string; tutor?: string; page?: string };
 }) {
-  const { profiles, subjects, assignments, tutorSubjects, viewer } =
-    await getDirectory();
+  const page = /^\d{1,6}$/.test(searchParams.page ?? "") ? Math.min(100000,Number(searchParams.page)) : 0;
+  const directory = await getDirectory({ kind, q: searchParams.q, filter: kind === "tutors" ? searchParams.subject : searchParams.tutor, page });
+  const { profiles, subjects, assignments, tutorSubjects, viewer, paged } = directory;
   const admin = role === "admin" && viewer.role === "admin";
-  const tutors = profiles.filter(
+  const pendingDeletions = admin ? await (await createClient()).rpc("admin_pending_deletions") : null;
+  const tutors = paged ? directory.tutors : profiles.filter(
     (p) => p.role === "tutor" || p.role === "admin",
   );
   let people =
-    kind === "tutors" ? tutors : profiles.filter((p) => p.role === "student");
+    paged ? profiles : kind === "tutors" ? tutors : profiles.filter((p) => p.role === "student");
   if (!admin)
     people = people.filter((p) =>
       assignments.some((a) =>
@@ -38,30 +42,32 @@ export async function PeoplePage({
           : a.tutor_id === viewer.id && a.student_id === p.id,
       ),
     );
-  const total = people.length;
+  const total = paged ? directory.total : people.length;
   const q =
     typeof searchParams.q === "string"
       ? searchParams.q.slice(0, 150).trim().toLowerCase()
       : "";
-  people = people.filter((p) => matchesPerson(p, q, admin));
-  if (searchParams.subject)
+  if (!paged) people = people.filter((p) => matchesPerson(p, q, admin));
+  if (!paged && searchParams.subject)
     people = people.filter((p) =>
       tutorSubjects.some(
         (ts) => ts.tutor_id === p.id && ts.subject_id === searchParams.subject,
       ),
     );
-  if (searchParams.tutor)
+  if (!paged && searchParams.tutor)
     people = people.filter((p) =>
       assignments.some(
         (a) => a.student_id === p.id && a.tutor_id === searchParams.tutor,
       ),
     );
   people.sort((a, b) => a.full_name.localeCompare(b.full_name, "ru"));
+  const pageHref = (n: number) => { const params = new URLSearchParams(); for (const key of ["q","subject","tutor"] as const) if (searchParams[key]) params.set(key,searchParams[key]!); params.set("page",String(n)); return `?${params}`; };
   const title = kind === "tutors" ? "Репетиторы" : "Ученики";
   const subjectName = (id: string) =>
     subjects.find((s) => s.id === id)?.name ?? "Предмет";
   return (
     <>
+      {admin && <PendingDeletions jobs={pendingDeletions?.data ?? []} />}
       <PageHeading
         title={title}
         count={total}
@@ -201,6 +207,8 @@ export async function PeoplePage({
             })}
             <div className="table-footer">
               {people.length} из {total}
+              {paged && page > 0 && <Link href={pageHref(page-1)}>← Предыдущие</Link>}
+              {paged && (page+1)*50 < total && <Link href={pageHref(page+1)}>Следующие →</Link>}
             </div>
           </div>
         )}

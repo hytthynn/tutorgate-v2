@@ -1,3 +1,4 @@
+import { storageFixture, fixturePng } from "./storage-fixtures.mjs";
 // Isolated UI fixtures. This process is never imported by application code.
 // PostgreSQL/RLS behaviour is separately tested with real migrations in PGlite.
 import {chatFixture,resetChats} from "./chat-fixtures.mjs";
@@ -132,10 +133,13 @@ function user(uid) {
   };
 }
 const server = http.createServer(async (req, res) => {
-  let text = "";
-  for await (const chunk of req) text += chunk;
-  const args = text ? JSON.parse(text) : {};
-  const url = new URL(req.url, "http://localhost");
+  const chunks=[]; for await(const chunk of req)chunks.push(chunk);
+  const bytes=Buffer.concat(chunks),url=new URL(req.url,"http://localhost");
+  if(storageFixture(req,res,url,bytes))return;
+  if(url.pathname==="/fixtures/telegram/media"){res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:true,result:{message_id:9000+Math.floor(Math.random()*10000)}}));return;}
+  if(url.pathname==="/fixtures/telegram/get-file"){res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:true,result:{file_path:"photos/fixture.png"}}));return;}
+  if(url.pathname==="/fixtures/telegram/file"){res.writeHead(200,{"Content-Type":"image/png"});res.end(fixturePng);return;}
+  const text=bytes.toString(); const args=text?JSON.parse(text):{};
   let uid;
   try {
     uid = JSON.parse(
@@ -182,6 +186,27 @@ const server = http.createServer(async (req, res) => {
   const applicationResult = chatFixture(op,args,url.pathname,profile,profiles,assignments) ?? applicationFixture(op,args,req.method,url.pathname);
   if (applicationResult) { value=applicationResult.value; status=applicationResult.status; }
   else if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
+  else if(op==="admin_pending_deletions")value=[];
+  else if(op==="admin_directory_page") {
+    const tutors=profiles.filter(p=>["tutor","admin"].includes(p.role)&&p.account_status!=="deleted");
+    let people=profiles.filter(p=>p.account_status!=="deleted"&&(args.p_kind==="students"?p.role==="student":["tutor","admin"].includes(p.role)));
+    const q=(args.p_q??"").toLowerCase().replace(/^@/,"");
+    people=people.filter(p=>[p.full_name,p.login,p.telegram_username,p.telegram_user_id].some(v=>v?.toLowerCase().includes(q)));
+    if(args.p_filter)people=people.filter(p=>args.p_kind==="students"?assignments.some(a=>a.student_id===p.id&&a.tutor_id===args.p_filter):tutorSubjects.some(t=>t.tutor_id===p.id&&t.subject_id===args.p_filter));
+    value={people:people.slice((args.p_page??0)*50,(args.p_page??0)*50+50),total:people.length,tutors,subjects,assignments,tutorSubjects};
+  }
+  else if(op==="admin_prepare_hard_delete_user") {
+    const target=profiles.find(p=>p.id===args.p_user);
+    if(profile?.role!=="admin"||!target||target.role==="admin"){status=403;value={code:"42501"};}
+    else {target.account_status="blocked";for(const [hash,user] of sessionUsers)if(user===target.id){sessions.delete(hash);sessionUsers.delete(hash);}value={status:"prepared",storage_paths:[]};}
+  }
+  else if(op==="admin_purge_hard_delete_user") { const index=profiles.findIndex(p=>p.id===args.p_user);if(index>=0)profiles.splice(index,1);for(let i=lessons.length-1;i>=0;i--)if([lessons[i].student_id,lessons[i].tutor_id].includes(args.p_user))lessons.splice(i,1);value=null; }
+  else if(op==="admin_finish_hard_delete_user") value=null;
+  else if(op==="schedule_week_snapshot") {
+    const ownerId=args.p_owner,offset=preferences.get(ownerId)?.msk_offset_hours??0;
+    const lo=Date.parse(`${args.p_week}T00:00:00Z`)-(3+offset)*3600000,hi=lo+7*86400000;
+    value={lessons:lessons.filter(l=>(profile?.role==="student"?l.student_id===ownerId:l.tutor_id===ownerId)&&Date.parse(l.ends_at)>lo&&Date.parse(l.starts_at)<hi).map(dto),students:profiles.filter(p=>p.role==="student"&&p.account_status==="active"&&assignments.some(a=>a.tutor_id===ownerId&&a.student_id===p.id)).map(p=>({id:p.id,name:p.full_name})),subjects:subjects.filter(sub=>sub.is_active&&tutorSubjects.some(t=>t.tutor_id===ownerId&&t.subject_id===sub.id)).map(sub=>({id:sub.id,name:sub.name})),assignments:assignments.filter(a=>a.tutor_id===ownerId).map(a=>({studentId:a.student_id,subjectId:a.subject_id}))};
+  }
   else if(op.startsWith("admin_") && ["admin_directory_profiles","admin_change_user_role","admin_set_user_blocked","admin_soft_delete_user"].includes(op)) {
     const target=profiles.find(p=>p.id===args.p_user);
     if(profile?.role!=="admin"||profile.account_status!=="active") {status=403;value={code:"42501"};}
@@ -216,6 +241,7 @@ const server = http.createServer(async (req, res) => {
       const owner=profiles.find(p=>p.id===ownerId);
       if(!owner || owner.account_status!=="active" || (ownerId!==uid && profile?.role!=="admin") || (ownerId!==uid && c.kind==="offset"))throw {code:"42501"};
       const group=lessons.filter(l=>c.ids?.includes(l.id)&&l.tutor_id===ownerId);
+      if(["move","transfer"].includes(c.kind)&&group.some(l=>l.color==="coral"))throw {code:"PT014"};
       if(c.ids&&group.length!==c.ids.length)throw {code:"42501"};
       if(c.kind==="restore"){
         const target=c.target.payload;const ownedIds=lessons.filter(l=>l.tutor_id===ownerId).map(l=>l.id);remove(ownedIds);lessons.push(...structuredClone(target.lessons));for(const id of ownedIds)notes.delete(id);for(const [id,note] of Object.entries(target.notes))notes.set(id,note);availability.splice(0,availability.length,...availability.filter(r=>r.tutor_id!==ownerId),...structuredClone(target.rules));preferences.set(ownerId,{user_id:ownerId,msk_offset_hours:target.offset});
@@ -364,9 +390,9 @@ const server = http.createServer(async (req, res) => {
   else if (op === "app_settings") value = [{ hourly_rate: 1500 }];
   else if(op==="request_reset")value=null;
   else if(op==="claim_reset")value=id(4);
-  else if(url.pathname.startsWith("/auth/v1/admin/users"))value={user:user(id(4))};
+  else if(url.pathname.startsWith("/auth/v1/admin/users"))value={user:null};
   else if (op === "token_status") value = args.p_hash ? "valid" : null;
-  if(Array.isArray(value) && ["subjects","tutor_subjects","student_tutor_assignments","visible_profiles","admin_directory_profiles","profiles"].includes(op)) {
+  if(Array.isArray(value) && ["subjects","tutor_subjects","student_tutor_assignments","visible_profiles","admin_directory_profiles","profiles","chat_attachments"].includes(op)) {
     if(op!=="profiles"||req.method!=="PATCH")value=value.filter(row=>matches(row,url.searchParams));
     const from=Number(url.searchParams.get("offset") ?? 0), limit=Number(url.searchParams.get("limit") ?? 500); value=value.slice(from,from+limit);
   }

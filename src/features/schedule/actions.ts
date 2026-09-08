@@ -76,3 +76,9 @@ export async function syncScheduleAction(since: string, requestedOwner?: unknown
   const { readScheduleUpdates } = await import("./queries");
   return readScheduleUpdates(cursor, requestedOwner);
 }
+
+export async function scheduleWeekAction(week: string, owner?: string) {
+  await requireRole();
+  const { getSchedule } = await import("./queries");
+  return getSchedule(z.iso.date().parse(week), owner === undefined ? undefined : z.uuid().parse(owner));
+}

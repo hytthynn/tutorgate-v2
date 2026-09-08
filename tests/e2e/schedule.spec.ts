@@ -48,8 +48,8 @@ test("desktop calendar: CRUD, selection, menu, completion and bulk delete", asyn
   await expect(page.getByText("Приостановить", { exact: true })).toHaveCount(0);
   for (const name of ["Отчёт по ученику"]) await expect(page.getByRole("menuitem", { name: new RegExp(name) })).toBeDisabled();
   await page.getByRole("menuitemradio", { name: "Голубой" }).click(); await settled(page);
-  await expect(a).toHaveAttribute("data-color", "blue");
-  await a.click({ button: "right" }); await page.getByRole("menuitem", { name: "Снять отметку" }).click(); await settled(page); await expect(a.getByTestId("lesson-completed")).toHaveCount(0);
+  await expect(a).toHaveAttribute("data-color", "green");
+  await a.click({ button: "right" }); await page.getByRole("menuitem", { name: "Снять отметку" }).click(); await settled(page); await expect(a.getByTestId("lesson-completed")).toHaveCount(0); await expect(a).toHaveAttribute("data-color","blue");
   await page.getByRole("button", { name: "Добавить занятие" }).click();
   await choose(page, "Ученик", "Анна Смирнова");
   await page.getByRole("combobox", { name: "День", exact: true }).click(); await page.getByRole("option").nth(1).click();
@@ -73,7 +73,7 @@ test("desktop calendar: CRUD, selection, menu, completion and bulk delete", asyn
   await page.screenshot({ path: "artifacts/schedule-desktop.png", fullPage: true });
 });
 
-test("drag snaps, uses magnet on overlap, and refuses future-week edge drop", async ({ page }) => {
+test("014 drag snaps, uses magnet and keeps the week at the edge", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 }); await signIn(page);
   const a = lesson(page, 100);
   await drag(page, a, 0, 14 * 60 + 31);
@@ -86,10 +86,10 @@ test("drag snaps, uses magnet on overlap, and refuses future-week edge drop", as
   const from = (await a.boundingBox())!, grid = (await page.locator(".schedule-grid").boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
   await page.mouse.move(grid.x + grid.width - 3, grid.y + grid.height * 15 / 24, { steps: 10 });
-  await expect(page).toHaveURL(new RegExp(`week=${day(7)}`));
+  const url = page.url(); await page.waitForTimeout(3100); await expect(page).toHaveURL(url);
   await page.mouse.move(grid.x + grid.width * .5 / 7, grid.y + grid.height * 15 / 24, { steps: 2 });
   await page.mouse.up(); await settled(page);
-  await expect(page.getByRole("region", { name: "Уведомления" }).getByRole("alert")).toContainText("Будущая неделя заполняется автоматически");
+  await expect(page.getByRole("region", { name: "Уведомления" }).getByRole("alert")).toHaveCount(0);
   await expect(a).toHaveAttribute("data-date", week);
   await page.reload(); await expect(a).toHaveAttribute("data-date", week);
 });
@@ -136,7 +136,7 @@ test("navigation, invalid URL and persisted MSK offset", async ({ page }) => {
   await expect(lesson(page, 100)).toContainText("12:00–13:00");
   await page.reload(); await expect(page.getByRole("combobox",{name:"Сдвиг МСК"})).toHaveText("МСК+2");
   await page.getByRole("button", { name: "Следующая неделя", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`week=${day(7)}`));
+  const url = page.url(); await page.waitForTimeout(3100); await expect(page).toHaveURL(url);
   await page.goBack(); await expect(page).toHaveURL(new RegExp(`week=${day(0)}`));
   await expect(lesson(page, 100)).toContainText("12:00–13:00");
   await page.goto("/tutor/schedule?week=2026-02-30");
@@ -170,7 +170,7 @@ for (const [width, height] of [[320, 700], [375, 812], [430, 932]]) {
       await expect(page.getByLabel("Заметка")).toHaveValue("PRIVATE_TUTOR_NOTE_секрет");
       await page.getByRole("button", { name: "Отмена", exact: true }).click();
       for (let day = 0; day < 7; day++) await page.getByRole("button", { name: "Следующий день", exact: true }).click();
-      await expect(page).toHaveURL(new RegExp(`week=${day(7)}`));
+      const url = page.url(); await page.waitForTimeout(3100); await expect(page).toHaveURL(url);
       await expect(page.locator('.schedule-day[data-mobile-active="true"]')).toHaveAttribute("data-date", day(7));
       await expect(lesson(page, 102)).toContainText("продолжение");
       await page.getByRole("button", { name: "Текущая", exact: true }).click();

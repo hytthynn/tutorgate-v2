@@ -32,7 +32,7 @@ const catalogue: Record<number, string> = {
   "20": "✅ <b>Сообщение отправлено</b>",
   "21": "🔔 <b>Новое сообщение от ученика</b>\n\n<b>Бурмалда Бурмалда Бурмалда</b>\n\nДобрый день! Да, в 15:00 мне удобно.",
   "22": "⚠️ <b>Чат больше недоступен</b>\n\nЭтот репетитор больше не назначен вашему аккаунту.\n\nВыберите другого репетитора, чтобы отправить сообщение.",
-  "23": "📝 <b>Поддерживаются только текстовые сообщения</b>\n\nОтправьте сообщение обычным текстом.",
+  "23": "⚠️ <b>Этот тип сообщения пока не поддерживается</b>\n\nОтправьте текст, изображение или документ до 10 МБ.",
   "24": "⚠️ <b>Сообщение слишком длинное</b>\n\nМаксимальная длина сообщения — <b>4000 символов</b>.\n\nСократите текст и отправьте его ещё раз.",
   "25": "⚠️ <b>Не удалось отправить сообщение</b>\n\nПопробуйте ещё раз через несколько секунд.\n\nЕсли ошибка повторяется, откройте TutorGate.",
   "26": "💬 <b>Выберите репетитора</b>\n\nСначала укажите, кому хотите написать.",
@@ -58,13 +58,19 @@ export const writeButton: InlineButton = {
   callback_data: "chat:choose",
 };
 const cancel: InlineButton = { text: "✕ Отмена", callback_data: "chat:cancel" };
+export const homeButton: InlineButton = { text: "🏠 Главное меню", callback_data: "menu:home" };
+export const supportButton: InlineButton = { text: "🆘 Поддержка", url: "https://t.me/tutorgate" };
 export function startMessage(role: string | undefined, url: string) {
-  return html(
-    catalogue[
-      role === "student" ? 1 : role === "tutor" ? 2 : role === "admin" ? 3 : 4
-    ],
-    [[siteButton(url)], ...(role === "student" ? [[writeButton]] : [])],
-  );
+  const link = (path: string) => new URL(path,url).toString();
+  const rows: InlineButton[][] = [];
+  if (role === "student") rows.push([{ text: "📅 Расписание", url: link("/student/schedule") }],[writeButton]);
+  if (role === "admin") rows.push([{ text: "📥 Заявки", callback_data: "menu:apps:student:0" }]);
+  if (role === "tutor" || role === "admin") {
+    rows.push([{ text: "💬 Чаты", url: link(`/${role}/chats`) }],[{ text: "📅 Расписание", url: link(`/${role}/schedule`) }]);
+    rows.push([{ text: role === "tutor" ? "📊 Статистика" : "👩‍🏫 Репетиторы", url: link(`/${role}/${role === "tutor" ? "statistics" : "tutors"}`) }]);
+  }
+  rows.push([siteButton(url)],[supportButton]);
+  return html(catalogue[role === "student" ? 1 : role === "tutor" ? 2 : role === "admin" ? 3 : 4],rows);
 }
 export function confirmationMessage(status: string, url: string) {
   const codes: Record<string, number> = {
@@ -98,7 +104,7 @@ export function registrationMessage(
 export const resetMessage = (url: string) =>
   html(catalogue[15], [[{ text: "🔑 Сменить пароль", url }]]);
 export const recipientMessage = (name: string) =>
-  html(catalogue[17].replace("Дмитрий Тарасов", escapeHtml(name)), [[cancel]]);
+  html(catalogue[17].replace("Дмитрий Тарасов", escapeHtml(name)), [[cancel,homeButton]]);
 export type BotTutor = { id: string; name: string; subjects: string };
 export function pickerMessage(tutors: BotTutor[], page = 0) {
   const current = Math.max(0, Math.min(page, Math.ceil(tutors.length / 8) - 1));
@@ -116,7 +122,7 @@ export function pickerMessage(tutors: BotTutor[], page = 0) {
   if ((current + 1) * 8 < tutors.length)
     paging.push({ text: "Далее →", callback_data: `chat:page:${current + 1}` });
   if (paging.length) rows.push(paging);
-  rows.push([cancel]);
+  rows.push([cancel,homeButton]);
   return html(catalogue[18], rows);
 }
 export function chatStatusMessage(
@@ -145,7 +151,7 @@ export function chatStatusMessage(
         : ["no_tutors", "error", "tutor", "admin"].includes(status)
           ? [[siteButton(url)]]
           : [];
-  return html(catalogue[codes[status] ?? 25], rows);
+  return html(catalogue[codes[status] ?? 25], [...rows,[homeButton]]);
 }
 export function tutorMessage(tutorId: string, name: string, body: string): TelegramMessage[] {
   const rows: InlineButton[][] = [[{ text: "↩️ Ответить", callback_data: `chat:to:${tutorId}` }]];

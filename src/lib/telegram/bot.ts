@@ -34,3 +34,12 @@ export async function editTemplate(chatId: string, messageId: number, message: T
   if (outcome === "error") throw new Error("Telegram control edit failed");
   return outcome === "edited";
 }
+
+export async function sendMedia(chat: string, file: Blob, name: string, image: boolean): Promise<number> {
+  const field = image ? "photo" : "document";
+  const form = new FormData(); form.set("chat_id",chat); form.set(field,file,name);
+  const response = await fetch(`https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/${image ? "sendPhoto" : "sendDocument"}`, { method: "POST", body: form, signal: AbortSignal.timeout(30000), cache: "no-store" });
+  const result = await response.json();
+  if (!response.ok || !result.ok || !Number.isSafeInteger(result.result?.message_id)) throw new Error("Media delivery failed");
+  return result.result.message_id;
+}

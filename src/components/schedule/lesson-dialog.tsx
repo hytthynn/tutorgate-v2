@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getLessonNoteAction } from "@/features/schedule/actions";
 import { toast } from "@/components/ui/toaster";
 import { dayOptions, localParts } from "@/features/schedule/time";
-import { isInactive, statusLabel } from "@/features/schedule/operations";
+import { isTimeLocked, isInactive, statusLabel } from "@/features/schedule/operations";
 import { lessonSchema, type LessonInput } from "@/features/schedule/validation";
 import type { ScheduleData, ScheduleLesson, ScheduleResult } from "@/features/schedule/types";
 
@@ -26,6 +26,7 @@ export function LessonDialog({ lesson, draft, serverErrors, data, date, onClose,
   const subjectValue=historical?(lesson.subjectId??"__historical__"):choices.subjects.some(s=>s.id===subjectId)?subjectId:"";
   const noteElement = useRef<HTMLTextAreaElement>(null);
   const studentViewer = data.role === "student";
+  const timeLocked = !!lesson && isTimeLocked(lesson);
   const readonly = studentViewer || !!lesson && isInactive(lesson);
   const [note, setNote] = useState(draft?.note ?? "");
   const [loading, setLoading] = useState(Boolean(lesson && !studentViewer && !draft));
@@ -54,7 +55,7 @@ export function LessonDialog({ lesson, draft, serverErrors, data, date, onClose,
   // must commit immediately, not be deferred inside the form action transition.
   async function submit(form: FormData) {
     if (locked.current || loading || noteFailed) return;
-    const input = { studentId, subjectId: subjectValue === "__historical__" ? null : subjectValue, subjectChanged: !lesson || subjectChanged, date: form.get("date"), time: form.get("time"), durationMinutes: Number(form.get("durationMinutes")), note };
+    const input = { studentId, subjectId: subjectValue === "__historical__" ? null : subjectValue, subjectChanged: !lesson || subjectChanged, date: timeLocked ? start.date : form.get("date"), time: timeLocked ? start.time : form.get("time"), durationMinutes: timeLocked ? lesson!.durationMinutes : Number(form.get("durationMinutes")), note };
     const parsed = lessonSchema.safeParse(input);
     if (!parsed.success) {
       const errors: Record<string, string[]> = {};
@@ -88,11 +89,12 @@ export function LessonDialog({ lesson, draft, serverErrors, data, date, onClose,
           {lesson && !data.students.some((s) => s.id === lesson.studentId) && <option value={lesson.studentId}>{lesson.studentName} — назначение снято</option>}
           {data.students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Combobox>{error("studentId")}</label>
+        {timeLocked && <p>Красное занятие нельзя перемещать: дата, время и длительность закреплены.</p>}
         <div className="lesson-time-fields">
-          <label>День<Select aria-label="День" name="date" onValueChange={()=>clearFieldError("date")} defaultValue={start.date} required disabled={pending}>{dayOptions(start.date).map(day => <option key={day.value} value={day.value}>{day.label}</option>)}</Select>{error("date")}</label>
-          <label>Начало<input name="time" type="time" step="60" defaultValue={start.time} required disabled={pending} />{error("time")}</label>
+          <label>День<Select aria-label="День" name="date" onValueChange={()=>clearFieldError("date")} defaultValue={start.date} required disabled={pending || timeLocked}>{dayOptions(start.date).map(day => <option key={day.value} value={day.value}>{day.label}</option>)}</Select>{error("date")}</label>
+          <label>Начало<input name="time" type="time" step="60" defaultValue={start.time} required disabled={pending || timeLocked} />{error("time")}</label>
         </div>
-        <label>Длительность, мин<input name="durationMinutes" type="number" min="1" max="600" step="1" defaultValue={draft?.durationMinutes ?? lesson?.durationMinutes ?? 60} required disabled={pending} />{error("durationMinutes")}</label>
+        <label>Длительность, мин<input name="durationMinutes" type="number" min="1" max="600" step="1" defaultValue={draft?.durationMinutes ?? lesson?.durationMinutes ?? 60} required disabled={pending || timeLocked} />{error("durationMinutes")}</label>
         <label>Предмет<Select aria-label="Предмет" name="subjectId" value={subjectValue} onValueChange={value=>{setSubjectId(value);setSubjectChanged(true);clearFieldError("subjectId");}} required disabled={pending||(!historical&&!choices.subjects.length)}>
           <option value="" disabled>{choices.subjectPlaceholder}</option>
           {historical&&<option value={lesson!.subjectId??"__historical__"}>{lesson!.subjectName} — исторический предмет</option>}

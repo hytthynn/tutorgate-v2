@@ -1,5 +1,5 @@
 "use client";
-import { useCallback,useState } from "react";
+import { useCallback,useEffect,useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { chatUnreadAction } from "@/features/chats/actions";
 import { useVisiblePolling } from "@/features/chats/use-visible-polling";
+import { SupportLink } from "@/components/shared/support-link";
 import { Brand } from "@/components/shared/brand";
 import {
   Dialog,
@@ -53,7 +54,8 @@ export function Navigation({ profile }: { profile: Profile }) {
   const [open, setOpen] = useState(false);
   const [unread,setUnread]=useState(0);
   const pollUnread=useCallback(async()=>{const result=await chatUnreadAction();if(result.data!==undefined)setUnread(result.data);},[]);
-  useVisiblePolling(pollUnread,profile.role!=="student");
+  useVisiblePolling(pollUnread,profile.role!=="student" && !pathname.endsWith("/chats"));
+  useEffect(() => { const receive = (event: Event) => { const n = (event as CustomEvent<number>).detail; if (Number.isFinite(n)) setUnread(n); }; window.addEventListener("tutorgate:chat-unread",receive); return () => window.removeEventListener("tutorgate:chat-unread",receive); },[]);
   const links = (
     <nav aria-label="Основная навигация">
       {items
@@ -95,6 +97,7 @@ export function Navigation({ profile }: { profile: Profile }) {
         <div className="workspace-label">ЛИЧНЫЙ КАБИНЕТ</div>
         {links}
         <div className="sidebar-bottom">
+          <SupportLink />
           {account}
         </div>
       </aside>
@@ -110,7 +113,8 @@ export function Navigation({ profile }: { profile: Profile }) {
             <DialogTitle>Личный кабинет</DialogTitle>
             <DialogDescription>{roleNames[profile.role]}</DialogDescription>
             {links}
-            {account}
+            <SupportLink />
+          {account}
           </DialogContent>
         </Dialog>
       </header>

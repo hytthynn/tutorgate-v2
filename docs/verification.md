@@ -1,46 +1,53 @@
-# Проверки пакета 012
+# Проверки пакета 014
 
-Дата: 06.09.2026. [Текущее ТЗ](TZ_TutorGate_012_chat_admin_schedule_ui_fixes.md).
+Дата: 08.09.2026. [Текущее ТЗ](TZ_TutorGate_014_schedule_chat_bot_accounts_performance.md).
 
-Проверки выполняются с установленными закреплёнными зависимостями проекта. Версии и lockfile не менялись. Полная цепочка миграций 001–012 проверяется в PGlite; браузерные тесты запускают настоящий Next с локальными Supabase/Telegram fixtures. Production Supabase и Telegram не использовались, миграция на рабочую БД не применялась.
+Проверки используют закреплённые зависимости. Версии и lockfile не менялись. Цепочка миграций 001–014 выполняется в изолированном PGlite. E2E запускает настоящий Next с локальными Supabase, Storage и Telegram fixtures. Рабочая БД и реальный Telegram не изменялись.
 
-## Результаты
-
-Все обязательные команды выполнены успешно:
+## Команды
 
 | Команда | Результат |
 |---|---|
-| `npm run lint` | Без ошибок и предупреждений |
+| `npm run lint` | Пройдено |
 | `npm run typecheck` | Пройдено |
-| `npm test` | 121/121, без пропусков |
-| `npm run test:docs` | Markdown-ссылки корректны |
+| `npm test` | 139/139, без пропусков |
+| `npm run test:docs` | Пройдено: 23 Markdown-файла, 46 относительных ссылок |
 | `npm run build` | Production-сборка успешна |
-| `npm run test:e2e` | 73/73, полный повторный прогон за 5,8 минуты |
+| `npm run test:e2e` | 78/79 за 6 минут; один timeout исправлен, целевой повтор 3/3 |
 
-В первом полном E2E-прогоне новый сценарий упёрся в пятисекундное ожидание входа во время параллельной пересборки. Ожидание входа увеличено до 15 секунд; повторный полный прогон без параллельной нагрузки прошёл целиком.
+Логи: `artifacts/package-014-lint.log`, `artifacts/package-014-typecheck.log`, `artifacts/package-014-tests.log`, `artifacts/package-014-docs.log`, `artifacts/package-014-build.log`, `artifacts/package-014-final-e2e.log`. Четыре новых браузерных сценария отдельно пройдены: `artifacts/package-014-new-e2e.log`.
 
-Логи: `artifacts/package-012-lint.log`, `artifacts/package-012-typecheck.log`, `artifacts/package-012-tests.log`, `artifacts/package-012-docs.log`, `artifacts/package-012-build.log`, `artifacts/package-012-e2e.log`.
+В ходе проверки исправлены устаревшие ожидания цвета completed-занятий, переключения недели при drag, числа кнопок меню бота и последние 200 сообщений. Storage fixtures дополнены обработкой бинарных загрузок. Общий прогон прошёл 78 сценариев; мобильный сценарий package-010 не дождался меню после синтетического contextmenu. Добавлено ожидание видимого меню с повтором действия, поскольку синтетический event не ждёт hydration. Команда `npm run test:e2e -- tests/e2e/package-010.spec.ts --grep 'empty menu uses selected mobile day' --repeat-each=3` прошла 3/3 за 15,7 с (`artifacts/package-014-mobile-recheck.log`). После изменения ожидания весь набор повторно не запускался.
 
-## Регрессии
+Просмотрены актуальные снимки мобильного расписания `artifacts/return-button-390.png` и чата `test-results/package-011-011-failed-Tel-85998-ast-200-and-responsive-chat/chat-390.png`: элементы помещаются по ширине, форматирование и прикрепление файлов доступны. Каталог test-results перезаписывается следующим прогоном.
 
-- Telegram: видимая повторная отмена и меню, stale callback без мутации, очистка только недоступного recipient, сохранение другого активного recipient, Reply на последней части, callback ≤64 bytes, native Reply priority, dedupe, admin notification URL и shortcut.
-- Chat DB: teacher=tutor/admin, личные назначения admin, запрет чужих диалогов, service-only notification/cleanup, account status, delivery mapping и текстовый лимит.
-- Delegated DB: actor/owner, active teacher target, admin→admin, UUID, target assignments, create/edit/note, move/paste/transfer, color/completed/delete, availability, rollover, owner canonical data, cross-owner signed restore, self-admin offset и запрет delegated offset/offsetChanged restore, прямые writes закрыты. Общие suites продолжают проверять exclusion constraints и атомарный magnet.
-- E2E: переход из /admin/tutors, target query и имя, создание/редактирование target lesson и note, completion, disabled offset, сохранение target при навигации, отсутствие посторонних учеников в форме; admin-chat roundtrip через mocked delivery; settings bounding boxes на 1440/1100/768/390 px, включая искусственное увеличение высоты Subjects.
+## Покрытие
 
-## Визуальная проверка
+- Расписание: приоритет effective color, сохранность base color, coral temporal lock в UI и DB, заметки без сдвига времени, ограничения владельца/delegated admin, недельная загрузка и отсутствие edge navigation. Старые suites продолжают проверять magnet, exclusion constraints и undo/redo.
+- Чат: безопасные structured marks и ссылки, HTML escaping и разбиение Telegram-сообщений, UTF-16 entities, rich paste без исполнения HTML, файлы через input/drop, удаление из draft, несколько вложений, входящая фотография, граница 10 МБ и DB participant/grants. Delta включает delivery transitions; mapping сохраняется для каждой доставленной части при частичном сбое.
+- Аккаунты: запрет удаления admin/чужой роли, очистка зависимостей, сохранность других пользователей, запрет раннего purge до истечения upload URL, повторение после сбоя между DB и Auth.
+- Бот: меню по ролям, проверка admin identity, очередь заявок через общий DB-домен. Общие application suites проверяют существующие атомарные review/token правила.
+- UI: центрирование Select и ограничения viewport, desktop/mobile support link, логотип без точки.
 
-Снимки настоящих страниц в `artifacts/package-012-settings-*.png`, `artifacts/package-012-admin-chat.png`, `artifacts/package-012-delegated.png`. Desktop settings, admin chat и delegated editor просмотрены: Telegram сразу под ставкой, предметы справа, удалённые пояснения отсутствуют. Screenshot fixtures не подтверждают внешнюю доставку Telegram.
+## Производительность
 
-## Выпуск
+Изолированный PGlite: 10 000 занятий, 10 000 сообщений, 5 053 профиля и 5 001 назначение; 20 прогретых измерений. Скрипт: `node scripts/benchmark-014.mjs`. Время ниже — время локального запроса, без сети и замера накладных расходов RLS; это не production SLA.
 
-Для базы, на которой уже применены 001–011, выполнить целиком `supabase/migrations/202609060012_admin_chat_schedule_fixes.sql` от владельца БД перед запуском нового приложения. Миграция содержит begin/commit и общий schedule advisory lock. Исторические миграции не изменены. После обновления окружения проверить реальный Telegram roundtrip student↔admin, cancel/reply, собственное и delegated расписание.
+| Операция | p50 до → после, мс | p95 до → после, мс | JSON до → после, байт |
+|---|---:|---:|---:|
+| Начальное расписание → неделя | 206,73 → 3,03 | 262,97 → 4,89 | 6 030 001 → 4 640 |
+| Poll чата без изменений | 124,54 → 6,97 | 169,24 → 9,75 | 62 455 → 115 |
+| Сохранение расписания | 1 827,81 → 1 473,91 | 2 274,97 → 1 525,21 | 5 385 654 → 5 385 654 |
+| Каталог → страница 50 | 65,12 → 4,98 | 87,14 → 5,46 | 1 048 218 → 32 240 |
 
+Baseline расписания читает полные raw rows, новая неделя включает имена и варианты формы. Каталог сравнивает полный список с серверной страницей и лёгкими вариантами преподавателей. Mutation сохраняет полный канонический owner snapshot; его объём и стоимость остаются ограничением на длинной истории. Замеры и EXPLAIN ANALYZE: `artifacts/package-014-performance.json`. Недельный запрос использует существующий `lessons_tutor_time`, delta — новый индекс conversation/revision. Для статистики достаточно существующего индекса.
 
-## Дополнительные правки: кнопка возврата и единая панель бота
+## Выпуск и ограничения staging
 
-Миграция 013 добавляет закрытое состояние панели. Unit/DB регрессии проверяют сохранение одного ID, истечение claim, изоляцию чатов, отказ по старому токену, service-only grants, идентичные edits, удалённую панель и ошибки без повторных отправок. Браузерные тесты проверяют меню/отмену/отправку в одной панели, сохранность текста преподавателя при Reply и восстановление панели. Кнопка возврата проверена на 1440/390 px и с клавиатурой; снимки `artifacts/return-button-1440.png` и `artifacts/return-button-390.png` просмотрены.
+Миграцию `supabase/migrations/202609070014_product_polish_chat_files_hard_delete_performance.sql` применять целиком после 013 перед запуском новой версии. Исторические миграции не изменены. Миграция создаёт private bucket и отзывает старые подписанные schedule history.
 
-Итог: `npm run lint`, `npm run typecheck`, `npm test` (126/126), `npm run test:docs`, `npm run build` и `npm run test:e2e` (75/75) пройдены. Новые E2E-сценарии единой панели и кнопки возврата — 2/2. Логи проверок — `artifacts/bot-control-*.log` и `artifacts/final-e2e.log`. Внешняя БД и реальный Telegram не изменялись.
+В доверенном серверном scheduler необходимо настроить ежечасный запуск `node scripts/cleanup-chat-storage.mjs` с серверными переменными Supabase. Он удаляет брошенные загрузки после защитного срока; ошибки допускают безопасный повтор. В текущем окружении scheduler не настроен.
 
-Уточнение поведения бота: /start и ответы на текст создают новое сообщение; кнопки текущей панели редактируют её, а кнопки старых сообщений начинают новую панель. Обновлённый E2E проверяет повторный /start без edits, отдельный ответ на текст, переходы и отмену в панели, Reply преподавателю и восстановление удалённой панели. Пройдены lint, typecheck, test:docs, build, 127/127 unit/DB и 2/2 целевых E2E (`artifacts/bot-flow-unit.log`, `artifacts/bot-flow-e2e.log`, `artifacts/bot-flow-build.log`). Полный E2E 75/75 выше относится к предыдущей версии поведения.
+Удаление аккаунта блокирует доступ сразу. Если могли остаться действующие signed upload URL, финальное удаление ждёт защитного срока (до 2 часов 5 минут) и завершается кнопкой повтора в админке. Успех показывается только после Storage, DB и Auth.
+
+До production остаётся реальный staging smoke test из раздела 19 ТЗ: форматирование/фото/документ/Reply/превышение 10 МБ в обе стороны, одновременные действия двух admin над заявкой, удаление тестового пользователя с Storage/Auth и повторная заявка того же Telegram, delegated/coral и mobile. Нужны также сетевые performance-замеры staging. Fixtures не подтверждают реальную внешнюю доставку, signed URL Supabase или состояние deployed Storage. Полный staging Definition of Done пока не подтверждён.

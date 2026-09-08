@@ -1,9 +1,17 @@
 "use client";
+import { DraftFile, MessageFile } from "./attachments";
+import { prepareChatUpload, finalizeChatUploads } from "@/features/chats/attachment-actions";
+import { MAX_ATTACHMENTS, validateAttachment } from "@/features/chats/attachments";
+import { RichEditor } from "./rich-editor";
+import { RichMessage } from "./rich-content";
+import { plainContent, plainText, type RichContent } from "@/features/chats/rich-text";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  chatPreviousAction,
+  chatUpdatesAction,
   chatMarkReadAction,
   chatSendAction,
   chatSnapshotAction,
@@ -36,9 +44,21 @@ export function ChatView({
   const [error, setError] = useState(initialError ?? ""),
     [readError, setReadError] = useState(""),
     [sendError, setSendError] = useState("");
-  const [drafts, setDrafts] = useState<Record<string, string>>({}),
+  const [drafts, setDrafts] = useState<Record<string, RichContent>>({}),
     [pending, setPending] = useState(false),
     [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState<Record<string, File[]>>({});
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const draftFiles = selected ? files[selected] ?? [] : [];
+  function addFiles(incoming: File[]) {
+    if (!selected || pending) return;
+    try {
+      if (draftFiles.length + incoming.length > MAX_ATTACHMENTS) throw new Error("Не больше 10 файлов в сообщении.");
+      for (const file of incoming) { try { validateAttachment({ name: file.name, size: file.size, type: file.type }); } catch { throw new Error(`${file.name}: размер должен быть от 1 байта до 10 МБ.`); } }
+      setFiles(all => ({ ...all, [selected]: [...draftFiles,...incoming] })); setSendError("");
+    } catch (error) { setSendError(error instanceof Error ? error.message : "Не удалось добавить файлы."); }
+  }
   const requestId = useRef(0),
     sending = useRef(false),
     selectedRef = useRef(selected),
@@ -51,11 +71,14 @@ export function ChatView({
       requests.current++;
     };
   }, [selected]);
+  const snapshotRef = useRef({ snapshot: initial, student: initialStudent });
   const refresh = useCallback(async () => {
     const version = ++requestId.current;
     setLoading(true);
     try {
-      const result = await chatSnapshotAction(selected);
+      const previous = snapshotRef.current;
+      const delta = previous.student === selected && previous.snapshot.cursor !== undefined;
+      const result = delta ? await chatUpdatesAction(selected,previous.snapshot.cursor!,previous.snapshot.directoryVersion ?? "0") : await chatSnapshotAction(selected);
       if (version !== requestId.current || selectedRef.current !== selected)
         return;
       if (result.error) {
@@ -63,7 +86,15 @@ export function ChatView({
         return;
       }
       setError("");
-      setSnapshot(result.data!);
+      const incoming = result.data!;
+      const merged = delta ? { ...previous.snapshot, ...incoming,
+        hasMore: previous.snapshot.hasMore,
+        conversations: incoming.conversations ?? previous.snapshot.conversations,
+        messages: [...new Map([...previous.snapshot.messages,...incoming.messages].map(m => [m.id,m])).values()].sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)),
+      } : incoming;
+      snapshotRef.current = { student: selected, snapshot: merged };
+      setSnapshot(merged);
+      window.dispatchEvent(new CustomEvent("tutorgate:chat-unread", { detail: merged.totalUnread }));
       setLoadedFor(selected);
     } catch {
       if (version === requestId.current)
@@ -126,13 +157,14 @@ export function ChatView({
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
   }, [selected, lastId]);
-  const draft = selected ? (drafts[selected] ?? "") : "";
+  const content = selected ? (drafts[selected] ?? plainContent("")) : plainContent("");
+  const draft = plainText(content);
   async function send() {
     if (
       !selected ||
       !current ||
       sending.current ||
-      !draft.trim() ||
+      (!draft.trim() && !draftFiles.length) ||
       codePointLength(draft) > 4000
     )
       return;
@@ -142,15 +174,24 @@ export function ChatView({
     const student = selected,
       sentText = draft;
     try {
-      const result = await chatSendAction(student, sentText);
+      const ids: string[] = [];
+      for (const file of draftFiles) {
+        const prepared = await prepareChatUpload(student,{ name: file.name, size: file.size, type: file.type });
+        if (prepared.error) { setSendError(`${file.name}: ${prepared.error}`); return; }
+        const uploaded = await fetch(prepared.data!.url,{ method: "PUT", body: file, headers: { "Content-Type": "application/octet-stream" } });
+        if (!uploaded.ok) { setSendError(`${file.name}: загрузка не удалась.`); return; }
+        ids.push(prepared.data!.id);
+      }
+      const result = ids.length ? await finalizeChatUploads(student,ids,content) : await chatSendAction(student, sentText, content);
       if (result.error) {
         setSendError(result.error);
         return;
       }
       setDrafts((all) => ({
         ...all,
-        [student]: all[student] === sentText ? "" : all[student],
+        [student]: all[student] === content ? plainContent("") : all[student],
       }));
+      setFiles(all => ({ ...all, [student]: [] }));
       await refresh();
     } catch {
       setSendError(
@@ -248,9 +289,18 @@ export function ChatView({
                 <h2>{current.studentName}</h2>
               </header>
               {snapshot.hasMore && loadedFor === selected && (
-                <p className="chat-history-limit">
-                  Показаны последние 200 сообщений диалога.
-                </p>
+                <Button variant="ghost" size="sm" loading={loading} onClick={async () => {
+                  const first = messages[0]; if (!selected || !first) return;
+                  setLoading(true);
+                  try {
+                    const result = await chatPreviousAction(selected,first.created_at,first.id);
+                    if (selectedRef.current !== selected) return;
+                    if (result.error) { setError(result.error); return; }
+                    const previous = snapshotRef.current.snapshot;
+                    const updated = { ...previous, hasMore: result.data!.length === 200, messages: [...new Map([...result.data!,...previous.messages].map(m => [m.id,m])).values()] };
+                    snapshotRef.current = { student: selected, snapshot: updated }; setSnapshot(updated);
+                  } finally { setLoading(false); }
+                }}>Загрузить предыдущие</Button>
               )}
               <div
                 className="chat-history"
@@ -286,7 +336,8 @@ export function ChatView({
                               : "Сообщение ученика"
                           }
                         >
-                          <p>{m.body}</p>
+                          <p><RichMessage content={m.content ?? plainContent(m.body)} /></p>
+                          {m.attachments?.map(file => <MessageFile key={file.id} file={file} />)}
                           <footer>
                             <span>
                               {m.sender_role === "tutor" ? "Вы" : "Ученик"}
@@ -322,7 +373,10 @@ export function ChatView({
                 <div ref={bottom} />
               </div>
               <form
-                className="chat-composer"
+                className={`chat-composer ${dragging ? "is-file-drop" : ""}`}
+                onDragOver={event => { event.preventDefault(); setDragging(true); }}
+                onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }}
+                onDrop={event => { event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer.files)); }}
                 onSubmit={(event) => {
                   event.preventDefault();
                   void send();
@@ -333,32 +387,12 @@ export function ChatView({
                     {sendError || readError}
                   </p>
                 )}
+                {dragging && <p>Перетащите файлы сюда</p>}
+                <input ref={fileInput} type="file" multiple hidden onChange={event => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
+                <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => fileInput.current?.click()}>Прикрепить файл</Button>
+                {draftFiles.map((file,i) => <DraftFile key={`${file.name}-${i}`} file={file} remove={() => { if (!pending) setFiles(all => ({ ...all, [selected!]: draftFiles.filter((_,index) => index !== i) })); }} />)}
                 <label htmlFor="chat-message">Сообщение ученику</label>
-                <textarea
-                  id="chat-message"
-                  value={draft}
-                  rows={3}
-                  disabled={pending}
-                  maxLength={8000}
-                  placeholder="Напишите сообщение…"
-                  aria-describedby="chat-composer-help"
-                  onChange={(event) => {
-                    const value = [...event.target.value]
-                      .slice(0, 4000)
-                      .join("");
-                    setDrafts((all) => ({ ...all, [selected!]: value }));
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      void send();
-                    }
-                  }}
-                />
+                <RichEditor value={content} disabled={pending} onChange={value => setDrafts(all => ({ ...all, [selected!]: value }))} onSend={() => void send()} />
                 <div className="chat-composer-bottom">
                   <span id="chat-composer-help">
                     {codePointLength(draft)} / 4000{" "}
@@ -370,7 +404,7 @@ export function ChatView({
                     type="submit"
                     loading={pending}
                     loadingText="Отправляем…"
-                    disabled={!draft.trim() || loadedFor !== selected}
+                    disabled={(!draft.trim() && !draftFiles.length) || loadedFor !== selected}
                   >
                     <Send size={16} aria-hidden />
                     Отправить

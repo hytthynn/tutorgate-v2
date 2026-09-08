@@ -1,5 +1,18 @@
 # База данных
 
+## Пакет 014: текущие контракты
+
+Миграция `202609070014_product_polish_chat_files_hard_delete_performance.sql` применяется после 013. Исторические миграции сохранены.
+
+`chat_messages.content` — whitelist JSON runs (text + marks), body — plain preview. Старые сообщения получают plain runs. `chat_attachments` хранит metadata; размер 1…10485760. Deferred trigger требует непустой текст либо вложение. Публичное чтение storage_path не разрешено, DTO содержит только безопасные метаданные. Participant RLS сохраняется без общего admin bypass. Signed download URL выдаёт Server Action после проверки активной пары, TTL 60 секунд. `private.chat_uploads` резервирует пути; service-only finalize проверяет пару повторно, сервер сверяет фактический размер Storage. HTML/SVG выдаются как download, не inline image.
+
+Hard delete заменяет конечный soft-delete 010: prepare блокирует вход и отзывает сессии, private ledger сохраняет пути; сервер удаляет Storage, DB purge удаляет зависимости/profile, Auth Admin API физически удаляет UUID. Finish проверяет отсутствие Auth/profile. Только active admin, admin/self targets запрещены. Audit FK nullable SET NULL. Старый authenticated soft-delete endpoint закрыт. Незавершённые удаления доступны для повтора в каталоге администратора.
+
+Чтобы старое разрешение upload не восстановило объект после удаления, job с недавними вложениями/загрузками ожидает истечения signed upload URL (до 2 часов 5 минут). До завершения пользователю закрыт доступ; UI не сообщает успех. Для прямого удаления сообщений/conversations metadata cascade ставит объект в private GC ledger. Развёртывание требует часового запуска `node --env-file=.env.local scripts/cleanup-chat-storage.mjs` доверенным scheduler; script идемпотентен, signed paths не переиспользуются.
+
+Optimized reads: `schedule_week_snapshot`, `chat_updates`, `chat_previous`, `admin_directory_page` (50 строк). Технические bot/media/deletion/GC RPC доступны только service_role, actor повторно проверяется в DB. Индекс `chat_messages(conversation_id,revision)` добавлен после fixture EXPLAIN с полным сканированием 10 000 строк. Для statistics существующий `lessons_tutor_time` используется; дополнительные индексы статистики/assignments без подтверждения не добавлены.
+
+
 Источник истины — SQL в `supabase/migrations`. Все public tables имеют RLS. `private` не экспонируется PostgREST. USAGE для authenticated нужен лишь для RLS helpers и не предоставляет SELECT на private tables.
 
 ```mermaid

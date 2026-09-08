@@ -9,5 +9,8 @@ globalThis.fetch = (input, init) => {
   return original('http://127.0.0.1:54329/fixtures/telegram/send',init);
  if(url==='https://api.telegram.org/botfixture-bot/editMessageText')return original('http://127.0.0.1:54329/fixtures/telegram/edit',init);
  if(url==='https://api.telegram.org/botfixture-bot/answerCallbackQuery')return original('http://127.0.0.1:54329/fixtures/telegram/answer',init);
+ if(/https:\/\/api.telegram.org\/botfixture-bot\/send(Photo|Document)$/.test(url))return original('http://127.0.0.1:54329/fixtures/telegram/media',init);
+ if(url==='https://api.telegram.org/botfixture-bot/getFile')return original('http://127.0.0.1:54329/fixtures/telegram/get-file',init);
+ if(url.startsWith('https://api.telegram.org/file/botfixture-bot/'))return original('http://127.0.0.1:54329/fixtures/telegram/file',init);
  return original(input,init);
 };

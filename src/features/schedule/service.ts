@@ -9,6 +9,7 @@ import type { ScheduleResult } from "./types";
 export function scheduleError(error: unknown): ScheduleResult {
   if (error instanceof z.ZodError) return { errors: z.flattenError(error).fieldErrors as Record<string, string[]> };
   const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+  if (code === "PT014") return { error: "Красное занятие нельзя перемещать: дата, время и длительность закреплены." };
   if (code === "PT005") return { error: "Это занятие неактивно и не может быть изменено." };
   if (code === "PT006") return { error: "Перенесённое занятие нельзя переносить повторно." };
   if (code === "PT007") return { error: "Выберите текущую или следующую неделю для переноса." };

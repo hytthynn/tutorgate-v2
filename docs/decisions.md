@@ -1,5 +1,14 @@
 # Архитектурные решения
 
+## ADR 014 — статусные цвета, файлы и физическое удаление
+
+Ручной color остаётся основанием conflict class. Автоматические blue/green живут только в отображении, inactive имеет наивысший приоритет. Coral запрещает temporal changes даже под автоматическим цветом.
+
+Удаление аккаунта означает purge DB/Storage/Auth, а не tombstone с сохранением статистики. Внешние системы не имеют общей транзакции: private ledger, блокировка входа, ожидание ранее выданных upload разрешений, последовательная очистка и идемпотентный повтор. Успех показывается только после DB-проверки отсутствия Auth/profile.
+
+Файлы передаются через private Storage без Supabase session в браузере. Небольшой editor реализован без новых зависимостей: structured runs, выделение/toolbar и безопасный React preview. Исторические решения 008–013 о coral drag, transfer visual base color, soft delete и plain text отменены в соответствующих частях.
+
+
 ## ADR-001 — Username через скрытый Supabase alias
 Supabase Auth использует случайный `u_<random>@<technical-domain>`. Пользователь вводит только username/password. Mapping — private.auth_aliases. Public profile не содержит логин или alias.
 

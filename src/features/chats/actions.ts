@@ -1,10 +1,10 @@
 "use server";
+import { contentSchema, plainText, plainContent } from "./rich-text";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
-import { serviceRpc } from "@/lib/supabase/admin";
-import { sendTemplate } from "@/lib/telegram/bot";
-import { codePointLength, tutorMessage } from "@/lib/telegram/templates";
+import { deliverChat } from "./delivery";
+import { codePointLength } from "@/lib/telegram/templates";
 import type { ChatMessage, ChatResult, ChatSnapshot } from "./types";
 export async function chatSnapshotAction(
   student: string | null,
@@ -59,18 +59,21 @@ export async function chatMarkReadAction(
 export async function chatSendAction(
   student: string,
   text: string,
+  content?: unknown,
 ): Promise<ChatResult<ChatMessage>> {
   const actor = await requireRole(["tutor", "admin"]);
   if (!z.uuid().safeParse(student).success)
     return { error: "Ученик не найден." };
   if (typeof text !== "string" || !text.trim() || codePointLength(text) > 4000)
     return { error: "Введите текст от 1 до 4000 символов." };
+  const parsed = contentSchema.safeParse(content ?? plainContent(text));
+  if (!parsed.success || plainText(parsed.data) !== text) return { error: "Проверьте форматирование сообщения." };
   let message: ChatMessage;
   try {
     const db = await createClient();
-    const { data, error } = await db.rpc("chat_send", {
+    const { data, error } = await db.rpc("chat_send_rich", {
       p_student: student,
-      p_text: text,
+      p_content: parsed.data,
     });
     if (error) throw error;
     message = data as ChatMessage;
@@ -80,38 +83,25 @@ export async function chatSendAction(
         "Не удалось сохранить сообщение. Проверьте назначение ученика и повторите попытку.",
     };
   }
-  // Pending is committed before network I/O. Service-only identity never reaches the client.
-  let chat: string | null = null,
-    telegramId: number | null = null,
-    delivered = false;
+  return { data: await deliverChat(actor.id, message) };
+}
+
+export async function chatUpdatesAction(student: string | null, after: string, version: string): Promise<ChatResult<ChatSnapshot>> {
+  await requireRole(["tutor","admin"]);
   try {
-    const target = await serviceRpc<{
-      chatId: string;
-      tutorName: string;
-      text: string;
-    } | null>("chat_delivery_target", {
-      p_message: message.id,
-      p_tutor: actor.id,
-    });
-    if (!target) throw new Error("Chat unavailable");
-    chat = target.chatId;
-    for (const part of tutorMessage(actor.id, target.tutorName, target.text))
-      telegramId = await sendTemplate(chat, part);
-    delivered = true;
-  } catch {
-    console.error("Chat Telegram delivery failed");
-  }
+    if (student !== null) z.uuid().parse(student);
+    z.string().regex(/^\d{1,19}$/).parse(after); z.string().regex(/^\d{1,19}$/).parse(version);
+    const { data, error } = await (await createClient()).rpc("chat_updates", { p_student: student, p_after: after, p_version: version });
+    if (error) throw error;
+    return { data: data as ChatSnapshot };
+  } catch { return { error: "Не удалось обновить чат." }; }
+}
+
+export async function chatPreviousAction(student: string, before: string, id: string): Promise<ChatResult<ChatMessage[]>> {
+  await requireRole(["tutor","admin"]);
   try {
-    await serviceRpc("chat_finish_delivery", {
-      p_message: message.id,
-      p_success: delivered,
-      p_chat: chat,
-      p_telegram: telegramId,
-    });
-    message.delivery_status = delivered ? "sent" : "failed";
-  } catch {
-    console.error("Chat Telegram delivery audit failed");
-  }
-  // A failed audit stays pending/unknown. Never invite duplicate resends of a committed message.
-  return { data: message };
+    z.uuid().parse(student); z.uuid().parse(id); z.iso.datetime({ offset: true }).parse(before);
+    const { data, error } = await (await createClient()).rpc("chat_previous", { p_student: student, p_before: before, p_id: id });
+    if (error) throw error; return { data: data as ChatMessage[] };
+  } catch { return { error: "Не удалось загрузить предыдущие сообщения." }; }
 }

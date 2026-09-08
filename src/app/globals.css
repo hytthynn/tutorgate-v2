@@ -232,9 +232,6 @@ strong {
 .brand-light {
   font-weight: 400;
 }
-.brand-dot {
-  color: var(--accent);
-}
 .brand:hover {
   color: var(--foreground);
 }
@@ -1634,6 +1631,7 @@ nav {
 .schedule-hour-line { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(242,232,220,.07); pointer-events: none; }
 .schedule-lesson { --lesson-color: #d39a59; position: absolute; left: 2px; right: 2px; display: flex; align-items: flex-start; justify-content: center; flex-direction: column; border: 1px solid color-mix(in srgb, var(--lesson-color) 50%, #34291f); border-left: 3px solid var(--lesson-color); border-radius: 4px; color: #f2e8dc; background: color-mix(in srgb, var(--lesson-color) 21%, #251e18); padding: 0 4px; text-align: left; cursor: pointer; z-index: 2; overflow: hidden; min-height: 2px; font-size: 10px; line-height: 1.1; touch-action: none; }
 .is-editable .schedule-lesson { cursor: grab; }
+.is-editable .schedule-lesson[data-time-locked="true"] { cursor: default; }
 .schedule-lesson strong, .schedule-lesson span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 100%; flex-shrink: 0; }
 .schedule-lesson strong { font-weight: 500; }
 .schedule-lesson span { font-size: 9px; opacity: .9; }
@@ -1848,3 +1846,15 @@ input[type="date"], input[type="time"], input[type="date"]::-webkit-calendar-pic
 .schedule-page .page-heading > div { min-width: 0; }
 .schedule-page .page-heading p { overflow-wrap: anywhere; }
 .schedule-back { flex-shrink: 0; min-height: 36px; }
+
+.rich-toolbar { display:flex; flex-wrap:wrap; gap:2px; }
+.rich-editor { min-width:0; width:100%; }
+.rich-editor textarea { width:100%; }
+.rich-preview { white-space:pre-wrap; overflow-wrap:anywhere; padding:8px; }
+.chat-quote { border-left:3px solid var(--accent); padding-left:8px; }
+
+.chat-file { display:flex; flex-wrap:wrap; align-items:center; gap:8px; overflow-wrap:anywhere; min-width:0; }
+.chat-file img { object-fit:contain; max-width:100%; }
+.chat-composer.is-file-drop { outline:2px solid var(--accent); outline-offset:-2px; }
+
+.legend-swatch { display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center; vertical-align:middle; border-radius:4px; background:var(--lesson-color,#d39a59); color:#251e18; margin:3px 5px 3px 0; }

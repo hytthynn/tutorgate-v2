@@ -3,33 +3,51 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { CHAT_BUCKET } from "@/features/chats/attachments";
+import { createAdminClient, serviceRpc } from "@/lib/supabase/admin";
 import { getChatUsername } from "@/lib/telegram/bot";
 import { syncTelegramProfiles, type SyncCounts, type SyncProfile } from "./telegram-sync";
 import type { ActionState } from "@/types";
 
 const commandSchema = z.object({ id: z.uuid(), operation: z.enum(["student", "tutor", "block", "unblock", "delete"]) });
 export async function manageUserAction(input: unknown): Promise<ActionState> {
-  await requireRole("admin");
+  const actor = await requireRole("admin");
   const parsed = commandSchema.safeParse(input);
   if (!parsed.success) return { error: "Некорректное действие." };
   const { id, operation } = parsed.data;
   let deletionCommitted = false;
   try {
     const db = await createClient();
-    const result = operation === "delete" ? await db.rpc("admin_soft_delete_user", { p_user: id })
+    const result = operation === "delete" ? await db.rpc("admin_prepare_hard_delete_user", { p_user: id })
       : operation === "block" || operation === "unblock" ? await db.rpc("admin_set_user_blocked", { p_user: id, p_blocked: operation === "block" })
       : await db.rpc("admin_change_user_role", { p_user: id, p_role: operation });
     if (result.error) return { error: result.error.code === "P0010" ? result.error.message : "Действие недоступно для этого аккаунта." };
     if (operation === "delete") {
       deletionCommitted = true;
       const auth = createAdminClient();
-      const { error } = await auth.auth.admin.updateUserById(id, { user_metadata: {}, ban_duration: "876000h" });
-      if (error) return { error: "Доступ отозван и данные обезличены. Дополнительная блокировка в Auth не завершена — повторите удаление." };
+      const job = result.data as { status: string; storage_paths: string[]; ready_after?: string };
+      if (job.ready_after && Date.parse(job.ready_after) > Date.now()) {
+        revalidatePath("/admin", "layout");
+        return { error: "Доступ отозван. Удаление ожидает истечения разрешений на загрузку файлов (не более 2 часов 5 минут). Затем повторите очистку." };
+      }
+      if (job.status !== "complete") {
+        for (let i=0;i<job.storage_paths.length;i+=100) {
+          const removed = await auth.storage.from(CHAT_BUCKET).remove(job.storage_paths.slice(i,i+100));
+          if (removed.error) throw removed.error;
+        }
+        await serviceRpc("admin_purge_hard_delete_user",{ p_actor: actor.id, p_user: id });
+        const existing = await auth.auth.admin.getUserById(id);
+        if (existing.error && existing.error.status !== 404) throw existing.error;
+        if (existing.data.user) {
+          const deleted = await auth.auth.admin.deleteUser(id);
+          if (deleted.error) throw deleted.error;
+        }
+        await serviceRpc("admin_finish_hard_delete_user",{ p_actor: actor.id, p_user: id });
+      }
     }
     for (const role of ["admin", "student", "tutor"]) revalidatePath(`/${role}`, "layout");
-    return { success: operation === "delete" ? "Аккаунт удалён. История занятий сохранена." : "Изменения сохранены." };
-  } catch { return { error: deletionCommitted ? "Доступ отозван и данные обезличены. Завершение операции прервано — повторите удаление." : "Не удалось выполнить действие. Попробуйте ещё раз." }; }
+    return { success: operation === "delete" ? "Аккаунт и связанные данные полностью удалены." : "Изменения сохранены." };
+  } catch { return { error: deletionCommitted ? "Удаление не завершено. Повторите очистку." : "Не удалось выполнить действие. Попробуйте ещё раз." }; }
 }
 
 export async function syncTelegramAction(): Promise<ActionState> {

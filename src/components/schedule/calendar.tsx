@@ -5,10 +5,10 @@ import { CircleCheck, CircleAlert, Loader2, ChevronLeft, ChevronRight } from "lu
 import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { syncScheduleAction, scheduleCommandAction } from "@/features/schedule/actions";
+import { scheduleWeekAction, syncScheduleAction, scheduleCommandAction } from "@/features/schedule/actions";
 import { addDays, formatDay, localParts, localToUtc, MINUTE, minutesFromMidnight, parseWeek, snapMinutes, splitLessonByLocalDays, startOfWeek, weeklySummary } from "@/features/schedule/time";
 import type { ScheduleData, ScheduleLesson, SaveState, HistoryEntry } from "@/features/schedule/types";
-import { isInactive, isMultiSelectable, isTransferAllowed, applyAvailability, removeLessons, overlapLanes, placeGroup, statusLabel } from "@/features/schedule/operations";
+import { effectiveLessonColor, isTimeLocked, isInactive, isMultiSelectable, isTransferAllowed, applyAvailability, removeLessons, overlapLanes, placeGroup, statusLabel } from "@/features/schedule/operations";
 import type { ScheduleCommand, LessonInput } from "@/features/schedule/validation";
 import { confirmHistory, replaceTemporaryLessons, type HistoryState } from "@/features/schedule/history";
 import { OperationDialog } from "./operation-dialog";
@@ -41,6 +41,24 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const lock = useRef(false);
   const mutationRevision = useRef(0);
   const syncCursor = useRef(data.now);
+  const loadedWeeks = useRef(new Set([`${data.offset}:${data.week}`]));
+  useEffect(() => {
+    const key = `${offset}:${week}`;
+    if (loadedWeeks.current.has(key)) return;
+    let cancelled = false;
+    const revision = mutationRevision.current;
+    scheduleWeekAction(week, data.ownerId).then(fresh => {
+      if (cancelled || revision !== mutationRevision.current) return;
+      loadedWeeks.current.add(key);
+      setLessons(current => {
+        const lo = Date.parse(localToUtc(week, "00:00", offset));
+        const hi = Date.parse(localToUtc(addDays(week, 7), "00:00", offset));
+        const retained = current.filter(l => Date.parse(l.endsAt) <= lo || Date.parse(l.startsAt) >= hi);
+        return [...retained.filter(l => !fresh.lessons.some(f => f.id === l.id)), ...fresh.lessons];
+      });
+    }).catch(() => { if (!cancelled) toast.error("Не удалось загрузить неделю. Повторите переход."); });
+    return () => { cancelled = true; };
+  }, [week, offset, data.ownerId, pending]);
   if (snapshot !== data) {
     setSnapshot(data);
     if (!pending) { setLessons(data.lessons); setOffset(data.offset); }
@@ -60,9 +78,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const gesture = useRef<Gesture | null>(null);
   const weekRef = useRef(week);
   const mobileRef = useRef(mobileDate);
-  const edgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const edgeDirection = useRef(0);
   const [rectangle, setRectangle] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [preview, setPreview] = useState<ScheduleLesson[] | null>(null);
   useEffect(() => {
@@ -70,7 +86,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   }, [week, mobileDate]);
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
-    return () => { clearInterval(timer); if (edgeTimer.current) clearTimeout(edgeTimer.current); if (longTimer.current) clearTimeout(longTimer.current); };
+    return () => { clearInterval(timer); if (longTimer.current) clearTimeout(longTimer.current); };
   }, []);
   useEffect(() => {
     function restoreWeek() { setMenu(null);setEmptyMenu(null); }
@@ -189,9 +205,9 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     return ok;
   }
   function clearTimers() {
-    if (edgeTimer.current) clearTimeout(edgeTimer.current);
+
     if (longTimer.current) clearTimeout(longTimer.current);
-    edgeTimer.current = null; longTimer.current = null; edgeDirection.current = 0;
+    longTimer.current = null;
   }
   function showPreview(point: Point) {
     const g = gesture.current, box = grid.current?.getBoundingClientRect();
@@ -204,7 +220,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     const source = g.source;
     const desiredStart = new Date(timestamp).toISOString();
     // Only already-visible lessons are used. SQL still resolves hidden student conflicts.
-    if(isInactive(source))return;
+    if(isInactive(source) || isTimeLocked(source))return;
     const group=selected.has(source.id)?lessons.filter(l=>selected.has(l.id)):[source];
     const anchor=new Date(Date.parse(desiredStart)+Math.min(...group.map(l=>Date.parse(l.startsAt)))-Date.parse(source.startsAt)).toISOString();
     const busy=lessons.filter(l=>!group.some(g=>g.id===l.id));
@@ -213,23 +229,6 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     setPreview(placed);
   }
 
-  function watchEdge(point: Point) {
-    const box = grid.current!.getBoundingClientRect();
-    const direction = point.x < box.left + 18 ? -1 : point.x > box.right - 18 ? 1 : 0;
-    if (direction === edgeDirection.current) return;
-    if (edgeTimer.current) clearTimeout(edgeTimer.current);
-    edgeDirection.current = direction;
-    if (!direction) return;
-    const advance = () => {
-      const g = gesture.current;
-      if (!g?.moved || !g.source) return;
-      const next = addDays(weekRef.current, direction * 7);
-      navigate(next, direction < 0 ? addDays(next, 6) : next);
-      showPreview(g.last);
-      edgeTimer.current = setTimeout(advance, 550);
-    };
-    edgeTimer.current = setTimeout(advance, 500);
-  }
   function pointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     if (lock.current || pending || editor !== undefined || e.button === 2) return;
     const card = (e.target as HTMLElement).closest<HTMLElement>("[data-lesson-id]");
@@ -259,8 +258,8 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     if (!g.moved && Math.hypot(point.x - g.origin.x, point.y - g.origin.y) < 7) return;
     g.moved = true; if (longTimer.current) clearTimeout(longTimer.current);
     if (!editable) return;
-    if (g.source && isInactive(g.source)) return;
-    if (g.source) { showPreview(point); watchEdge(point); return; }
+    if (g.source && (isInactive(g.source) || isTimeLocked(g.source))) return;
+    if (g.source) { showPreview(point); return; }
     const box = grid.current!.getBoundingClientRect();
     const left = Math.max(box.left, Math.min(g.origin.x, point.x)), right = Math.min(box.right, Math.max(g.origin.x, point.x));
     const top = Math.max(box.top, Math.min(g.origin.y, point.y)), bottom = Math.min(box.bottom, Math.max(g.origin.y, point.y));
@@ -377,7 +376,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
             const start = localParts(lesson.startsAt, offset).time, end = localParts(lesson.endsAt, offset).time;
             const name = editable ? lesson.studentName : lesson.tutorName;
             const label = `${name}, ${start}–${end}${statusLabel(lesson)?", "+statusLabel(lesson):""}${lesson.completed ? ", Проведено" : ""}`;
-            return <button key={`${lesson.id}-${day}`} type="button" data-lesson-id={lesson.id} data-date={day} data-color={lesson.color}
+            return <button key={`${lesson.id}-${day}`} type="button" data-lesson-id={lesson.id} data-date={day} data-color={effectiveLessonColor(lesson)} data-time-locked={isTimeLocked(lesson)}
               data-inactive={isInactive(lesson)} data-transfer={!!lesson.isTransferTarget}
               className={`schedule-lesson ${selected.has(lesson.id) ? "is-selected" : ""} ${lesson.completed ? "is-completed" : ""} ${preview?.some(p=>p.id===lesson.id) ? "is-dragging" : ""}`}
               style={{ left: `calc(${lane/lanes*100}% + ${isInactive(lesson) ? 1 : lesson.color === "coral" ? 4 : 7}px)`, width: `calc(${100/lanes}% - 8px)`, top: `${segment.startMinute / 1440 * 100}%`, height: `${(segment.endMinute - segment.startMinute) / 1440 * 100}%` }}

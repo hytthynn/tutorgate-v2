@@ -1,3 +1,5 @@
+import { botApplicationAction } from "@/features/applications/bot-actions";
+import { receiveTelegram } from "@/features/chats/incoming";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { appUrl, env } from "@/lib/env";
@@ -23,12 +25,17 @@ const peer = z.object({
   username: z.string().optional(),
 });
 const chat = z.object({ id: z.number().int().safe(), type: z.string() });
+const mediaSchema = z.object({ file_id: z.string().max(1024), file_size: z.number().int().nonnegative().safe().optional(), file_name: z.string().max(1024).optional() });
+const entitiesSchema = z.array(z.object({ type: z.string().max(50), offset: z.number().int().nonnegative(), length: z.number().int().nonnegative(), url: z.string().max(2048).optional() })).max(4000);
 const updateSchema = z.object({
   update_id: z.number().int().nonnegative().safe(),
   message: z
     .object({
       message_id: z.number().int().safe().optional(),
       text: z.string().max(16384).optional(),
+      caption: z.string().max(16384).optional(),
+      entities: entitiesSchema.optional(), caption_entities: entitiesSchema.optional(),
+      document: mediaSchema.optional(), photo: z.array(mediaSchema).max(20).optional(),
       from: peer,
       chat,
       reply_to_message: z
@@ -152,13 +159,16 @@ export async function POST(request: NextRequest) {
           updateId: update_id,
           userId,
           chatId,
-          text: message?.text,
+          text: message?.text ?? message?.caption,
+          entities: message?.entities ?? message?.caption_entities,
+          media: message?.document ?? message?.photo?.at(-1),
           replyId: message?.reply_to_message?.message_id,
           callbackId: callback?.id,
           callbackData: callback?.data,
           callbackMessageId: callback?.message?.message_id,
         },
         {
+          applications: botApplicationAction,
           profile: (user, chatId) =>
             serviceRpc("chat_bot_profile", { p_user: user, p_chat: chatId }),
           tutors: (student) =>
@@ -170,14 +180,7 @@ export async function POST(request: NextRequest) {
             }),
           clearUnavailableRecipient: (student) =>
             serviceRpc("chat_bot_clear_unavailable_recipient", { p_student: student }),
-          receive: (input) =>
-            serviceRpc("chat_bot_receive", {
-              p_user: input.userId,
-              p_chat: input.chatId,
-              p_update: input.updateId,
-              p_text: input.text,
-              p_reply: input.replyId ?? null,
-            }),
+          receive: receiveTelegram,
           notificationTarget: (message) =>
             serviceRpc("chat_notification_target", { p_message: message }),
           send: sendTemplate,

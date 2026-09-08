@@ -105,7 +105,7 @@ test("011 failed Telegram delivery, last 200 and responsive chat", async ({
   await login(page);
   await page.goto(`/tutor/chats?student=${student}`);
   await expect(
-    page.getByText("Показаны последние 200 сообщений диалога."),
+    page.getByRole("button", {name:"Загрузить предыдущие"}),
   ).toBeVisible();
   await expect(page.locator(".chat-bubble")).toHaveCount(200);
   await request.post(f + "/behavior", { data: { op: "send", fail: true } });

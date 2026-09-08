@@ -1,8 +1,10 @@
 import type { AvailabilityRule, ScheduleLesson } from "./types";
 import { localParts, localToUtc, MINUTE, snapMinutes, startOfWeek } from "./time";
+export const isTimeLocked = (l: ScheduleLesson) => l.color === "coral";
+export const effectiveLessonColor = (l: ScheduleLesson) => l.inactiveReason != null ? "gray" : l.completed ? "green" : l.isTransferTarget ? "blue" : l.color;
 export const isInactive = (l: ScheduleLesson) => l.inactiveReason != null;
 export const isMultiSelectable = (l: ScheduleLesson) => !isInactive(l) && l.color !== "coral";
-export const isTransferAllowed = (l: ScheduleLesson) => !isInactive(l) && !l.isTransferTarget;
+export const isTransferAllowed = (l: ScheduleLesson) => !isInactive(l) && !isTimeLocked(l) && !l.isTransferTarget;
 export const conflictClass = (l: ScheduleLesson) => isInactive(l) ? null : l.color === "coral" ? "coral" : "normal";
 export const overlaps = (a: ScheduleLesson, b: ScheduleLesson) => conflictClass(a) !== null && conflictClass(a) === conflictClass(b) && (a.tutorId === b.tutorId || a.studentId === b.studentId) && Date.parse(a.startsAt) < Date.parse(b.endsAt) && Date.parse(a.endsAt) > Date.parse(b.startsAt);
 export function applyAvailability(lessons: ScheduleLesson[], rules: AvailabilityRule[], offset: number) {

@@ -1,4 +1,5 @@
 "use client";
+import { selectLeft } from "./select-position";
 import { Children, Fragment, useContext, isValidElement, useEffect, useLayoutEffect, useId, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
 import { ValidationContext } from "@/components/forms/validated-form";
 import { createPortal } from "react-dom";
@@ -45,10 +46,10 @@ export function Select({ children, value, defaultValue, onValueChange, searchabl
       const r = trigger.current!.getBoundingClientRect();
 
       const height = Math.min(300, window.innerHeight - 24);
-      const above = window.innerHeight - r.bottom < Math.min(height, 180) && r.top > 180;
+      const above = window.innerHeight - r.bottom < Math.min(height, 150) && r.top > 150;
       const maxHeight = Math.min(height, above ? r.top - 12 : window.innerHeight - r.bottom - 12);
       const width = Math.min(Math.max(r.width, 200), window.innerWidth - 24);
-      Object.assign(popup.current!.style, { top: `${above ? r.top - maxHeight - 4 : r.bottom + 4}px`, left: `${Math.max(12, Math.min(r.left, window.innerWidth - width - 12))}px`, width: `${width}px`, maxHeight: `${maxHeight}px` });
+      Object.assign(popup.current!.style, { top: `${above ? r.top - maxHeight - 4 : r.bottom + 4}px`, left: `${selectLeft(r.left,r.width,width,window.innerWidth)}px`, width: `${width}px`, maxHeight: `${maxHeight}px` });
     }
     place();
     (searchable ? search.current : trigger.current)?.focus();

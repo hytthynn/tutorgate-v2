@@ -19,9 +19,10 @@ test("custom selectors and global toast replace legacy mechanisms", async () => 
   assert.match(css, /input\[type="number"\]::\-webkit-inner-spin-button/);
   assert.match(await read("src/app/layout.tsx"), /<Toaster\s*\/>/);
 });
-test("history is unbounded but paginated, normalized names are batched", async () => {
+test("014 schedule bootstrap is bounded; other range reads and name normalization stay paginated", async () => {
   const query = await read("src/features/schedule/queries.ts");
-  assert.match(query, /readLessons\(null,\s*null,/);
+  assert.doesNotMatch(query, /readLessons\(null,\s*null,/);
+  assert.match(query, /schedule_week_snapshot/);
   assert.match(query, /range\(page\s*\*\s*500,\s*page\s*\*\s*500\s*\+\s*499\)/);
   assert.match(query, /rows\.slice\(i,\s*i\s*\+\s*500\)/);
 });
