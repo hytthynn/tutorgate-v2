@@ -12,11 +12,12 @@ export function pasteContent(html:string):RichDocumentV2 {
  return [...node.childNodes].flatMap(n=>inline(n,next));
  }
  const blocks:RichBlock[]=[];let pending:RichRuns=[];
+ const codeText=(node:Node):string=>node.nodeType===Node.TEXT_NODE?node.textContent??"":node instanceof Element&&node.tagName==="BR"?"\n":[...node.childNodes].map((child,i,all)=>codeText(child)+(child instanceof Element&&["DIV","P","LI"].includes(child.tagName)&&i<all.length-1?"\n":"")).join("");
  const flush=()=>{if(pending.length){blocks.push({type:"paragraph",align:"left",content:pending});pending=[];}};
  function walk(node:Node){
  if(node instanceof Element){
  if(blocked.has(node.tagName))return;
- if(node.tagName==="PRE"){flush();const language=(node.getAttribute("data-language")??node.querySelector("code")?.className.replace(/^language-/,""))?.slice(0,40);blocks.push({type:"code_block",text:(node.textContent??"").replace(/\r\n/g,"\n"),...(language&&/^[A-Za-z0-9_+#.-]+$/.test(language)?{language:language.toLowerCase()}:{})});return;}
+ if(node.tagName==="PRE"){flush();const language=(node.getAttribute("data-language")??node.querySelector("code")?.className.replace(/^language-/,""))?.slice(0,40);blocks.push({type:"code_block",text:codeText(node).replace(/\r\n/g,"\n"),...(language&&/^[A-Za-z0-9_+#.-]+$/.test(language)?{language:language.toLowerCase()}:{})});return;}
  if(["UL","OL"].includes(node.tagName)){flush();blocks.push({type:node.tagName==="OL"?"ordered_list":"bullet_list",items:[...node.children].filter(n=>n.tagName==="LI").slice(0,500).map(n=>({content:inline(n)}))});return;}
  if(node.tagName==="BLOCKQUOTE"){flush();blocks.push({type:"blockquote",content:inline(node)});return;}
  if(["P","DIV"].includes(node.tagName)){flush();if(node.querySelector("p,div,pre,ul,ol,blockquote")){for(const child of node.childNodes)walk(child);flush();}else{const align=(node as HTMLElement).style.textAlign;blocks.push({type:"paragraph",align:align==="center"||align==="right"?align:"left",content:inline(node)});}return;}

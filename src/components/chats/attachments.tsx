@@ -46,7 +46,7 @@ export function MessageFile({ file }: { file: ChatAttachment }) {
           if (!response.ok) throw new Error("Не удалось загрузить изображение.");
           objectUrl = URL.createObjectURL(await response.blob());
           if (disposed) URL.revokeObjectURL(objectUrl); else setPreview(objectUrl);
-        } catch { if (!disposed) setError("Превью недоступно. Попробуйте скачать файл."); }
+        } catch { if (!disposed) setError(file.kind.startsWith("sticker")?"Не удалось отобразить стикер.":"Превью недоступно. Попробуйте скачать файл."); }
       })();
     }, { rootMargin: "200px" });
     if (container.current) observer.observe(container.current);
@@ -68,13 +68,13 @@ export function MessageFile({ file }: { file: ChatAttachment }) {
     {(file.kind === "sticker_video" || (file.kind === "animation" && file.mime_type.startsWith("video/"))) && preview && <MotionVideo src={preview} className="chat-media-video"/>}
     {pausedGif&&preview&&<Button variant="secondary" onClick={()=>setPlayGif(true)}>Показать GIF</Button>}
     {!pausedGif&&(["image","sticker_static"].includes(file.kind) || (file.kind === "animation" && file.mime_type === "image/gif")) && (preview ? <button type="button" className="chat-image-preview" onClick={() => setExpanded(true)} aria-label={`Открыть изображение ${file.original_name}`}>
-      <img src={preview} alt={file.original_name} width={360} height={240} onError={() => { setPreview(""); setError("Превью недоступно. Попробуйте скачать файл."); }} /><span><Maximize2 size={16} /></span>
+      <img src={preview} alt={file.original_name} width={360} height={240} onError={() => { setPreview(""); setError(file.kind.startsWith("sticker")?"Не удалось отобразить стикер.":"Превью недоступно. Попробуйте скачать файл."); }} /><span><Maximize2 size={16} /></span>
     </button> : <div className="chat-image-placeholder"><ImageIcon size={30} aria-hidden /><span>{error ? "Превью недоступно" : "Загрузка изображения…"}</span></div>)}
-    <div className="chat-file-row">
+    {!file.kind.startsWith("sticker") && <div className="chat-file-row">
       {file.kind !== "image" && <span className="chat-file-icon"><FileText size={22} aria-hidden /></span>}
       <span className="chat-file-details"><span className="chat-file-name" title={file.original_name}>{file.original_name}</span><small>{sizeLabel(file.size_bytes)}</small></span>
       <Button type="button" variant="ghost" size="icon" aria-label={`Скачать файл ${file.original_name}`} title="Скачать файл" loading={pending} onClick={() => void download()}><Download size={18} /></Button>
-    </div>
+    </div>}
     {error && <span className="field-error" role="alert">{error}</span>}
     <Dialog open={expanded} onOpenChange={setExpanded}><DialogContent className="chat-image-dialog">
       <DialogTitle>{file.original_name}</DialogTitle><DialogDescription>{sizeLabel(file.size_bytes)}</DialogDescription>

@@ -11,7 +11,7 @@ export function applicationFixture(op,args,method,path) {
  if(path==='/fixtures/applications-seed'){for(const [i,name] of ['Екатерина Александровна Соколова','Александр Константинопольский'].entries())apps.push({id:randomUUID(),role:'student',full_name:name,telegram_username:'applicant_long_username_'+i,subjects:['Математика','Физика'],student_goal:'Подготовка к экзаменам и поступлению в университет',status:'pending_review',created_at:stamp(),telegram_verified_at:stamp(),reviewed_at:null,registered_at:null});return reply(true);}
  if(path==='/fixtures/applications-state') return reply({apps,messages,edits,deletions});
  if(path==='/fixtures/applications-expire'){for(const t of tokens.values())if(t.application_id===args.id&&t.purpose==='registration')t.expires_at=new Date(Date.now()-1000).toISOString();return reply(true);}
- if(path==='/fixtures/telegram/send'){messages.push({message_id:messages.length+1,chat_id:args.chat_id,text:args.text,reply_markup:args.reply_markup,hasButtons:!!args.reply_markup});return reply({ok:true,result:{message_id:messages.length}});}
+ if(path==='/fixtures/telegram/send'){messages.push({message_id:messages.length+1,chat_id:args.chat_id,text:args.text,rich_message:args.rich_message,reply_markup:args.reply_markup,hasButtons:!!args.reply_markup});return reply({ok:true,result:{message_id:messages.length}});}
  if(path==='/fixtures/telegram/edit'){
   const m=messages.find(m=>m.message_id===args.message_id&&m.chat_id===args.chat_id&&!m.deleted);
   if(!m)return reply({ok:false,description:'Bad Request: message to edit not found'},400);

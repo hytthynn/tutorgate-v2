@@ -141,7 +141,7 @@ export async function PeoplePage({
                   <div className="person-name">
                     <span className="avatar">{initials(p.full_name)}</span>
                     <div>
-                      <strong>{p.full_name}</strong>
+                      <div className="person-title"><strong>{p.full_name}</strong>{admin && kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <RateDialog owner={p.id} name={p.full_name} />}</div>
                       {admin && isAdminDirectoryProfile(p) && <div className="person-identifiers">
                         <small>Логин: {p.login ?? "—"}</small>
                         <small>Telegram: {p.telegram_username ? `@${p.telegram_username}` : "Нет username"}</small>
@@ -177,7 +177,6 @@ export async function PeoplePage({
                   </div>
                   {admin && (
                     <div className="person-actions">
-                      {kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <RateDialog owner={p.id} name={p.full_name} />}
                       {kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <Link className="telegram-link" href={p.id === viewer.id ? "/admin/schedule" : `/admin/schedule?tutor=${p.id}`}><CalendarDays size={14} />Расписание</Link>}
                       {telegramProfileUrl(p, env("TELEGRAM_BOT_USERNAME")) ? <a
                         className="telegram-link"

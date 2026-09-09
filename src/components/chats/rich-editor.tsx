@@ -35,7 +35,7 @@ export function RichEditor({value,onChange,disabled,onSend,onFiles}:{value:RichC
  if(command==="quote"||command==="code"){const parent=selectionElement();const existing=parent?.closest(command==="code"?"pre":"blockquote");
  if(existing&&ref.current?.contains(existing)){
  const paragraph=document.createElement("div");
- if(command==="code")paragraph.textContent=existing.textContent;else paragraph.append(...existing.childNodes);
+ if(command==="code")paragraph.textContent=plainText(pasteContent(existing.outerHTML));else paragraph.append(...existing.childNodes);
  existing.replaceWith(paragraph);const range=document.createRange();range.selectNodeContents(paragraph);range.collapse(false);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);
  }else document.execCommand("formatBlock",false,command==="code"?"pre":"blockquote");}
  else document.execCommand(command,false);
