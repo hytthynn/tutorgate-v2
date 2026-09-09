@@ -38,11 +38,11 @@ export function LessonContextMenu({ lesson, group=[lesson], x, y, onClose, onCol
     }
   }}>
     <strong>{group.length>1?`Выбрано занятий: ${group.length}`:lesson.studentName}</strong>
-    <div className="lesson-color-palette">{lessonColors.map((color) => <button disabled={group.some(isInactive)} key={color} role="menuitemradio" aria-checked={lesson.color === color} aria-label={colorNames[color]} title={colorNames[color]} data-color={color} onClick={() => onColor(color)} />)}</div>
+    <div className="lesson-color-palette">{lessonColors.filter(color=>color!=="green"&&color!=="blue").map((color) => <button disabled={group.some(isInactive)} key={color} role="menuitemradio" aria-checked={lesson.color === color} aria-label={colorNames[color]} title={colorNames[color]} data-color={color} onClick={() => onColor(color)} />)}</div>
     <button role="menuitem" disabled={group.some(isInactive)} onClick={onCompleted}>{group.every(l=>l.completed) ? "Снять отметку" : "Отметить проведёнными"}</button>
-    <button role="menuitem" disabled={!group.every(isTransferAllowed)} onClick={onTransfer}>Перенести…</button>
-    {onPersonalRate && <button role="menuitem" onClick={onPersonalRate}>Личное</button>}
-    <button role="menuitem" onClick={onAvailability}>Заниматься с…</button>
+    <button role="menuitem" disabled={group.length>1||!group.every(isTransferAllowed)} onClick={onTransfer}>Перенести…</button>
+    {onPersonalRate && <button role="menuitem" disabled={group.length>1} onClick={onPersonalRate}>Личное</button>}
+    <button role="menuitem" disabled={group.length>1} onClick={onAvailability}>Заниматься с…</button>
     {["Отчёт по ученику"].map((label) => <button key={label} role="menuitem" disabled title="Скоро">{label}<small>Скоро</small></button>)}
     <button role="menuitem" disabled={!group.some(isMultiSelectable)} onClick={onCopy}>Копировать <small>Ctrl+C</small></button>
     <button role="menuitem" className="lesson-delete" onClick={onDelete}>Удалить</button>

@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
 import { createAdminClient, serviceRpc } from "@/lib/supabase/admin";
-import { validateAttachment, validateAttachmentTotal, detectedImage, CHAT_BUCKET, MAX_ATTACHMENTS, type AttachmentInput } from "./attachments";
+import { validateAttachment, validateAttachmentTotal, detectedMedia, CHAT_BUCKET, MAX_ATTACHMENTS, type AttachmentInput } from "./attachments";
 import { contentSchema } from "./rich-text";
 import { deliverChat } from "./delivery";
 import type { ChatMessage, ChatResult } from "./types";
@@ -31,7 +31,7 @@ export async function finalizeChatUploads(student: string, ids: string[], conten
       if (result.error) throw result.error;
       validateAttachment({ name: upload.original_name, size: result.data.size, type: result.data.type });
       if (result.data.size !== Number(upload.claimed_size)) throw new Error("Size mismatch");
-      const type = detectedImage(new Uint8Array(await result.data.slice(0,16).arrayBuffer())) ?? "application/octet-stream";
+      const type = detectedMedia(new Uint8Array(await result.data.slice(0,32).arrayBuffer())) ?? "application/octet-stream";
       files.push({ id: upload.id, size: result.data.size, type });
       validateAttachmentTotal(files);
     }

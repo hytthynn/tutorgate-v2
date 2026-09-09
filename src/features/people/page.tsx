@@ -4,7 +4,7 @@ import { telegramProfileUrl } from "./telegram-link";
 import { PendingDeletions } from "@/components/people/pending-deletions";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, MessageSquare } from "lucide-react";
 import { DirectoryFilters } from "@/components/people/directory-filters";
 import { UserActionsMenu } from "@/components/people/user-actions-menu";
 import { isAdminDirectoryProfile, matchesPerson } from "./search";
@@ -141,7 +141,7 @@ export async function PeoplePage({
                   <div className="person-name">
                     <span className="avatar">{initials(p.full_name)}</span>
                     <div>
-                      <div className="person-title"><strong>{p.full_name}</strong>{admin && kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <RateDialog owner={p.id} name={p.full_name} />}</div>
+                      <div className="person-title"><strong>{p.full_name}</strong>{admin && kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <><Link className="person-chat-button" aria-label={`Чаты: ${p.full_name}`} title="Открыть чаты репетитора" href={`/admin/chats?tutor=${p.id}`}><MessageSquare size={16} aria-hidden/></Link><RateDialog owner={p.id} name={p.full_name} /></>}</div>
                       {admin && isAdminDirectoryProfile(p) && <div className="person-identifiers">
                         <small>Логин: {p.login ?? "—"}</small>
                         <small>Telegram: {p.telegram_username ? `@${p.telegram_username}` : "Нет username"}</small>

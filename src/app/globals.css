@@ -1999,3 +1999,13 @@ input[type="date"], input[type="time"], input[type="date"]::-webkit-calendar-pic
 .hljs-built_in,.hljs-type { color:#e5d398; }
 .hljs-comment { color:#9c9992; font-style:italic; }
 @media(max-width:600px){.rate-dialog,.background-dialog { padding:22px 18px; }.settings-dialog-actions>* { flex:1; }.chat-file.chat-sticker { width:180px; }.schedule-background { inset:-8px; }}
+
+/* Selection state and formula layout corrections. */
+.schedule-offset { flex-wrap:nowrap; white-space:nowrap; max-width:none; }
+.chat-math { overflow:visible; padding:.25em .12em; line-height:normal; }
+.chat-math.is-block { overflow-x:auto; overflow-y:hidden; padding:.5em .15em; }
+.chat-math .katex-display { margin:.25em 0; }
+.chat-live-preview { scrollbar-gutter:stable; }
+.admin-chat-readonly { padding:14px 18px; border-top:1px solid var(--border); color:var(--muted-foreground); font-size:12px; }
+.person-chat-button { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; flex-shrink:0; color:var(--muted-foreground); border-radius:6px; }
+.person-chat-button:hover { color:var(--accent); background:var(--surface-raised); }

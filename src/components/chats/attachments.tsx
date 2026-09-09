@@ -1,6 +1,7 @@
 "use client";
 /* Private signed URLs and local blobs bypass the public image optimizer. */
 /* eslint-disable @next/next/no-img-element */
+import {adminChatAttachmentUrl} from "@/features/chats/admin-actions";
 import { AnimatedSticker } from "./animated-sticker";
 import { MotionVideo, useReducedMotion } from "@/components/shared/motion-video";
 import { useEffect, useRef, useState } from "react";
@@ -14,24 +15,25 @@ const sizeLabel = (size: number) => size >= 1048576 ? `${(size / 1048576).toFixe
 export function DraftFile({ file, remove }: { file: File; remove: () => void }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
-    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm"].includes(file.type)) return;
     const objectUrl = URL.createObjectURL(file); let active = true;
     queueMicrotask(() => { if (active) setUrl(objectUrl); });
     return () => { active = false; URL.revokeObjectURL(objectUrl); };
   }, [file]);
   return <div className="chat-draft-file">
-    {url ? <img src={url} alt={file.name} width={44} height={44} /> : <FileText size={22} aria-hidden />}
+    {url&&file.type.startsWith("video/")?<video src={url} width={64} height={44} muted preload="metadata"/>:url ? <img src={url} alt={file.name} width={44} height={44} /> : <FileText size={22} aria-hidden />}
     <span className="chat-file-details"><span className="chat-file-name" title={file.name}>{file.name}</span><small>{sizeLabel(file.size)}</small></span>
     <Button type="button" variant="ghost" size="icon" aria-label={`Удалить файл ${file.name}`} onClick={remove}><X size={16} /></Button>
   </div>;
 }
-export function MessageFile({ file }: { file: ChatAttachment }) {
+export function MessageFile({ file,owner }: { file: ChatAttachment;owner?:string }) {
   const [preview, setPreview] = useState(""), [error, setError] = useState(""), [pending, setPending] = useState(false), [expanded, setExpanded] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const reduce=useReducedMotion(),[playGif,setPlayGif]=useState(false);
+  const video=file.mime_type.startsWith("video/")||/\.mp4$/i.test(file.original_name);
   const pausedGif=file.mime_type==="image/gif"&&reduce&&!playGif;
   useEffect(() => {
-    if (file.kind === "file") return;
+    if (file.kind === "file"&&!video) return;
     let disposed = false, objectUrl = "";
     const controller = new AbortController();
     const observer = new IntersectionObserver(entries => {
@@ -39,7 +41,7 @@ export function MessageFile({ file }: { file: ChatAttachment }) {
       observer.disconnect();
       void (async () => {
         try {
-          const result = await chatAttachmentUrl(file.id);
+          const result = await (owner?adminChatAttachmentUrl(owner,file.id):chatAttachmentUrl(file.id));
           if (result.error) throw new Error(result.error);
           if (disposed) return;
           const response = await fetch(result.data!, { signal: controller.signal });
@@ -51,11 +53,11 @@ export function MessageFile({ file }: { file: ChatAttachment }) {
     }, { rootMargin: "200px" });
     if (container.current) observer.observe(container.current);
     return () => { disposed = true; controller.abort(); observer.disconnect(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [file.id, file.kind]);
+  }, [file.id, file.kind,owner,video]);
   async function download() {
     setPending(true); setError("");
     try {
-      const result = await chatAttachmentUrl(file.id);
+      const result = await (owner?adminChatAttachmentUrl(owner,file.id):chatAttachmentUrl(file.id));
       if (result.error) throw new Error(result.error);
       const anchor = document.createElement("a");
       anchor.href = result.data!; anchor.download = file.original_name; anchor.rel = "noopener noreferrer";
@@ -66,11 +68,12 @@ export function MessageFile({ file }: { file: ChatAttachment }) {
   return <div ref={container} className={`chat-file ${file.kind !== "file" ? "is-image" : ""} ${file.kind.startsWith("sticker") ? "chat-sticker" : ""}`}>
     {file.kind === "sticker_animated" && preview && <AnimatedSticker src={preview}/>}
     {(file.kind === "sticker_video" || (file.kind === "animation" && file.mime_type.startsWith("video/"))) && preview && <MotionVideo src={preview} className="chat-media-video"/>}
+    {file.kind==="file"&&video&&preview&&<video src={preview} className="chat-media-video" controls playsInline preload="metadata"/>}
     {pausedGif&&preview&&<Button variant="secondary" onClick={()=>setPlayGif(true)}>Показать GIF</Button>}
     {!pausedGif&&(["image","sticker_static"].includes(file.kind) || (file.kind === "animation" && file.mime_type === "image/gif")) && (preview ? <button type="button" className="chat-image-preview" onClick={() => setExpanded(true)} aria-label={`Открыть изображение ${file.original_name}`}>
       <img src={preview} alt={file.original_name} width={360} height={240} onError={() => { setPreview(""); setError(file.kind.startsWith("sticker")?"Не удалось отобразить стикер.":"Превью недоступно. Попробуйте скачать файл."); }} /><span><Maximize2 size={16} /></span>
     </button> : <div className="chat-image-placeholder"><ImageIcon size={30} aria-hidden /><span>{error ? "Превью недоступно" : "Загрузка изображения…"}</span></div>)}
-    {!file.kind.startsWith("sticker") && <div className="chat-file-row">
+    {!file.kind.startsWith("sticker")&&file.kind!=="animation"&&file.mime_type!=="image/gif" && <div className="chat-file-row">
       {file.kind !== "image" && <span className="chat-file-icon"><FileText size={22} aria-hidden /></span>}
       <span className="chat-file-details"><span className="chat-file-name" title={file.original_name}>{file.original_name}</span><small>{sizeLabel(file.size_bytes)}</small></span>
       <Button type="button" variant="ghost" size="icon" aria-label={`Скачать файл ${file.original_name}`} title="Скачать файл" loading={pending} onClick={() => void download()}><Download size={18} /></Button>

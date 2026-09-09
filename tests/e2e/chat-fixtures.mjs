@@ -31,6 +31,14 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
       (p) => p.id === t && ["tutor", "admin"].includes(p.role) && p.account_status === "active",
     ) &&
     assignments.some((x) => x.student_id === s && x.tutor_id === t);
+  if(op.startsWith("admin_chat_")){
+    const owner=profiles.find(p=>p.id===a.p_owner&&["admin","tutor"].includes(p.role)&&p.account_status==="active");
+    if(actor?.role!=="admin"||actor.account_status!=="active"||!owner)return ok({message:"Forbidden"},403);
+    if(op==="admin_chat_attachment"){const f=attachments.find(f=>f.id===a.p_id),m=ms.find(m=>m.id===f?.message_id),c=cs.find(c=>c.id===m?.conversation_id&&c.tutorId===owner.id);return ok(c&&active(c.studentId,c.tutorId)?f:null);}
+    const result=chatFixture(op==="admin_chat_snapshot"?"chat_snapshot":"chat_previous",a,path,owner,profiles,assignments);
+    if(op==="admin_chat_snapshot")result.value={...result.value,ownerName:owner.full_name,totalUnread:0};
+    return result;
+  }
   const append = (s, t, role, body) => {
     let c = cs.find((c) => c.studentId === s && c.tutorId === t);
     if (!c) {

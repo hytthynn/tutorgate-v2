@@ -1,5 +1,6 @@
 "use client";
-import { useDeferredValue, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useDeferredValue, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { selectionFormatting } from "./selection-formatting";
 import { Bold, Italic, Underline, Strikethrough, Quote, Code, ListOrdered, List, AlignLeft, AlignCenter, AlignRight, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toaster";
@@ -23,13 +24,16 @@ export function RichEditor({value,onChange,disabled,onSend,onFiles}:{value:RichC
  const hydrated=useSyncExternalStore(subscribeHydration,()=>true,()=>false),previewValue=useDeferredValue(value);
  const ref=useRef<HTMLDivElement>(null),emitted=useRef(""),history=useRef<RichDocumentV2[]>([]),index=useRef(-1),composing=useRef(false);
  const [active,setActive]=useState<string[]>([]),[revision,setRevision]=useState(0),[canUndo,setCanUndo]=useState(false),[canRedo,setCanRedo]=useState(false);
+ const savedSelection=useRef<Range|null>(null);
+ const updateFormatting=useCallback(()=>{if(!ref.current)return;const next=selectionFormatting(ref.current);if(next===null)return;savedSelection.current=window.getSelection()!.getRangeAt(0).cloneRange();setActive(current=>JSON.stringify(current)===JSON.stringify(next)?current:next);},[]);
+ useEffect(()=>{document.addEventListener("selectionchange",updateFormatting);return()=>document.removeEventListener("selectionchange",updateFormatting);},[updateFormatting]);
  const paint=(doc:RichContent)=>ref.current?.replaceChildren(fragment(doc));
  useLayoutEffect(()=>{const signature=JSON.stringify(value);if(signature!==emitted.current){paint(value);emitted.current=signature;history.current=[normalizeDocument(value)];index.current=0;queueMicrotask(()=>{if(emitted.current===signature){setCanUndo(false);setCanRedo(false);setActive([]);}});}},[value]);
  function record(doc:RichDocumentV2){if(JSON.stringify(history.current[index.current])!==JSON.stringify(doc)){history.current=history.current.slice(0,index.current+1);history.current.push(doc);if(history.current.length>100)history.current.shift();index.current=history.current.length-1;}emitted.current=JSON.stringify(doc);onChange(doc);setRevision(n=>n+1);setCanUndo(index.current>0);setCanRedo(index.current<history.current.length-1);}
  function read(){return pasteContent(ref.current?.innerHTML??"");}
  function sync(){const doc=read();const valid=contentSchema.safeParse(doc);if(!valid.success){toast.error("Сообщение: максимум 4000 символов.");paint(history.current[index.current]??value);return;}record(doc);}
  function undo(direction:number){const next=index.current+direction;if(next<0||next>=history.current.length)return;index.current=next;const doc=history.current[next];paint(doc);emitted.current=JSON.stringify(doc);onChange(doc);setRevision(n=>n+1);setCanUndo(index.current>0);setCanRedo(index.current<history.current.length-1);ref.current?.focus();}
- function format(command:string){ref.current?.focus();if(command==="undo"||command==="redo"){undo(command==="undo"?-1:1);return;}
+ function format(command:string){const saved=savedSelection.current;ref.current?.focus();if(saved&&ref.current?.contains(saved.commonAncestorContainer)){const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(saved);}if(command==="undo"||command==="redo"){undo(command==="undo"?-1:1);updateFormatting();return;}
  const currentBlock=selectionElement()?.closest("pre,li,blockquote");
  if(command.startsWith("justify")&&currentBlock)return;
  if(command==="quote"||command==="code"){const parent=selectionElement();const existing=parent?.closest(command==="code"?"pre":"blockquote");
@@ -39,7 +43,7 @@ export function RichEditor({value,onChange,disabled,onSend,onFiles}:{value:RichC
  existing.replaceWith(paragraph);const range=document.createRange();range.selectNodeContents(paragraph);range.collapse(false);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);
  }else document.execCommand("formatBlock",false,command==="code"?"pre":"blockquote");}
  else document.execCommand(command,false);
- sync();setActive(current=>current.includes(command)?current.filter(c=>c!==command):[...current,command]);
+ sync();updateFormatting();
  }
  function insert(doc:RichContent){const selection=window.getSelection();if(!selection||!ref.current)return;if(!selection.rangeCount||!ref.current.contains(selection.anchorNode)){ref.current.focus();const end=document.createRange();end.selectNodeContents(ref.current);end.collapse(false);selection.removeAllRanges();selection.addRange(end);}const range=selection.getRangeAt(0);range.deleteContents();const f=fragment(doc),last=f.lastChild;range.insertNode(f);if(last){range.setStartAfter(last);range.collapse(true);selection.removeAllRanges();selection.addRange(range);}sync();}
  return <div className="rich-editor" data-history-revision={revision}>

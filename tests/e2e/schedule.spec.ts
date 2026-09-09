@@ -48,9 +48,9 @@ test("desktop calendar: CRUD, selection, menu, completion and bulk delete", asyn
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(page.getByText("Приостановить", { exact: true })).toHaveCount(0);
   for (const name of ["Отчёт по ученику"]) await expect(page.getByRole("menuitem", { name: new RegExp(name) })).toBeDisabled();
-  await page.getByRole("menuitemradio", { name: "Голубой" }).click(); await settled(page);
+  await page.getByRole("menuitemradio", { name: "Серый" }).click(); await settled(page);
   await expect(a).toHaveAttribute("data-color", "green");
-  await a.click({ button: "right" }); await page.getByRole("menuitem", { name: "Снять отметку" }).click(); await settled(page); await expect(a.getByTestId("lesson-completed")).toHaveCount(0); await expect(a).toHaveAttribute("data-color","blue");
+  await a.click({ button: "right" }); await page.getByRole("menuitem", { name: "Снять отметку" }).click(); await settled(page); await expect(a.getByTestId("lesson-completed")).toHaveCount(0); await expect(a).toHaveAttribute("data-color","gray");
   await page.getByRole("button", { name: "Добавить занятие" }).click();
   await choose(page, "Ученик", "Анна Смирнова");
   await page.getByRole("combobox", { name: "День", exact: true }).click(); await page.getByRole("option").nth(1).click();
