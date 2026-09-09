@@ -40,16 +40,16 @@ test("cross-midnight/week segments, clipped hours and count by start", () => {
   assert.equal(snapMinutes(61), 60);
   assert.equal(snapMinutes(62.6), 65);
 });
-test("actual statistics split days, zero points, current rate and clipped count", () => {
-  const lessons = [crossing, { ...crossing, completed: false }];
-  const hours = aggregateLessons(lessons, "2026-09-06", "2026-09-12", 0, 1500, "hours");
+test("actual statistics split days, zero points, stored rate and clipped count", () => {
+  const lessons = [{...crossing,hourlyRateSnapshot:1500}, { ...crossing, completed: false, hourlyRateSnapshot:1500 }];
+  const hours = aggregateLessons(lessons, "2026-09-06", "2026-09-12", 0, "hours");
   assert.equal(hours.points.length, 7);
   assert.deepEqual(hours.points.map((p) => p.value), [1, 1, 0, 0, 0, 0, 0]);
   assert.deepEqual(hours.totals, { lessons: 1, hours: 2, earnings: 3000 });
-  assert.deepEqual(aggregateLessons(lessons, "2026-09-07", "2026-09-07", 0, 1800, "lessons").totals, { lessons: 0, hours: 1, earnings: 1800 });
-  assert.deepEqual(aggregateLessons(lessons, "2026-09-06", "2026-09-07", -3, 1500, "lessons").points.map((p) => p.value), [1, 0]);
-  const tiny = { startsAt: localToUtc("2026-09-06", "10:00", 0), endsAt: localToUtc("2026-09-06", "10:01", 0), completed: true };
-  assert.equal(aggregateLessons([tiny, tiny, tiny], "2026-09-06", "2026-09-06", 0, 100, "earnings").totals.earnings, 5);
+  assert.deepEqual(aggregateLessons(lessons, "2026-09-07", "2026-09-07", 0, "lessons").totals, { lessons: 0, hours: 1, earnings: 1500 });
+  assert.deepEqual(aggregateLessons(lessons, "2026-09-06", "2026-09-07", -3, "lessons").points.map((p) => p.value), [1, 0]);
+  const tiny = { startsAt: localToUtc("2026-09-06", "10:00", 0), endsAt: localToUtc("2026-09-06", "10:01", 0), completed: true, hourlyRateSnapshot:100 };
+  assert.equal(aggregateLessons([tiny, tiny, tiny], "2026-09-06", "2026-09-06", 0, "earnings").totals.earnings, 5);
 });
 test("lesson form accepts minute precision and validates duration/note/date", () => {
   const value = { studentId: "00000000-0000-4000-8000-000000000004", subjectId: "00000000-0000-4000-8000-000000000010", date: "2026-09-06", time: "23:58", durationMinutes: 600, note: "" };

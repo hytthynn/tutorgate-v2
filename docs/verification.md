@@ -102,3 +102,15 @@ Baseline расписания читает полные raw rows, новая н�
 - Typecheck, lint, production build и diff-check — успешно. Полный E2E-набор не запускался. Логи: `artifacts/chat-017-tests.log`, `chat-017-db.log`, `chat-017-e2e.log`, `chat-017-lint.log`, `chat-017-build.log`.
 
 Для запуска применить [миграцию 017](../supabase/migrations/202609080017_telegram_sync_albums.sql). Внешняя БД и реальные аккаунты Telegram не изменялись; проверки используют локальную БД и API fixtures.
+
+## Пакет 018 — 09.09.2026
+
+Реализовано [ТЗ 018](TZ_TutorGate_018_chat_schedule_rates_background.md): rich content v2 с чтением v1, LaTeX и live-preview, inline/block code с копированием и Telegram HTML, toolbar со списками/выравниванием/историей, административные ставки tutor и tutor + student, snapshot ставки проведённого занятия, Telegram animation/WebP/TGS/WebM, ручной МСК-сдвиг и персональный private background до 7 МБ. Сохранены delegated ограничения, server validation, RLS и подписанный undo/redo расписания.
+
+- `npm test` — 159/159. DB suite применяет цепочку 001–018, проверяет backfill прежних completed lessons, три уровня ставок, неизменяемость snapshot и его подписанное восстановление, grants, self/delegated background, очередь очистки, rich v1/v2 и Telegram dedupe.
+- `npm run lint`, `npm run typecheck` — успешно, без ошибок.
+- Снимки `artifacts/018-chat-mobile.png` и `artifacts/018-video-background.png` просмотрены: мобильный composer без переполнения, компактное поле МСК, читаемая сетка поверх видео. Браузерный тест проверяет pause при reduced motion и сохранение прежнего фона после отклонения файла больше 7 МБ.
+
+Регрессии выявили и помогли исправить ширину поля МСК на мобильном экране, ранний ввод до hydration редактора, Enter в пустом пункте списка, снятие вложенного code block и ранний клик по ещё неактивной кнопке копирования. Проверка копирования нормализует только системные CRLF/LF, сохраняя пробелы и табы.
+
+Перед запуском применить [миграцию 018](../supabase/migrations/202609080018_chat_schedule_rates_background.sql) после 017. Внешняя БД, реальный Storage и Telegram не изменялись: браузерные тесты используют только локальные fixtures. Ранее проведённые занятия при миграции получат общую ставку на момент её применения; исторически точные ставки до 018 восстановить без прежнего журнала ставок нельзя. Очистка старых фонов и заброшенных uploads включена в существующую фоновую очистку, с отсрочкой до истечения signed upload URL.

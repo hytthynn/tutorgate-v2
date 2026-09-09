@@ -3,8 +3,8 @@ import { isInactive, isTransferAllowed, isMultiSelectable } from "@/features/sch
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { lessonColors, type LessonColor, type ScheduleLesson } from "@/features/schedule/types";
 const colorNames = { default: "Сброс цвета", green: "Зелёный", coral: "Коралловый", gray: "Серый", blue: "Голубой" };
-export function LessonContextMenu({ lesson, group=[lesson], x, y, onClose, onColor, onCompleted, onDelete, onTransfer, onAvailability, onCopy }: {
-  onCopy?: () => void;
+export function LessonContextMenu({ lesson, group=[lesson], x, y, onClose, onColor, onCompleted, onDelete, onTransfer, onAvailability, onCopy, onPersonalRate }: {
+  onCopy?: () => void; onPersonalRate?: () => void;
   group?: ScheduleLesson[]; onTransfer?: () => void; onAvailability?: () => void;
   lesson: ScheduleLesson; x: number; y: number; onClose: () => void;
   onColor: (color: LessonColor) => void; onCompleted: () => void; onDelete: () => void;
@@ -41,6 +41,7 @@ export function LessonContextMenu({ lesson, group=[lesson], x, y, onClose, onCol
     <div className="lesson-color-palette">{lessonColors.map((color) => <button disabled={group.some(isInactive)} key={color} role="menuitemradio" aria-checked={lesson.color === color} aria-label={colorNames[color]} title={colorNames[color]} data-color={color} onClick={() => onColor(color)} />)}</div>
     <button role="menuitem" disabled={group.some(isInactive)} onClick={onCompleted}>{group.every(l=>l.completed) ? "Снять отметку" : "Отметить проведёнными"}</button>
     <button role="menuitem" disabled={!group.every(isTransferAllowed)} onClick={onTransfer}>Перенести…</button>
+    {onPersonalRate && <button role="menuitem" onClick={onPersonalRate}>Личное</button>}
     <button role="menuitem" onClick={onAvailability}>Заниматься с…</button>
     {["Отчёт по ученику"].map((label) => <button key={label} role="menuitem" disabled title="Скоро">{label}<small>Скоро</small></button>)}
     <button role="menuitem" disabled={!group.some(isMultiSelectable)} onClick={onCopy}>Копировать <small>Ctrl+C</small></button>

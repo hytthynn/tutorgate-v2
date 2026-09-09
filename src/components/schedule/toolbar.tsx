@@ -1,14 +1,16 @@
 "use client";
+import { OffsetInput } from "./offset-input";
 import { ScheduleLegend } from "./legend";
 import { Select } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Keyboard, Undo2, Redo2, Plus } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { startOfWeek } from "@/features/schedule/time";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { addDays, formatDay, weeksInMonth } from "@/features/schedule/time";
 const months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-export function ScheduleToolbar({ week, today, resetMonth, offset, canEditOffset=true, editable, busy, onNavigate, onToday, onOffset, onAdd, onBindings, canUndo=false, canRedo=false, onUndo, onRedo }: {
+export function ScheduleToolbar({ week, today, resetMonth, offset, canEditOffset=true, editable, busy, onNavigate, onToday, onOffset, onAdd, onBindings, canUndo=false, canRedo=false, onUndo, onRedo, backgroundControl }: {
+  backgroundControl?: ReactNode;
   canUndo?: boolean; canRedo?: boolean; onUndo?: () => void; onRedo?: () => void;
   today: string; resetMonth: number; canEditOffset?: boolean;
   week: string; offset: number; editable: boolean; busy: boolean;
@@ -41,7 +43,7 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, canEditOffset
       <Select aria-label="Неделя" value={week} disabled={busy} onValueChange={(value) => onNavigate(value)}>{weeks.map((w) => <option key={w} value={w}>{formatDay(w)} — {formatDay(addDays(w, 6))}</option>)}</Select>
     </div>
     <div className="schedule-controls-group">
-      <Select aria-label="Сдвиг МСК" title={!canEditOffset ? "Сдвиг задаёт репетитор в своём расписании." : undefined} value={offset} disabled={busy || !canEditOffset} onValueChange={(v) => onOffset(Number(v))}>{Array.from({ length: 25 }, (_, i) => i - 12).map(n => <option key={n} value={n}>МСК{n > 0 ? `+${n}` : n < 0 ? `−${-n}` : ""}</option>)}</Select>
+      <OffsetInput offset={offset} disabled={busy || !canEditOffset} onChange={onOffset} />
       <Button variant="secondary" size="sm" aria-label="Предыдущая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, -7))}><ChevronLeft size={16} /></Button>
       <Button variant="secondary" size="sm" disabled={busy} onClick={onToday}>Текущая</Button>
       <Button variant="secondary" size="sm" aria-label="Следующая неделя" disabled={busy} onClick={() => onNavigate(addDays(week, 7))}><ChevronRight size={16} /></Button>
@@ -52,6 +54,7 @@ export function ScheduleToolbar({ week, today, resetMonth, offset, canEditOffset
       <ScheduleLegend />
       <Tooltip text="Отменить"><Button variant="ghost" size="sm" disabled={busy||!canUndo} onClick={onUndo} aria-label="Отменить"><Undo2 size={16} /></Button></Tooltip>
       <Tooltip text="Вернуть"><Button variant="ghost" size="sm" disabled={busy||!canRedo} onClick={onRedo} aria-label="Вернуть"><Redo2 size={16} /></Button></Tooltip>
+      {backgroundControl}
       {editable&&(week === startOfWeek(today) ? (
         <Button size="sm" disabled={busy} onClick={onAdd}><Plus size={16} />Добавить занятие</Button>
       ) : (

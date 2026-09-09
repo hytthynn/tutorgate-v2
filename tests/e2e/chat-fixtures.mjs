@@ -1,3 +1,5 @@
+const contentBlocks=c=>Array.isArray(c)?[{type:"paragraph",align:"left",content:c}]:c.blocks;
+const contentPlain=c=>Array.isArray(c)?c.map(n=>n.text).join(""):c.blocks.map(b=>b.type==="code_block"?b.text:b.items?b.items.map(i=>contentPlain(i.content)).join("\n"):contentPlain(b.content)).join("\n");
 import { fixtureControlId } from "./application-fixtures.mjs";
 // Local fixtures only. Never imported by application code.
 import { randomUUID } from "node:crypto";
@@ -19,6 +21,7 @@ export function resetChats() {
   clock = Date.now();
 }
 export function chatFixture(op, a, path, actor, profiles, assignments) {
+  if(op==="chat_bot_update_seen")return ok(updates.has(a.p_update));
   const active = (s, t) =>
     profiles.some(
       (p) =>
@@ -93,7 +96,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
   if(op==="chat_prepare_upload") { const storage_path=`${a.p_actor}/${a.p_student}/${a.p_id}`;uploads.push({id:a.p_id,actor_id:a.p_actor,student_id:a.p_student,storage_path,original_name:a.p_name,claimed_size:a.p_size});return ok(storage_path); }
   if(op==="chat_upload_details")return ok(uploads.filter(u=>a.p_ids.includes(u.id)));
   if(op==="chat_finalize_uploads") {
-    const m=append(a.p_student,a.p_actor,"tutor",a.p_content.map(n=>n.text).join(""));m.content=a.p_content;m.attachments=[];
+    const m=append(a.p_student,a.p_actor,"tutor",contentPlain(a.p_content));m.content=a.p_content;m.attachments=[];
     for(const file of a.p_files){const u=uploads.find(u=>u.id===file.id);const row={id:u.id,message_id:m.id,storage_path:u.storage_path,original_name:u.original_name,mime_type:file.type,size_bytes:file.size,kind:file.type.startsWith("image/")?"image":"file"};attachments.push(row);m.attachments.push(row);}
     return ok(publicMessage(m));
   }
@@ -141,7 +144,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
       a.p_student,
       actor.id,
       "tutor",
-      a.p_content ? a.p_content.map(n=>n.text).join("") : a.p_text,
+      a.p_content ? contentPlain(a.p_content) : a.p_text,
     );
     m.content=a.p_content;
     return ok(publicMessage(m));
@@ -226,8 +229,8 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
     if(op==="chat_bot_album_target")return ok({status:"ok",student:student.id,tutor:album.tutor});
     const continuation=!!album.message;
     const m=album.message??append(student.id,album.tutor,"student","");album.message=m;
-    m.body+=(m.body&&a.p_text?"\n":"")+a.p_text;m.content=[...(m.content??[]),...a.p_content];
-    const f=a.p_file,row={id:f.id,message_id:m.id,storage_path:f.path,original_name:f.name,mime_type:f.type,size_bytes:f.size,kind:f.type.startsWith("image/")?"image":"file"};attachments.push(row);m.attachments=[...(m.attachments??[]),row];
+    m.body+=(m.body&&a.p_text?"\n":"")+a.p_text;m.content={version:2,blocks:[...contentBlocks(m.content??[]),...contentBlocks(a.p_content)]};
+    const f=a.p_file,row={id:f.id,message_id:m.id,storage_path:f.path,original_name:f.name,mime_type:f.type,size_bytes:f.size,kind:f.kind??(f.type.startsWith("image/")?"image":"file")};attachments.push(row);m.attachments=[...(m.attachments??[]),row];
     updates.add(a.p_update);state.delete(student.id);replies.delete(student.id);
     return ok({status:"sent",messageId:m.id,studentId:student.id,tutorId:album.tutor,studentName:student.full_name,tutorName:"Tutor",text:m.body+" 📎 "+m.attachments.map(f=>f.original_name).join(", "),albumContinuation:continuation,controlId:fixtureControlId(a.p_chat)});
   }
@@ -252,7 +255,7 @@ export function chatFixture(op, a, path, actor, profiles, assignments) {
     if (!active(s.id, t)) return ok({ status: "unavailable" });
     if(op==="chat_bot_media_target")return ok({status:"ok",student:s.id,tutor:t});
     const m = append(s.id, t, "student", a.p_text);m.content=a.p_content;
-    if(a.p_file){const f=a.p_file;const row={id:f.id,message_id:m.id,storage_path:f.path,original_name:f.name,mime_type:f.type,size_bytes:f.size,kind:f.type.startsWith("image/")?"image":"file"};attachments.push(row);m.attachments=[row];}
+    if(a.p_file){const f=a.p_file;const row={id:f.id,message_id:m.id,storage_path:f.path,original_name:f.name,mime_type:f.type,size_bytes:f.size,kind:f.kind??(f.type.startsWith("image/")?"image":"file")};attachments.push(row);m.attachments=[row];}
     updates.add(a.p_update);
     const original=ms.find(m=>m.id===links.get(`${a.p_chat}:${a.p_reply}`));
     if(op==="chat_bot_receive_flow"){state.delete(s.id);replies.delete(s.id);}

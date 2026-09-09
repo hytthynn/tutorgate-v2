@@ -21,6 +21,9 @@ export interface ScheduleLesson {
   transferSourceStartsAt?: string | null;
 }
 export interface ScheduleData {
+  canManagePersonalRates?: boolean;
+  canManageBackground?: boolean;
+  background?: import("./background").ScheduleBackground | null;
   now: string;
   role: Role;
   week: string;

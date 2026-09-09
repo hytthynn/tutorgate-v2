@@ -1,6 +1,8 @@
 "use client";
 /* Private signed URLs and local blobs bypass the public image optimizer. */
 /* eslint-disable @next/next/no-img-element */
+import { AnimatedSticker } from "./animated-sticker";
+import { MotionVideo, useReducedMotion } from "@/components/shared/motion-video";
 import { useEffect, useRef, useState } from "react";
 import { Download, FileText, ImageIcon, X, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,8 +28,10 @@ export function DraftFile({ file, remove }: { file: File; remove: () => void }) 
 export function MessageFile({ file }: { file: ChatAttachment }) {
   const [preview, setPreview] = useState(""), [error, setError] = useState(""), [pending, setPending] = useState(false), [expanded, setExpanded] = useState(false);
   const container = useRef<HTMLDivElement>(null);
+  const reduce=useReducedMotion(),[playGif,setPlayGif]=useState(false);
+  const pausedGif=file.mime_type==="image/gif"&&reduce&&!playGif;
   useEffect(() => {
-    if (file.kind !== "image") return;
+    if (file.kind === "file") return;
     let disposed = false, objectUrl = "";
     const controller = new AbortController();
     const observer = new IntersectionObserver(entries => {
@@ -59,8 +63,11 @@ export function MessageFile({ file }: { file: ChatAttachment }) {
     } catch { setError("Не удалось скачать файл. Попробуйте ещё раз."); }
     finally { setPending(false); }
   }
-  return <div ref={container} className={`chat-file ${file.kind === "image" ? "is-image" : ""}`}>
-    {file.kind === "image" && (preview ? <button type="button" className="chat-image-preview" onClick={() => setExpanded(true)} aria-label={`Открыть изображение ${file.original_name}`}>
+  return <div ref={container} className={`chat-file ${file.kind !== "file" ? "is-image" : ""} ${file.kind.startsWith("sticker") ? "chat-sticker" : ""}`}>
+    {file.kind === "sticker_animated" && preview && <AnimatedSticker src={preview}/>}
+    {(file.kind === "sticker_video" || (file.kind === "animation" && file.mime_type.startsWith("video/"))) && preview && <MotionVideo src={preview} className="chat-media-video"/>}
+    {pausedGif&&preview&&<Button variant="secondary" onClick={()=>setPlayGif(true)}>Показать GIF</Button>}
+    {!pausedGif&&(["image","sticker_static"].includes(file.kind) || (file.kind === "animation" && file.mime_type === "image/gif")) && (preview ? <button type="button" className="chat-image-preview" onClick={() => setExpanded(true)} aria-label={`Открыть изображение ${file.original_name}`}>
       <img src={preview} alt={file.original_name} width={360} height={240} onError={() => { setPreview(""); setError("Превью недоступно. Попробуйте скачать файл."); }} /><span><Maximize2 size={16} /></span>
     </button> : <div className="chat-image-placeholder"><ImageIcon size={30} aria-hidden /><span>{error ? "Превью недоступно" : "Загрузка изображения…"}</span></div>)}
     <div className="chat-file-row">

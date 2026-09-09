@@ -1,3 +1,4 @@
+import { fixture018,fixtureRate,reset018 } from "./package-018-fixtures.mjs";
 import { storageFixture, fixturePng } from "./storage-fixtures.mjs";
 // Isolated UI fixtures. This process is never imported by application code.
 // PostgreSQL/RLS behaviour is separately tested with real migrations in PGlite.
@@ -88,6 +89,7 @@ const availability=[];
 let nextLesson = 100;
 const seedSubjects=structuredClone(subjects), seedTutorSubjects=structuredClone(tutorSubjects), seedAssignments=structuredClone(assignments);
 function resetSchedule() {
+  reset018();
   resetChats();
   profiles.splice(0,profiles.length,...structuredClone(seedProfiles));
   subjects.splice(0,subjects.length,...structuredClone(seedSubjects));
@@ -132,13 +134,15 @@ function user(uid) {
     user_metadata: {},
   };
 }
+let telegramFile=fixturePng;
 const server = http.createServer(async (req, res) => {
   const chunks=[]; for await(const chunk of req)chunks.push(chunk);
   const bytes=Buffer.concat(chunks),url=new URL(req.url,"http://localhost");
   if(storageFixture(req,res,url,bytes))return;
+  if(url.pathname==="/fixtures/telegram-file"){telegramFile=Buffer.from(JSON.parse(bytes.toString()).base64,"base64");res.end("true");return;}
   if(url.pathname==="/fixtures/telegram/media"){res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:true,result:{message_id:9000+Math.floor(Math.random()*10000)}}));return;}
   if(url.pathname==="/fixtures/telegram/get-file"){res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:true,result:{file_path:"photos/fixture.png"}}));return;}
-  if(url.pathname==="/fixtures/telegram/file"){res.writeHead(200,{"Content-Type":"image/png"});res.end(fixturePng);return;}
+  if(url.pathname==="/fixtures/telegram/file"){res.writeHead(200,{"Content-Type":"image/png"});res.end(telegramFile);return;}
   const text=bytes.toString(); const args=text?JSON.parse(text):{};
   let uid;
   try {
@@ -184,7 +188,7 @@ const server = http.createServer(async (req, res) => {
     const result={id:Number(args.chat_id),type:"private",...(args.chat_id==="100002"?{}:{username:p?.telegram_username+"_new"})};
     res.writeHead(args.chat_id==="100003"?500:200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:args.chat_id!=="100003",result}));return;
   }
-  const applicationResult = chatFixture(op,args,url.pathname,profile,profiles,assignments) ?? applicationFixture(op,args,req.method,url.pathname);
+  const applicationResult = fixture018(op,args,profile,lessons,req.method,url.searchParams) ?? chatFixture(op,args,url.pathname,profile,profiles,assignments) ?? applicationFixture(op,args,req.method,url.pathname);
   if (applicationResult) { value=applicationResult.value; status=applicationResult.status; }
   else if (url.pathname === "/fixtures/reset-schedule") { resetSchedule(); value = true; }
   else if(op==="bot_directory_contact") {
@@ -265,7 +269,7 @@ const server = http.createServer(async (req, res) => {
         if(c.availableFrom)for(const student_id of new Set(c.studentIds))availability.push({tutor_id:ownerId,student_id,available_from:c.availableFrom});
         lessons.filter(l=>l.tutor_id===ownerId).forEach(activity);
       }else if(c.kind==="color"||c.kind==="completed"){
-        for(const l of group){if(l.inactive_reason)throw {code:"PT005"};if(c.kind==="color")l.color=c.color;else l.completed_at=c.completed?new Date().toISOString():null;}
+        for(const l of group){if(l.inactive_reason)throw {code:"PT005"};if(c.kind==="color")l.color=c.color;else {if(c.completed&&!l.completed_at)l.hourly_rate_snapshot=fixtureRate(l);if(!c.completed)l.hourly_rate_snapshot=null;l.completed_at=c.completed?new Date().toISOString():null;}}
       }else if(c.kind==="create"||c.kind==="edit"){
         const old=lessons.find(l=>l.id===c.id),offset=preferences.get(ownerId)?.msk_offset_hours??0;
         const l=activity({...old,id:old?.id??id(nextLesson++),tutor_id:ownerId,student_id:c.studentId,subject_id:c.subjectChanged===false?old?.subject_id:c.subjectId,subject_name_snapshot:subjects.find(s=>s.id===c.subjectId)?.name??old?.subject_name_snapshot,starts_at:c.startsAt,duration_minutes:c.durationMinutes,color:old?.color??"default",completed_at:old?.completed_at??null});

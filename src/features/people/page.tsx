@@ -1,3 +1,4 @@
+import { RateDialog } from "@/components/schedule/rate-dialog";
 import { env } from "@/lib/env";
 import { telegramProfileUrl } from "./telegram-link";
 import { PendingDeletions } from "@/components/people/pending-deletions";
@@ -176,6 +177,7 @@ export async function PeoplePage({
                   </div>
                   {admin && (
                     <div className="person-actions">
+                      {kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <RateDialog owner={p.id} name={p.full_name} />}
                       {kind === "tutors" && isAdminDirectoryProfile(p) && p.account_status === "active" && <Link className="telegram-link" href={p.id === viewer.id ? "/admin/schedule" : `/admin/schedule?tutor=${p.id}`}><CalendarDays size={14} />Расписание</Link>}
                       {telegramProfileUrl(p, env("TELEGRAM_BOT_USERNAME")) ? <a
                         className="telegram-link"

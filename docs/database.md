@@ -175,3 +175,14 @@ chat_pair_active и chat_require_tutor принимают active tutor/admin. С
 ## Миграция 013: панель управления Telegram
 
 private.telegram_control_messages хранит единственный message_id для каждого личного chat_id. Таблица закрыта RLS без пользовательских grants, доступ к telegram_control_claim/telegram_control_finish есть только у service_role. Claim сериализует обновления панели посредством блокировки строки и временного токена на две минуты. Finish проверяет токен и сохраняет ID, возвращённый Bot API. Истечение lease позволяет продолжить после остановки worker; старый токен не может перезаписать новый claim. Таблица отделена от recipient state и reply mapping: отмена выбора не удаляет ID панели, текст преподавателя никогда не используется в качестве панели.
+
+
+## Миграция 018
+
+[Новая миграция](../supabase/migrations/202609080018_chat_schedule_rates_background.sql) применяется после 017; история 001–017 не изменяется.
+
+- `tutor_billing_rates`, `tutor_student_billing_rates`: RLS SELECT только active admin, direct writes запрещены. `admin_set_tutor_rate` принимает tutor/admin и nullable rate; `admin_set_tutor_student_rate` принимает проверенного owner + lesson ID и выводит student в БД. NULL удаляет override. Число от 0 до 1 000 000, максимум два десятичных знака проверяются до приведения к numeric(12,2).
+- `lessons.hourly_rate_snapshot`: CHECK согласует NULL с completed_at. Закрытый resolver читает pair/tutor/global в транзакции completion. Trigger защищает snapshot от подмены, signed restore возвращает историческое значение. Снимки включают новое поле и каноническое представление JSON number.
+- **Backfill:** ранее проведённые занятия получают общую ставку на момент применения 018. Истории ставок до 018 нет, поэтому это не восстановление исторически точных сумм. После 018 изменение настроек больше не пересчитывает такие занятия.
+- `schedule_backgrounds`: одна запись на owner, RLS без прямых пользовательских grants. `schedule_background_read` повторно проверяет owner/delegated admin; prepare/upload/set и GC доступны только service_role и проверяют self-owned active teacher для записи. Metadata содержит storage path, MIME/kind, timestamp; signed URL не сохраняется. Private bucket: 7 340 032 байта, JPEG/PNG/WebP/GIF/MP4/WebM. Удаление/замена metadata и удаление profile помещают объекты в GC; staged paths регистрируются в GC сразу с отсрочкой. Очистка включена в существующий background cleanup и hard-delete flow.
+- `chat_attachments.kind`: image/file/animation/sticker_static/sticker_animated/sticker_video. Прежние participant RLS и лимит 10 МБ сохранены. `private.chat_content_plain` и helpers валидируют v1/v2, скрыты от anon/authenticated. Обновлены send/finalize/bot/album RPC; default content новых сообщений — v2. `chat_bot_update_seen` доступен только service_role, окончательная dedupe-проверка остаётся внутри транзакции записи.

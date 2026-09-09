@@ -1,4 +1,6 @@
 "use client";
+/* Private signed background URLs bypass the public image optimizer. */
+/* eslint-disable @next/next/no-img-element */
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CircleCheck, CircleAlert, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,6 +15,10 @@ import type { ScheduleCommand, LessonInput } from "@/features/schedule/validatio
 import { confirmHistory, replaceTemporaryLessons, type HistoryState } from "@/features/schedule/history";
 import { OperationDialog } from "./operation-dialog";
 import { LessonDialog } from "./lesson-dialog";
+import { BackgroundDialog } from "./background-dialog";
+import { RateDialog } from "./rate-dialog";
+import { MotionVideo } from "@/components/shared/motion-video";
+import { refreshScheduleBackgroundUrl } from "@/features/schedule/background-actions";
 import { ScheduleToolbar } from "./toolbar";
 import { EmptyContextMenu } from "./empty-context-menu";
 import { LessonContextMenu } from "./context-menu";
@@ -22,6 +28,9 @@ type Point = { x: number; y: number };
 type Gesture = { origin: Point; last: Point; source?: ScheduleLesson; sourceWeek: string; grabMinutes: number; moved: boolean; longPress: boolean; target?: string; group?: ScheduleLesson[]; noFreeInterval?: boolean };
 export function ScheduleCalendar({ data }: { data: ScheduleData }) {
   const path = usePathname(), params = useSearchParams();
+  const [background,setBackground]=useState(data.background??null);
+  const [personalRate,setPersonalRate]=useState<ScheduleLesson|null>(null);
+  useEffect(()=>{if(!data.ownerId||data.role==="student")return;const timer=setInterval(()=>{void refreshScheduleBackgroundUrl(data.ownerId!).then(setBackground).catch(()=>{});},45*60*1000);return ()=>clearInterval(timer);},[data.ownerId,data.role]);
   const [now, setNow] = useState(() => new Date(data.now));
   const [todayRequest, setTodayRequest] = useState(0);
   const [offset, setOffset] = useState(data.offset);
@@ -340,7 +349,8 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
           if (e.key === "Delete" && editable && !pending) { e.preventDefault(); remove([...selected]); }
           if (e.key === "Enter" && grid.current?.contains(e.target as Node) && selected.size === 1) { const lesson = lessons.find((l) => selected.has(l.id)); if (lesson) { e.preventDefault(); openLesson(lesson); } }
         }}>
-    <ScheduleToolbar week={week} today={today} resetMonth={todayRequest} offset={offset} canEditOffset={data.canEditOffset ?? true} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null);setEmptyMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
+    {personalRate&&data.canManagePersonalRates&&data.ownerId&&<RateDialog autoOpen owner={data.ownerId} name={`${personalRate.tutorName} — ${personalRate.studentName}`} lesson={personalRate.id} onClose={()=>setPersonalRate(null)} onSaveState={state=>{setSaveState(state);setPending(state==="saving");}}/>}
+    <ScheduleToolbar backgroundControl={data.canManageBackground&&data.ownerId&&<BackgroundDialog disabled={pending} owner={data.ownerId} background={background} onChange={setBackground} onSaveState={state=>{setSaveState(state);setPending(state==="saving");}}/>} week={week} today={today} resetMonth={todayRequest} offset={offset} canEditOffset={data.canEditOffset ?? true} editable={editable} busy={pending} onNavigate={(w) => navigate(w)} onToday={() => { setTodayRequest((n) => n + 1); navigate(startOfWeek(today), today); }} onBindings={() => setBindings(true)} onAdd={() => { if (week !== startOfWeek(today)) { toast.error("Добавлять занятия можно только в текущей неделе."); return; } setMenu(null);setEmptyMenu(null); setEditorDraft(undefined); setEditorErrors(undefined); setEditor(null); }} canUndo={!!undo.length} canRedo={!!redo.length} onUndo={()=>history("undo")} onRedo={()=>history("redo")} onOffset={value=>{void mutate(editable?applyAvailability(lessons,rules,value):lessons,{kind:"offset",offset:value},undefined,undefined,rules,value);}} />    <div className="schedule-summary"><span>{summary.count} занятий · {Math.floor(summary.minutes / 60)} ч {Math.round(summary.minutes % 60)} мин</span>{editable && <span className="schedule-save-status" data-state={saveState} role="status" aria-live="polite" aria-atomic="true">
       {saveState === "saving" ? <Loader2 size={13} className="spin" aria-hidden="true" /> : saveState === "error" ? <CircleAlert size={13} aria-hidden="true" /> : <CircleCheck size={13} aria-hidden="true" />}
       {saveState === "saving" ? "Сохранение…" : saveState === "error" ? "Не сохранено" : "Сохранено"}
     </span>}</div>
@@ -350,8 +360,9 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
       <Button variant="ghost" size="sm" aria-label="Следующий день" disabled={pending} onClick={() => { const d = addDays(mobileDate, 1); navigate(startOfWeek(d), d); }}><ChevronRight size={16} /></Button>
     </div>
     <div className="schedule-day-headers"><span />{days.map((day, i) => <div key={day} className={day === today ? "is-today" : ""} data-mobile-active={day === mobileDate}>{dayNames[i]} <strong>{formatDay(day)}</strong></div>)}</div>
-    <div className="schedule-grid-wrapper">
-      <div className="schedule-time-labels" aria-label="Часы">{Array.from({ length: 25 }, (_, hour) => <span key={hour} style={{ top: `${hour / 24 * 100}%` }}>{String(hour).padStart(2, "0")}:00</span>)}</div>
+    <div className={`schedule-grid-wrapper ${background ? "has-background" : ""}`}>
+      {background&&<div className="schedule-background" aria-hidden="true">{background.kind==="video"?<MotionVideo src={background.url}/>:<img src={background.url} alt=""/>}</div>}
+      <div className="schedule-time-labels" aria-label="Часы">{Array.from({ length: 25 }, (_, hour) => <span key={hour} style={{ top: `${hour / 24 * 100}%` }}>{String(hour % 24).padStart(2, "0")}:00</span>)}</div>
       <div ref={grid} className={`schedule-grid ${editable ? "is-editable" : ""}`} role="group" aria-label="Календарь занятий" tabIndex={0}
         onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp}
         onPointerCancel={() => { gesture.current = null; clearTimers(); setPreview(null); setRectangle(null); }}
@@ -394,7 +405,7 @@ export function ScheduleCalendar({ data }: { data: ScheduleData }) {
     {editor !== undefined && <LessonDialog key={editor?.id??"new"} lesson={editor} draft={editorDraft} serverErrors={editorErrors} data={{...data,offset}} date={today} onClose={()=>{setEditor(undefined);setEditorDraft(undefined);setEditorErrors(undefined);grid.current?.focus();}} onSubmitLesson={saveEditor} />}
     {operation&&<OperationDialog {...operation} today={today} offset={offset} rules={rules} onClose={()=>setOperation(null)} onSubmit={submitOperation}/>}
     {emptyMenu&&editable&&<EmptyContextMenu {...emptyMenu} canPaste={clipboardCount>0} disabled={pending||startOfWeek(localParts(emptyMenu.anchor,offset).date)!==startOfWeek(today)} onClose={closeMenu} onPaste={()=>{closeMenu();paste();}} onCreate={()=>createHere(emptyMenu.anchor)}/>}
-    {menu&&contextLesson&&editable&&<LessonContextMenu onCopy={()=>copy(actionGroup(contextLesson))} lesson={contextLesson} group={actionGroup(contextLesson)} x={menu.x} y={menu.y} onClose={closeMenu} onCompleted={()=>complete(contextLesson)} onDelete={()=>remove(actionGroup(contextLesson).map(l=>l.id))} onTransfer={()=>{setOperation({kind:"transfer",group:actionGroup(contextLesson)});setMenu(null);setEmptyMenu(null);}} onAvailability={()=>{setOperation({kind:"availability",group:actionGroup(contextLesson)});setMenu(null);setEmptyMenu(null);}} onColor={color=>{
+    {menu&&contextLesson&&editable&&<LessonContextMenu onPersonalRate={data.canManagePersonalRates?()=>{setPersonalRate(contextLesson);setMenu(null);}:undefined} onCopy={()=>copy(actionGroup(contextLesson))} lesson={contextLesson} group={actionGroup(contextLesson)} x={menu.x} y={menu.y} onClose={closeMenu} onCompleted={()=>complete(contextLesson)} onDelete={()=>remove(actionGroup(contextLesson).map(l=>l.id))} onTransfer={()=>{setOperation({kind:"transfer",group:actionGroup(contextLesson)});setMenu(null);setEmptyMenu(null);}} onAvailability={()=>{setOperation({kind:"availability",group:actionGroup(contextLesson)});setMenu(null);setEmptyMenu(null);}} onColor={color=>{
       const ids=actionGroup(contextLesson).map(l=>l.id);void mutate(lessons.map(l=>ids.includes(l.id)?{...l,color}:l),{kind:"color",ids,color},"Цвет изменён.");
     }}/>}
     <Dialog open={bindings} onOpenChange={setBindings}><DialogContent><DialogTitle>Бинды</DialogTitle><DialogDescription>Управление расписанием</DialogDescription><dl className="schedule-bindings">

@@ -24,7 +24,7 @@ export type BotInput = {
   chatId: string;
   text?: string;
   entities?: TelegramEntity[];
-  media?: { file_id: string; file_size?: number; file_name?: string };
+  media?: import("./telegram-media").IncomingMedia;
   replyId?: number;
   callbackId?: string;
   callbackData?: string;

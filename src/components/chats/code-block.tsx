@@ -1,0 +1,14 @@
+"use client";
+import { memo } from "react";
+import hljs from "highlight.js/lib/core";
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import python from "highlight.js/lib/languages/python";
+import json from "highlight.js/lib/languages/json";
+import sql from "highlight.js/lib/languages/sql";
+import css from "highlight.js/lib/languages/css";
+import xml from "highlight.js/lib/languages/xml";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toaster";
+for(const [name,language] of Object.entries({javascript,typescript,python,json,sql,css,xml}))hljs.registerLanguage(name,language);
+export default memo(function CodeBlock({text,language}:{text:string;language?:string}){const html=language&&hljs.getLanguage(language)?hljs.highlight(text,{language,ignoreIllegals:true}).value:null;return <div className="chat-code-block"><div className="chat-code-heading"><span>{language??"Код"}</span><Button type="button" variant="ghost" size="sm" onClick={async()=>{try{await navigator.clipboard.writeText(text);toast.success("Код скопирован.");}catch{toast.error("Не удалось скопировать код.");}}}>Копировать</Button></div><pre>{html?<code dangerouslySetInnerHTML={{__html:html}}/>:<code>{text}</code>}</pre></div>;});

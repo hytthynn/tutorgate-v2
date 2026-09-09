@@ -1,97 +1,55 @@
 "use client";
-import { useLayoutEffect, useRef, useState } from "react";
-import { Bold, Italic, Underline, Strikethrough, Quote, Code } from "lucide-react";
+import { useDeferredValue, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Bold, Italic, Underline, Strikethrough, Quote, Code, ListOrdered, List, AlignLeft, AlignCenter, AlignRight, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { normalizedMarks, plainText, spliceContent, type RichContent, type RichMark } from "@/features/chats/rich-text";
+import { toast } from "@/components/ui/toaster";
+import { normalizedMarks, normalizeDocument, markdownDocument, plainContent, plainText, contentSchema, type RichContent, type RichRuns, type RichDocumentV2 } from "@/features/chats/rich-text";
 import { pasteContent } from "./paste-content";
-const controls = { bold: ["Жирный", Bold], italic: ["Курсив", Italic], underline: ["Подчёркивание", Underline], strike: ["Зачёркивание", Strikethrough], blockquote: ["Цитата", Quote], code: ["Моноширинный", Code] } as const;
-type Style = keyof typeof controls;
-const tags: Record<RichMark["type"], string> = { bold:"strong", italic:"em", underline:"u", strike:"s", blockquote:"span", code:"code", link:"a" };
-export function RichEditor({ value, onChange, disabled, onSend, onFiles }: { value: RichContent; onChange: (value: RichContent) => void; disabled: boolean; onSend: () => void; onFiles: (files: File[]) => void }) {
-  const ref = useRef<HTMLDivElement>(null), emitted = useRef(""), composing = useRef(false);
-  const selection = useRef({start:0,end:0});
-  const [active, setActive] = useState<Style[]>([]);
-  function locate() {
-    const el = ref.current, selected = window.getSelection();
-    if (!el || !selected?.rangeCount || !el.contains(selected.anchorNode) || !el.contains(selected.focusNode)) return selection.current;
-    const range = selected.getRangeAt(0), before = range.cloneRange(); before.selectNodeContents(el); before.setEnd(range.startContainer,range.startOffset);
-    const start = before.toString().length;
-    return selection.current = {start,end:start+range.toString().length};
-  }
-  function restore(start: number, end = start) {
-    const el = ref.current; if (!el) return;
-    el.focus(); const walker = document.createTreeWalker(el,NodeFilter.SHOW_TEXT), nodes: Text[] = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode as Text);
-    const point = (offset:number): [Node,number] => {
-      for (const node of nodes) { if (offset <= node.length) return [node,offset]; offset -= node.length; }
-      return [el,el.childNodes.length];
-    };
-    const range = document.createRange(); range.setStart(...point(start)); range.setEnd(...point(end));
-    const selected = window.getSelection(); selected?.removeAllRanges(); selected?.addRange(range); selection.current = {start,end};
-  }
-  function paint(content: RichContent) {
-    const el = ref.current; if (!el) return;
-    const fragment = document.createDocumentFragment();
-    for (const run of content) {
-      let node: Node = document.createTextNode(run.text);
-      for (const mark of normalizedMarks(run.marks).reverse()) {
-        const wrapper = document.createElement(tags[mark.type]);
-        if (mark.type === "link") { wrapper.setAttribute("href",mark.href!); wrapper.setAttribute("rel","noopener noreferrer"); }
-        if (mark.type === "blockquote") { wrapper.className = "chat-quote"; wrapper.dataset.quote = "true"; }
-        wrapper.appendChild(node); node = wrapper;
-      }
-      fragment.appendChild(node);
-    }
-    if (plainText(content).endsWith("\n")) { const caret=document.createElement("br");caret.dataset.caret="true";fragment.appendChild(caret); }
-    el.replaceChildren(fragment);
-  }
-  useLayoutEffect(() => {
-    const signature = JSON.stringify(value);
-    if (signature !== emitted.current) { paint(value); emitted.current = signature; }
-  }, [value]);
-  function commit(next: RichContent, start?: number, end?: number) {
-    emitted.current = JSON.stringify(next); paint(next); onChange(next);
-    if (start !== undefined) restore(start,end ?? start);
-  }
-  function read(): RichContent {
-    const el = ref.current; if (!el) return [];
-    // Read and whitelist the DOM. Pasted HTML is never inserted directly.
-    return spliceContent([],0,0,pasteContent(el.innerHTML));
-  }
-  function syncStyles() {
-    const {start} = locate(); let offset=0;
-    const run=read().find(run=>{offset+=run.text.length;return offset>=start;});
-    setActive((run?.marks ?? []).filter(mark=>mark.type!=="link").map(mark=>mark.type as Style));
-  }
-  function format(type: Style) {
-    const {start,end} = locate();
-    if (start === end) { setActive(active.includes(type) ? active.filter(mark=>mark!==type) : [...active,type]); ref.current?.focus(); return; }
-    let offset = 0;
-    const pieces = value.flatMap(run => {
-      const base = offset; offset += run.text.length;
-      const cuts = [0,Math.max(0,Math.min(run.text.length,start-base)),Math.max(0,Math.min(run.text.length,end-base)),run.text.length];
-      return [...new Set(cuts)].sort((a,b)=>a-b).slice(0,-1).map((from,i,all) => ({text:run.text.slice(from,all[i+1] ?? run.text.length),marks:run.marks,selected:base+from>=start && base+from<end})).filter(run=>run.text);
-    });
-    const remove = pieces.filter(run=>run.selected).every(run=>run.marks.some(mark=>mark.type===type));
-    const next = pieces.map(run=>({text:run.text,marks:run.selected ? normalizedMarks([...run.marks.filter(mark=>mark.type!==type),...(remove?[]:[{type}])]) : run.marks}));
-    setActive(remove ? active.filter(mark=>mark!==type) : [...active,type]); commit(next,start,end);
-  }
-  function insert(content: RichContent) {
-    const {start,end} = locate(), next = spliceContent(read(),start,end,content);
-    commit(next,Math.min(plainText(next).length,start+plainText(content).length));
-  }
-  return <div className="rich-editor">
-    <div className="rich-toolbar" role="toolbar" aria-label="Форматирование сообщения">{(Object.keys(controls) as Style[]).map(type => {const [label,Icon]=controls[type];return <Button key={type} type="button" variant="ghost" size="icon" aria-label={label} title={label} aria-pressed={active.includes(type)} disabled={disabled} onMouseDown={event=>event.preventDefault()} onClick={()=>format(type)}><Icon size={16} aria-hidden /></Button>;})}</div>
-    <div ref={ref} id="chat-message" className="rich-input" role="textbox" aria-label="Сообщение ученику" aria-multiline="true" aria-disabled={disabled} aria-describedby="chat-composer-help" contentEditable={!disabled} suppressContentEditableWarning data-placeholder="Напишите сообщение…"
-      onMouseUp={()=>syncStyles()} onKeyUp={event=>{if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"].includes(event.key)) syncStyles();else locate();}}
-      onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;const next=read();emitted.current=JSON.stringify(next);onChange(next);}}
-      onInput={()=>{if(composing.current)return;const position=locate();const next=read();emitted.current=JSON.stringify(next);onChange(next);if(plainText(next).length < (ref.current?.textContent?.length ?? 0))commit(next,Math.min(position.end,plainText(next).length));}}
-      onPaste={event=>{event.preventDefault();if(event.clipboardData.files.length){onFiles(Array.from(event.clipboardData.files));return;}const html=event.clipboardData.getData("text/html");insert(html?pasteContent(html):[{text:event.clipboardData.getData("text/plain"),marks:[]}]);}}
-      onDrop={event=>{event.preventDefault();}}
-      onBeforeInput={event=>{const input=event.nativeEvent as InputEvent;if(!composing.current&&input.data&&(!input.inputType||input.inputType==="insertText")){event.preventDefault();insert([{text:input.data,marks:active.map(type=>({type}))}]);}}}
-      onKeyDown={event=>{
-        if((event.ctrlKey||event.metaKey)&&["b","i","u"].includes(event.key.toLowerCase())){event.preventDefault();format(event.key.toLowerCase()==="b"?"bold":event.key.toLowerCase()==="i"?"italic":"underline");}
-        if(event.key==="Enter"&&!event.nativeEvent.isComposing){event.preventDefault();if(event.shiftKey)insert([{text:"\n",marks:[]}]);else onSend();}
-      }} />
-  </div>;
+import { RichMessage } from "./rich-content";
+const subscribeHydration=()=>()=>{};
+const selectionElement=()=>{const node=window.getSelection()?.anchorNode;return node instanceof Element?node:node?.parentElement;};
+const controls=[["bold","Жирный",Bold],["italic","Курсив",Italic],["underline","Подчёркивание",Underline],["strikeThrough","Зачёркивание",Strikethrough],["quote","Цитата",Quote],["code","Код",Code],["insertOrderedList","Нумерованный список",ListOrdered],["insertUnorderedList","Маркированный список",List],["justifyLeft","По левому краю",AlignLeft],["justifyCenter","По центру",AlignCenter],["justifyRight","По правому краю",AlignRight],["undo","Отменить",Undo2],["redo","Вернуть",Redo2]] as const;
+function fragment(value:RichContent){
+ const result=document.createDocumentFragment();
+ const runs=(content:RichRuns)=>{const f=document.createDocumentFragment();for(const run of content){let node:Node=document.createTextNode(run.text);for(const mark of normalizedMarks(run.marks).reverse()){const el=document.createElement(({bold:"strong",italic:"em",underline:"u",strike:"s",code:"code",link:"a",blockquote:"blockquote"})[mark.type]);if(mark.type==="link")el.setAttribute("href",mark.href!);el.append(node);node=el;}f.append(node);}return f;};
+ for(const b of normalizeDocument(value).blocks){const el=document.createElement(b.type==="code_block"?"pre":b.type==="blockquote"?"blockquote":b.type==="ordered_list"?"ol":b.type==="bullet_list"?"ul":"div");
+ if(b.type==="code_block"){el.textContent=b.text;if(b.language)el.dataset.language=b.language;}
+ else if("items" in b)for(const item of b.items){const li=document.createElement("li");li.append(runs(item.content));if(!li.textContent)li.append(document.createElement("br"));el.append(li);}
+ else{el.append(runs(b.content));if(b.type==="paragraph")el.style.textAlign=b.align;}
+ if(!el.childNodes.length)el.append(document.createElement("br"));result.append(el);
+ }return result;
+}
+export function RichEditor({value,onChange,disabled,onSend,onFiles}:{value:RichContent;onChange:(value:RichContent)=>void;disabled:boolean;onSend:()=>void;onFiles:(files:File[])=>void}){
+ const hydrated=useSyncExternalStore(subscribeHydration,()=>true,()=>false),previewValue=useDeferredValue(value);
+ const ref=useRef<HTMLDivElement>(null),emitted=useRef(""),history=useRef<RichDocumentV2[]>([]),index=useRef(-1),composing=useRef(false);
+ const [active,setActive]=useState<string[]>([]),[revision,setRevision]=useState(0),[canUndo,setCanUndo]=useState(false),[canRedo,setCanRedo]=useState(false);
+ const paint=(doc:RichContent)=>ref.current?.replaceChildren(fragment(doc));
+ useLayoutEffect(()=>{const signature=JSON.stringify(value);if(signature!==emitted.current){paint(value);emitted.current=signature;history.current=[normalizeDocument(value)];index.current=0;queueMicrotask(()=>{if(emitted.current===signature){setCanUndo(false);setCanRedo(false);setActive([]);}});}},[value]);
+ function record(doc:RichDocumentV2){if(JSON.stringify(history.current[index.current])!==JSON.stringify(doc)){history.current=history.current.slice(0,index.current+1);history.current.push(doc);if(history.current.length>100)history.current.shift();index.current=history.current.length-1;}emitted.current=JSON.stringify(doc);onChange(doc);setRevision(n=>n+1);setCanUndo(index.current>0);setCanRedo(index.current<history.current.length-1);}
+ function read(){return pasteContent(ref.current?.innerHTML??"");}
+ function sync(){const doc=read();const valid=contentSchema.safeParse(doc);if(!valid.success){toast.error("Сообщение: максимум 4000 символов.");paint(history.current[index.current]??value);return;}record(doc);}
+ function undo(direction:number){const next=index.current+direction;if(next<0||next>=history.current.length)return;index.current=next;const doc=history.current[next];paint(doc);emitted.current=JSON.stringify(doc);onChange(doc);setRevision(n=>n+1);setCanUndo(index.current>0);setCanRedo(index.current<history.current.length-1);ref.current?.focus();}
+ function format(command:string){ref.current?.focus();if(command==="undo"||command==="redo"){undo(command==="undo"?-1:1);return;}
+ const currentBlock=selectionElement()?.closest("pre,li,blockquote");
+ if(command.startsWith("justify")&&currentBlock)return;
+ if(command==="quote"||command==="code"){const parent=selectionElement();const existing=parent?.closest(command==="code"?"pre":"blockquote");
+ if(existing&&ref.current?.contains(existing)){
+ const paragraph=document.createElement("div");
+ if(command==="code")paragraph.textContent=existing.textContent;else paragraph.append(...existing.childNodes);
+ existing.replaceWith(paragraph);const range=document.createRange();range.selectNodeContents(paragraph);range.collapse(false);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);
+ }else document.execCommand("formatBlock",false,command==="code"?"pre":"blockquote");}
+ else document.execCommand(command,false);
+ sync();setActive(current=>current.includes(command)?current.filter(c=>c!==command):[...current,command]);
+ }
+ function insert(doc:RichContent){const selection=window.getSelection();if(!selection||!ref.current)return;if(!selection.rangeCount||!ref.current.contains(selection.anchorNode)){ref.current.focus();const end=document.createRange();end.selectNodeContents(ref.current);end.collapse(false);selection.removeAllRanges();selection.addRange(end);}const range=selection.getRangeAt(0);range.deleteContents();const f=fragment(doc),last=f.lastChild;range.insertNode(f);if(last){range.setStartAfter(last);range.collapse(true);selection.removeAllRanges();selection.addRange(range);}sync();}
+ return <div className="rich-editor" data-history-revision={revision}>
+ <div className="rich-toolbar" role="toolbar" aria-label="Форматирование сообщения">{controls.map(([command,label,Icon])=><Button key={command} type="button" variant="ghost" size="icon" aria-label={label} title={label} aria-pressed={active.includes(command)} disabled={!hydrated||disabled||(command==="undo"&&!canUndo)||(command==="redo"&&!canRedo)} onMouseDown={e=>e.preventDefault()} onClick={()=>format(command)}><Icon size={16} aria-hidden/></Button>)}</div>
+ <div ref={ref} id="chat-message" className="rich-input" role="textbox" aria-label="Сообщение ученику" aria-multiline="true" aria-disabled={!hydrated||disabled} aria-describedby="chat-composer-help" contentEditable={hydrated&&!disabled} suppressContentEditableWarning data-placeholder="Напишите сообщение…"
+ onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;sync();}} onInput={()=>{if(!composing.current)sync();}}
+ onPaste={e=>{e.preventDefault();if(e.clipboardData.files.length){onFiles([...e.clipboardData.files]);return;}const html=e.clipboardData.getData("text/html"),text=e.clipboardData.getData("text/plain").replace(/\r\n/g,"\n");if(html)insert(pasteContent(html));else if(text.includes("```"))insert(markdownDocument(plainContent(text)));else{document.execCommand("insertText",false,text);sync();}}}
+ onDrop={e=>e.preventDefault()}
+ onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();undo(e.shiftKey?1:-1);return;}if((e.ctrlKey||e.metaKey)&&["b","i","u"].includes(e.key.toLowerCase())){e.preventDefault();format(e.key.toLowerCase()==="b"?"bold":e.key.toLowerCase()==="i"?"italic":"underline");return;}
+ if(e.key==="Enter"&&!e.nativeEvent.isComposing){const parent=selectionElement();const block=parent?.closest("li,pre,blockquote");if(block?.tagName==="PRE"){e.preventDefault();document.execCommand("insertText",false,"\n");sync();}else if(!block&&!e.shiftKey){e.preventDefault();onSend();}}}}/>
+ {plainText(value)&&<div className="chat-live-preview" aria-label="Предпросмотр сообщения"><small>Предпросмотр</small><RichMessage content={previewValue}/></div>}
+ </div>;
 }

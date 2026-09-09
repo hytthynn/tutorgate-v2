@@ -1,18 +1,20 @@
+import { gunzipSync } from "node:zlib";
+import { validateLottie } from "./telegram-media";
 import "server-only";
 import { createAdminClient, serviceRpc } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
-import { CHAT_BUCKET, MAX_ATTACHMENT_BYTES, detectedImage, validateAttachment } from "./attachments";
+import { CHAT_BUCKET, MAX_ATTACHMENT_BYTES, detectedMedia, validateAttachment } from "./attachments";
 import { contentSchema, fromTelegram } from "./rich-text";
 import type { BotInput, ReceiveResult } from "./bot-handler";
 
 export async function receiveTelegram(input: BotInput): Promise<ReceiveResult> {
+  if (await serviceRpc<boolean>("chat_bot_update_seen",{p_update:input.updateId})) return {status:"duplicate"};
   const replyId = input.replyId ?? await serviceRpc<number | null>("chat_bot_reply_context",{p_user:input.userId,p_chat:input.chatId});
   const content = contentSchema.parse(fromTelegram(input.text ?? "",input.entities));
-  let file: { id: string; path: string; name: string; size: number; type: string } | null = null;
+  let file: { id: string; path: string; name: string; size: number; type: string; kind?: string } | null = null;
   const db = createAdminClient();
   if (input.media) {
-    if (!input.media.file_size) return { status: "error" };
-    if (input.media.file_size > MAX_ATTACHMENT_BYTES) return { status: "too_large" };
+    if ((input.media.file_size ?? 0) > MAX_ATTACHMENT_BYTES) return { status: "too_large" };
     const target = await serviceRpc<{ status: string; student: string; tutor: string }>(input.mediaGroupId ? "chat_bot_album_target" : "chat_bot_media_target", { p_user: input.userId, p_chat: input.chatId, p_reply: replyId, ...(input.mediaGroupId ? {p_group:input.mediaGroupId,p_update:input.updateId} : {}) });
     if (target.status !== "ok") return target;
     const response = await fetch(`https://api.telegram.org/bot${env("TELEGRAM_BOT_TOKEN")}/getFile`,{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_id: input.media.file_id }), signal: AbortSignal.timeout(8000) });
@@ -28,11 +30,16 @@ export async function receiveTelegram(input: BotInput): Promise<ReceiveResult> {
       if (size > MAX_ATTACHMENT_BYTES) { await reader.cancel(); return { status: "too_large" }; }
       chunks.push(value);
     }
-    const bytes = Buffer.concat(chunks), type = detectedImage(bytes) ?? "application/octet-stream";
+    const bytes = Buffer.concat(chunks);let type=detectedMedia(bytes)??"application/octet-stream";
+    const kind=input.media.kind;
+    if(kind==="sticker_animated"){
+      try{if(bytes[0]!==0x1f||bytes[1]!==0x8b)throw new Error("Invalid gzip");validateLottie(JSON.parse(gunzipSync(bytes,{maxOutputLength:2*1024*1024}).toString("utf8")));type="application/x-tgsticker";}catch{return {status:"error"};}
+    }
+    if((kind==="sticker_static"&&type!=="image/webp")||(kind==="sticker_video"&&type!=="video/webm")||(kind==="animation"&&!["image/gif","video/mp4","video/webm"].includes(type)))return {status:"error"};
     const normalized = validateAttachment({ name: input.media.file_name ?? "Изображение", size, type });
     const id = crypto.randomUUID();
     const storagePath = await serviceRpc<string>("chat_prepare_upload",{ p_actor: target.tutor, p_student: target.student, p_id: id, p_name: normalized.name, p_size: size });
-    file = { id, path: storagePath, name: normalized.name, size, type };
+    file = { id, path: storagePath, name: normalized.name, size, type, kind };
     const uploaded = await db.storage.from(CHAT_BUCKET).upload(file.path,bytes,{ contentType: type, upsert: false });
     if (uploaded.error) throw uploaded.error;
   }

@@ -31,7 +31,7 @@ test("014 rich text rejects unsafe URLs and emits balanced, escaped Telegram HTM
   const parts=telegramContent(c); assert.ok(parts.length>1);
   for (const part of parts) { assert.ok(part.length<=3900); assert.equal((part.match(/<b>/g)??[]).length,(part.match(/<\/b>/g)??[]).length); }
   assert.match(parts.join(""),/&lt;/);
-  assert.deepEqual(fromTelegram("link",[{type:"text_link",offset:0,length:4,url:"javascript:bad"}])[0].marks,[]);
+  assert.deepEqual((fromTelegram("link",[{type:"text_link",offset:0,length:4,url:"javascript:bad"}]).blocks[0] as {content:{marks:unknown[]}[]}).content[0].marks,[]);
 });
 test("014 attachment boundary, name sanitation and magic detection",()=>{
   assert.equal(validateAttachment({name:"../a.html",size:MAX_ATTACHMENT_BYTES,type:"text/html"}).name,".._a.html");

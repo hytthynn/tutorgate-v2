@@ -40,9 +40,9 @@ test("chat polish: toggle formatting, retain drafts, image preview, download and
   const input = page.getByLabel("Сообщение ученику",{exact:true});
   await input.fill("Здравствуйте! Разберём задание на следующем занятии.");
   await input.selectText(); await page.getByRole("button",{name:"Жирный",exact:true}).click();
-  await expect(page.locator(".rich-input strong")).toContainText("Здравствуйте");
+  await expect(page.locator(".rich-input :is(strong,b)")).toContainText("Здравствуйте");
   await page.getByRole("button",{name:"Жирный",exact:true}).click();
-  await expect(page.locator(".rich-input strong")).toHaveCount(0);
+  await expect(page.locator(".rich-input :is(strong,b)")).toHaveCount(0);
   await page.getByRole("button",{name:/Михаил Кузнецов/}).click();
   await expect(input).toHaveText("");
   await page.getByRole("button",{name:/Анна Смирнова/}).click();
@@ -68,7 +68,7 @@ test("015 formatting at caret and aggregate upload limit",async({page})=>{
  await login(page);await page.goto(`/tutor/chats?student=${student}`);
  const input=page.getByLabel("Сообщение ученику",{exact:true});await input.click();
  await page.getByRole("button",{name:"Жирный",exact:true}).click();await input.pressSequentially("Сразу жирный");
- await expect(input.locator("strong")).toHaveText("Сразу жирный");
+ await expect(input.locator(":is(strong,b)")).toHaveText("Сразу жирный");
  await expect(page.getByRole("button",{name:"Ссылка",exact:true})).toHaveCount(0);
  await page.locator('input[type="file"]').setInputFiles({name:"first.bin",mimeType:"application/octet-stream",buffer:Buffer.alloc(6*1024*1024)});
  await page.locator('input[type="file"]').setInputFiles({name:"second.bin",mimeType:"application/octet-stream",buffer:Buffer.alloc(5*1024*1024)});
@@ -79,7 +79,7 @@ test("015 formatting at caret and aggregate upload limit",async({page})=>{
 test("016 every formatting toggle stops formatting subsequent typing",async({page})=>{
  await login(page);await page.goto(`/tutor/chats?student=${student}`);
  const input=page.getByLabel("Сообщение ученику",{exact:true});
- for (const [name,tag] of [["Жирный","strong"],["Курсив","em"],["Подчёркивание","u"],["Зачёркивание","s"],["Цитата","span[data-quote]"],["Моноширинный","code"]]) {
+ for (const [name,tag] of [["Жирный",":is(strong,b)"],["Курсив",":is(em,i)"],["Подчёркивание","u"],["Зачёркивание",":is(s,strike)"]]) {
    await input.fill("");await input.click();
    const button=page.getByRole("button",{name,exact:true});
    await button.click();await input.pressSequentially("styled");

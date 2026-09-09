@@ -15,7 +15,7 @@ test("custom toolbar order, five years, icons and keyboard-accessible listbox",a
   await login(page);
   await expect(page.locator("select:visible")).toHaveCount(0);
   const names=await page.locator('.schedule-toolbar button:not([disabled])').evaluateAll(buttons=>buttons.map(b=>b.getAttribute("aria-label")||b.textContent?.trim()));
-  expect(names.slice(0,7)).toEqual(["Год","Месяц","Неделя","Сдвиг МСК","Предыдущая неделя","Текущая","Следующая неделя"]);
+  expect(names.slice(0,6)).toEqual(["Год","Месяц","Неделя","Предыдущая неделя","Текущая","Следующая неделя"]);
   const year=page.getByRole("combobox",{name:"Год",exact:true});
   await year.focus(); await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("option")).toHaveCount(5);

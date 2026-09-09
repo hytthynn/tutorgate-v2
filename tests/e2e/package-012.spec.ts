@@ -7,7 +7,7 @@ test("012 admin opens target calendar, creates/edits notes and completes target 
  await page.setViewportSize({width:1440,height:1000});await login(page);await page.goto("/admin/tutors");
  await page.locator(".person-row").filter({hasText:"Мария Соколова"}).getByRole("link",{name:"Расписание",exact:true}).click();
  await expect(page).toHaveURL(new RegExp(`tutor=${tutor}`));await expect(page.getByText("Расписание: Мария Соколова",{exact:true})).toBeVisible();
- await expect(page.getByRole("combobox",{name:"Сдвиг МСК",exact:true})).toBeDisabled();
+ await expect(page.getByLabel("Сдвиг МСК",{exact:true})).toBeDisabled();
  await page.getByRole("button",{name:"Добавить занятие",exact:true}).click();await choose(page,"Ученик","Анна Смирнова");await choose(page,"Предмет","Физика");
  await page.getByLabel("Начало",{exact:true}).fill("18:00");await page.getByLabel("Заметка",{exact:true}).fill("Admin target note");await page.getByRole("button",{name:"Добавить",exact:true}).click();await expect(page.getByRole("dialog")).toHaveCount(0);
  const card=page.locator(".schedule-lesson").filter({hasText:"18:00–19:00"});await expect(card).toBeVisible();await expect(page.locator(".schedule-workspace")).toHaveAttribute("aria-busy","false");if(await card.getAttribute("aria-pressed")!=="true")await card.click();await card.click();await expect(page.getByLabel("Заметка",{exact:true})).toHaveValue("Admin target note");

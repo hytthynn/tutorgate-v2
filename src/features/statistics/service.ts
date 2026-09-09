@@ -67,13 +67,8 @@ async function lessonsDatasource(
   query: StatisticsQuery,
 ): Promise<StatisticsResult> {
   const offset = await getScheduleOffset();
-  const db = await createClient();
-  const [rows, rate] = await Promise.all([
-    readLessons(localToUtc(query.from, "00:00", offset), localToUtc(addDays(query.to, 1), "00:00", offset), { tutorId: query.tutorId, completed: true }),
-    db.from("app_settings").select("hourly_rate").eq("id", true).single(),
-  ]);
-  if (rate.error) throw new Error("Не удалось загрузить ставку.");
-  return { ...aggregateLessons(rows.map((l) => ({ startsAt: l.starts_at, endsAt: l.ends_at, completed: l.completed_at !== null })), query.from, query.to, offset, Number(rate.data.hourly_rate), query.metric), query };
+  const rows=await readLessons(localToUtc(query.from,"00:00",offset),localToUtc(addDays(query.to,1),"00:00",offset),{tutorId:query.tutorId,completed:true});
+  return {...aggregateLessons(rows.map(l=>({startsAt:l.starts_at,endsAt:l.ends_at,completed:l.completed_at!==null,hourlyRateSnapshot:Number(l.hourly_rate_snapshot)})),query.from,query.to,offset,query.metric),query};
 }
 export async function getTutorStatistics(query: StatisticsQuery) {
   const tutor = await requireRole("tutor");

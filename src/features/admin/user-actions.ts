@@ -1,4 +1,5 @@
 "use server";
+import { cleanupBackgrounds } from "@/features/schedule/background-service";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/access";
@@ -31,6 +32,7 @@ export async function manageUserAction(input: unknown): Promise<ActionState> {
         return { error: "Доступ отозван. Удаление ожидает истечения разрешений на загрузку файлов (не более 2 часов 5 минут). Затем повторите очистку." };
       }
       if (job.status !== "complete") {
+        await cleanupBackgrounds();
         for (let i=0;i<job.storage_paths.length;i+=100) {
           const removed = await auth.storage.from(CHAT_BUCKET).remove(job.storage_paths.slice(i,i+100));
           if (removed.error) throw removed.error;
@@ -42,6 +44,7 @@ export async function manageUserAction(input: unknown): Promise<ActionState> {
           const deleted = await auth.auth.admin.deleteUser(id);
           if (deleted.error) throw deleted.error;
         }
+        await cleanupBackgrounds();
         await serviceRpc("admin_finish_hard_delete_user",{ p_actor: actor.id, p_user: id });
       }
     }

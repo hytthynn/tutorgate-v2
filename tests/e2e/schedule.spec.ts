@@ -26,7 +26,8 @@ test("desktop calendar: CRUD, selection, menu, completion and bulk delete", asyn
   await page.setViewportSize({ width: 1440, height: 1000 });
   await signIn(page);
   await expect(page.locator(".schedule-day")).toHaveCount(7);
-  for (const time of ["00:00", "24:00"]) await expect(page.getByText(time, { exact: true })).toBeInViewport();
+  await expect(page.locator(".schedule-time-labels span").first()).toHaveText("00:00"); await expect(page.locator(".schedule-time-labels span").last()).toHaveText("00:00");
+  await expect(page.locator(".schedule-time-labels span").first()).toBeInViewport(); await expect(page.locator(".schedule-time-labels span").last()).toBeInViewport();
   expect(await page.locator(".schedule-grid").evaluate((e) => e.scrollHeight <= e.clientHeight + 1)).toBe(true);
   const a = lesson(page, 100);
   await expect(a).toContainText("Анна Смирнова"); await expect(a).toContainText("10:00–11:00");
@@ -134,7 +135,7 @@ test("navigation, invalid URL and persisted MSK offset", async ({ page }) => {
   await expect(page.getByRole("option")).toHaveCount(5); await page.keyboard.press("Escape");
   await choose(page,"Сдвиг МСК","МСК+2"); await settled(page);
   await expect(lesson(page, 100)).toContainText("12:00–13:00");
-  await page.reload(); await expect(page.getByRole("combobox",{name:"Сдвиг МСК"})).toHaveText("МСК+2");
+  await page.reload(); await expect(page.getByLabel("Сдвиг МСК",{exact:true})).toHaveValue("+2");
   await page.getByRole("button", { name: "Следующая неделя", exact: true }).click();
   const url = page.url(); await page.waitForTimeout(3100); await expect(page).toHaveURL(url);
   await page.goBack(); await expect(page).toHaveURL(new RegExp(`week=${day(0)}`));
@@ -163,7 +164,8 @@ for (const [width, height] of [[320, 700], [375, 812], [430, 932]]) {
       await page.goto(`/tutor/schedule?week=${day(0)}`);
       while ((await page.locator('.schedule-day[data-mobile-active="true"]').getAttribute("data-date")) !== week) await page.getByRole("button", { name: "Предыдущий день", exact: true }).click();
       await expect(page.locator(".schedule-day:visible")).toHaveCount(1);
-      for (const time of ["00:00", "24:00"]) await expect(page.getByText(time, { exact: true })).toBeInViewport();
+      await expect(page.locator(".schedule-time-labels span").first()).toHaveText("00:00"); await expect(page.locator(".schedule-time-labels span").last()).toHaveText("00:00");
+      await expect(page.locator(".schedule-time-labels span").first()).toBeInViewport(); await expect(page.locator(".schedule-time-labels span").last()).toBeInViewport();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const a = lesson(page, 100);
       await a.tap(); await a.tap(); await expect(page.getByRole("dialog")).toBeVisible();

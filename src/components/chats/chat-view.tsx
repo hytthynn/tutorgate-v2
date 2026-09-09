@@ -367,7 +367,7 @@ export function ChatView({
                               : "Сообщение ученика"
                           }
                         >
-                          {m.body && <p><RichMessage content={m.content ?? plainContent(m.body)} /></p>}
+                          {m.body && <RichMessage content={m.content ?? plainContent(m.body)} />}
                           {m.attachments?.map(file => <MessageFile key={file.id} file={file} />)}
                           <footer>
                             <span>

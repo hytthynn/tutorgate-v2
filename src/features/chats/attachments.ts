@@ -20,3 +20,10 @@ export function detectedImage(bytes: Uint8Array): string | null {
   if (hex(4) === "52494646" && String.fromCharCode(...bytes.slice(8,12)) === "WEBP") return "image/webp";
   return null;
 }
+
+export function detectedMedia(bytes:Uint8Array):string|null {
+ const image=detectedImage(bytes);if(image)return image;
+ if(bytes.length>=12&&String.fromCharCode(...bytes.slice(4,8))==="ftyp")return "video/mp4";
+ if(bytes.length>=4&&bytes[0]===0x1a&&bytes[1]===0x45&&bytes[2]===0xdf&&bytes[3]===0xa3)return "video/webm";
+ return null;
+}

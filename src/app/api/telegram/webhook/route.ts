@@ -1,3 +1,4 @@
+import { animationSchema,stickerSchema,incomingMedia } from "@/features/chats/telegram-media";
 import { botApplicationAction } from "@/features/applications/bot-actions";
 import { receiveTelegram } from "@/features/chats/incoming";
 import { NextRequest, NextResponse } from "next/server";
@@ -27,7 +28,7 @@ const peer = z.object({
 });
 const chat = z.object({ id: z.number().int().safe(), type: z.string() });
 const mediaSchema = z.object({ file_id: z.string().max(1024), file_size: z.number().int().nonnegative().safe().optional(), file_name: z.string().max(1024).optional() });
-const entitiesSchema = z.array(z.object({ type: z.string().max(50), offset: z.number().int().nonnegative(), length: z.number().int().nonnegative(), url: z.string().max(2048).optional() })).max(4000);
+const entitiesSchema = z.array(z.object({ type: z.string().max(50), offset: z.number().int().nonnegative(), length: z.number().int().nonnegative(), url: z.string().max(2048).optional(), language: z.string().max(40).optional() })).max(4000);
 const updateSchema = z.object({
   update_id: z.number().int().nonnegative().safe(),
   message: z
@@ -37,7 +38,7 @@ const updateSchema = z.object({
       media_group_id: z.string().min(1).max(128).optional(),
       caption: z.string().max(16384).optional(),
       entities: entitiesSchema.optional(), caption_entities: entitiesSchema.optional(),
-      document: mediaSchema.optional(), photo: z.array(mediaSchema).max(20).optional(),
+      animation: animationSchema.optional(), sticker: stickerSchema.optional(), document: mediaSchema.optional(), photo: z.array(mediaSchema).max(20).optional(),
       from: peer,
       chat,
       reply_to_message: z
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
           chatId,
           text: message?.text ?? message?.caption,
           entities: message?.entities ?? message?.caption_entities,
-          media: message?.document ?? message?.photo?.at(-1),
+          media: message ? incomingMedia(message) : undefined,
           replyId: message?.reply_to_message?.message_id,
           callbackId: callback?.id,
           callbackData: callback?.data,

@@ -1,3 +1,4 @@
+import { readBackground } from "./background-service";
 import "server-only";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/access";
@@ -14,7 +15,7 @@ export async function getScheduleOffset() {
 }
 export interface LessonRow {
   id: string; tutor_id: string; student_id: string; subject_id: string | null; subject_name_snapshot: string;
-  starts_at: string; ends_at: string; duration_minutes: number; color: LessonColor; completed_at: string | null;
+  starts_at: string; ends_at: string; duration_minutes: number; color: LessonColor; completed_at: string | null; hourly_rate_snapshot: number | null;
   inactive_reason: ScheduleLesson["inactiveReason"]; inactive_until: string | null; is_transfer_target: boolean; transfer_source_id: string | null; transfer_source_starts_at: string | null;
 }
 export async function readLessons(start: string | null, end: string | null, filter: { tutorId?: string; studentId?: string; completed?: boolean }) {
@@ -22,7 +23,7 @@ export async function readLessons(start: string | null, end: string | null, filt
   const rows: LessonRow[] = [];
   // PostgREST caps each response; never silently truncate a busy period.
   for (let page = 0; ; page++) {
-    let query = db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
+    let query = db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,hourly_rate_snapshot,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
       .order("starts_at").order("id").range(page * 500, page * 500 + 499);
     if (start) query = query.gt("ends_at", start);
     if (end) query = query.lt("starts_at", end);
@@ -36,7 +37,7 @@ export async function readLessons(start: string | null, end: string | null, filt
   }
   return rows;
 }
-export async function getSchedule(weekParam: unknown, requestedOwner?: unknown): Promise<ScheduleData> {
+export async function getSchedule(weekParam: unknown, requestedOwner?: unknown, includeBackground=true): Promise<ScheduleData> {
   const user = await requireRole();
   const context = await resolveScheduleOwner(requestedOwner);
   const { ownerId, offset } = context;
@@ -48,7 +49,7 @@ export async function getSchedule(weekParam: unknown, requestedOwner?: unknown):
   const snapshot = data as Pick<ScheduleData, "lessons" | "students" | "subjects" | "assignments">;
   return { ...snapshot, now: now.toISOString(), role: user.role, week, offset, ownerId,
     ownerName: context.ownerName, delegated: context.delegated, canEdit: user.role !== "student",
-    canEditOffset: !context.delegated, studentAvailability: context.rules };
+    canEditOffset: !context.delegated, canManagePersonalRates: user.role === "admin", canManageBackground: user.role !== "student" && !context.delegated, ...(includeBackground ? {background: user.role === "student" ? null : await readBackground(ownerId)} : {}), studentAvailability: context.rules };
 }
 
 export async function normalizeLessons(rows: LessonRow[]): Promise<ScheduleLesson[]> {
@@ -75,7 +76,7 @@ export async function readScheduleUpdates(since: string, requestedOwner?: unknow
   // Inclusive cursor plus a small overlap tolerates long-running cron transactions.
   const after = new Date(Date.parse(since)-10*60_000).toISOString();
   for (let page=0; ;page++) {
-    const result = await db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
+    const result = await db.from("lessons").select("id,tutor_id,student_id,subject_id,starts_at,ends_at,duration_minutes,color,completed_at,hourly_rate_snapshot,subject_name_snapshot,inactive_reason,inactive_until,is_transfer_target,transfer_source_id,transfer_source_starts_at")
       .eq(user.role === "student" ? "student_id" : "tutor_id",context.ownerId).gte("updated_at",after)
       .order("updated_at").order("id").range(page*500,page*500+499);
     if (result.error) throw new Error("Не удалось загрузить новые занятия.");

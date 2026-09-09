@@ -1,5 +1,5 @@
 import type { RichContent } from "./rich-text";
-export type ChatAttachment = { id: string; original_name: string; mime_type: string; size_bytes: number; kind: "image" | "file" };
+export type ChatAttachment = { id: string; original_name: string; mime_type: string; size_bytes: number; kind: "image" | "file" | "animation" | "sticker_static" | "sticker_animated" | "sticker_video" };
 export type ChatMessage = {
   id: string;
   sender_role: "student" | "tutor";
