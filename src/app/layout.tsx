@@ -20,7 +20,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body className={geist.variable}>{children}<SupportLink /><Toaster /></body>
+      <body className={geist.variable}><div className="site-background" aria-hidden="true"><i/><i/><i/></div>{children}<SupportLink /><Toaster /></body>
     </html>
   );
 }

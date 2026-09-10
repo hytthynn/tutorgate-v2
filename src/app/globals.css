@@ -2009,3 +2009,30 @@ input[type="date"], input[type="time"], input[type="date"]::-webkit-calendar-pic
 .admin-chat-readonly { padding:14px 18px; border-top:1px solid var(--border); color:var(--muted-foreground); font-size:12px; }
 .person-chat-button { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; flex-shrink:0; color:var(--muted-foreground); border-radius:6px; }
 .person-chat-button:hover { color:var(--accent); background:var(--surface-raised); }
+/* Full section background and quiet site-wide motion. */
+.dashboard-content:has(.schedule-page) { position:relative; isolation:isolate; }
+.dashboard-content:has(.schedule-page) .schedule-page { position:static; isolation:auto; }
+.dashboard-content:has(.schedule-page) .schedule-background { inset:0; border-radius:0; }
+.site-background { position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden; }
+.site-background i { position:absolute; width:150px; height:150px; border:1px solid rgba(210,157,85,.09); border-radius:50%; animation:site-drift 34s ease-in-out infinite alternate; }
+.site-background i:nth-child(1) { left:8%; top:12%; }
+.site-background i:nth-child(2) { left:68%; top:8%; width:260px; height:260px; animation-delay:-13s; }
+.site-background i:nth-child(3) { left:42%; top:72%; width:90px; height:90px; animation-delay:-23s; }
+body { isolation:isolate; }
+@keyframes site-drift { to { transform:translate(35px,55px) rotate(35deg); } }
+@media(prefers-reduced-motion:reduce) { .site-background i { animation:none; } }
+.admin-chat-layout .chat-directory { padding-top:14px; }
+.admin-chat-layout .chat-heading h2 { min-width:0; overflow-wrap:anywhere; }
+.admin-chat-layout .chat-contact small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin-chat-layout .chat-heading { flex-shrink:0; }
+.admin-chat-layout .admin-chat-readonly { flex-shrink:0; margin:0; }
+@media(max-width:767px) { .admin-chat-layout .chat-directory { padding-top:0; } }
+.latex-settings { margin-top:24px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+.latex-settings label { display:flex; flex-direction:column; gap:6px; }
+.latex-settings textarea { width:100%; min-width:0; padding:10px; background:var(--surface); border:1px solid var(--border-strong); border-radius:8px; font-family:monospace; resize:vertical; }
+.latex-settings small { color:var(--muted-foreground); overflow-wrap:anywhere; }
+.latex-settings input { max-width:100%; }
+.latex-library { display:flex; justify-content:space-between; align-items:center; gap:8px; overflow-wrap:anywhere; }
+.compiled-latex-view { display:flex; flex-direction:column; align-items:flex-start; gap:8px; max-width:100%; margin:8px 0; }
+.compiled-latex { display:block; max-width:100%; height:auto; background:white; border-radius:6px; padding:6px; }
+.latex-source { display:block; white-space:pre-wrap; overflow-wrap:anywhere; max-height:220px; overflow:auto; max-width:100%; }

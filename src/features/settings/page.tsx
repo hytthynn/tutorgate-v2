@@ -1,4 +1,6 @@
 import { Coins, BookOpen, RefreshCw } from "lucide-react";
+import {LatexForm} from "@/components/settings/latex-form";
+import {defaultLatexConfig,latexConfigSchema} from "@/features/latex/config";
 import { TelegramSyncForm } from "@/components/settings/telegram-sync-form";
 import { requireRole } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
@@ -11,6 +13,7 @@ import {
 export async function SettingsPage() {
   await requireRole("admin");
   const db = await createClient();
+  const latex=await db.rpc("latex_settings_read");
   const [settings, subjects] = await Promise.all([
     db.from("app_settings").select("hourly_rate").eq("id", true).single(),
     db
@@ -74,6 +77,7 @@ export async function SettingsPage() {
         </section>
         </div>
       </div>
+      <LatexForm initial={latexConfigSchema.safeParse(latex.data).success?latex.data:defaultLatexConfig} connected={!!process.env.LATEX_RENDER_URL&&!!process.env.LATEX_RENDER_TOKEN}/>
     </>
   );
 }
