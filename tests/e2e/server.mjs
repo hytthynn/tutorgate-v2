@@ -140,7 +140,6 @@ const server = http.createServer(async (req, res) => {
   const chunks=[]; for await(const chunk of req)chunks.push(chunk);
   const bytes=Buffer.concat(chunks),url=new URL(req.url,"http://localhost");
   if(storageFixture(req,res,url,bytes))return;
-  if(url.pathname==="/fixtures/latex-render"){res.writeHead(req.headers.authorization==="Bearer fixture-latex-token-for-local-tests"?200:401,{"Content-Type":"application/json"});res.end(JSON.stringify({image:`data:image/png;base64,${fixturePng.toString("base64")}`}));return;}
   if(url.pathname==="/fixtures/telegram-file"){telegramFile=Buffer.from(JSON.parse(bytes.toString()).base64,"base64");res.end("true");return;}
   if(url.pathname==="/fixtures/telegram/media"){res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:true,result:{message_id:9000+Math.floor(Math.random()*10000)}}));return;}
   if(url.pathname==="/fixtures/telegram/get-file"){res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify({ok:true,result:{file_path:"photos/fixture.png"}}));return;}
@@ -423,8 +422,6 @@ const child = spawn(
     env: {
       ...process.env,
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54329",
-      LATEX_RENDER_URL:"http://127.0.0.1:54329/fixtures/latex-render",
-      LATEX_RENDER_TOKEN:"fixture-latex-token-for-local-tests",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "fixture-public",
       SUPABASE_SECRET_KEY: "fixture-secret",
       TELEGRAM_BOT_TOKEN: "fixture-bot",

@@ -16,6 +16,10 @@ const config: NextConfig = {
           { key: "Cache-Control", value: "private, no-store" },
         ],
       },
+      ...["3f69afb974a1e83f66a36f7618f88a38c254034b.wasm","b565ab0b474e8e557d954694b7379a57db669ac9.gz"].map(file=>({
+        source:`/vendor/tikzjax/${file}`,
+        headers:[{key:"Cache-Control",value:"public, max-age=31536000, immutable"}],
+      })),
     ];
   },
 };

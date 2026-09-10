@@ -2014,13 +2014,23 @@ input[type="date"], input[type="time"], input[type="date"]::-webkit-calendar-pic
 .dashboard-content:has(.schedule-page) .schedule-page { position:static; isolation:auto; }
 .dashboard-content:has(.schedule-page) .schedule-background { inset:0; border-radius:0; }
 .site-background { position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden; }
-.site-background i { position:absolute; width:150px; height:150px; border:1px solid rgba(210,157,85,.09); border-radius:50%; animation:site-drift 34s ease-in-out infinite alternate; }
-.site-background i:nth-child(1) { left:8%; top:12%; }
-.site-background i:nth-child(2) { left:68%; top:8%; width:260px; height:260px; animation-delay:-13s; }
-.site-background i:nth-child(3) { left:42%; top:72%; width:90px; height:90px; animation-delay:-23s; }
 body { isolation:isolate; }
-@keyframes site-drift { to { transform:translate(35px,55px) rotate(35deg); } }
-@media(prefers-reduced-motion:reduce) { .site-background i { animation:none; } }
+.site-background-art { position:absolute; inset:-20px; transform:translate(var(--drift-x,0px),var(--drift-y,0px)); transition:transform 1.4s ease-out; }
+.site-contours { width:100%; height:100%; stroke:rgba(211,154,89,.15); stroke-width:1; }
+.site-orbit { transform-origin:1280px 170px; animation:site-orbit 110s linear infinite; }
+.site-orbit.is-second { transform-origin:140px 870px; animation-duration:140s; animation-direction:reverse; }
+.site-wave { stroke:rgba(211,154,89,.07); animation:site-wave 24s ease-in-out infinite alternate; }
+.site-wave.is-second { animation-delay:-12s; }
+.site-particle { position:absolute; width:3px; height:3px; border-radius:50%; background:rgba(225,184,132,.34); animation:site-float 24s ease-in-out infinite; }
+.site-particle.is-diamond { width:6px; height:6px; background:transparent; border:1px solid rgba(225,184,132,.28); border-radius:1px; }
+@keyframes site-orbit { to { transform:rotate(360deg); } }
+@keyframes site-wave { to { transform:translateY(26px); opacity:.45; } }
+@keyframes site-float { 0%,100% { transform:translateY(0) rotate(0deg); opacity:.3; } 50% { transform:translateY(-24px) rotate(45deg); opacity:.85; } }
+.site-background[data-paused="true"] * { animation-play-state:paused; }
+@media(prefers-reduced-motion:reduce) { .site-background * { animation:none!important; transition:none!important; }.site-background-art { transform:none; } }
+@media(max-width:767px) { .site-particle:nth-of-type(even) { display:none; }.site-contours { opacity:.7; } }
+.latex-capabilities { display:flex; flex-wrap:wrap; gap:8px; }
+.latex-capabilities span { padding:5px 9px; border:1px solid var(--border); border-radius:6px; color:var(--muted-foreground); font-size:12px; }
 .admin-chat-layout .chat-directory { padding-top:14px; }
 .admin-chat-layout .chat-heading h2 { min-width:0; overflow-wrap:anywhere; }
 .admin-chat-layout .chat-contact small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

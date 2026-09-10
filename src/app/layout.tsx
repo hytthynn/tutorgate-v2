@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { SupportLink } from "@/components/shared/support-link";
+import {SiteBackground} from "@/components/shared/site-background";
 const geist = Geist({
   subsets: ["latin", "cyrillic"],
   variable: "--font-geist",
@@ -20,7 +21,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body className={geist.variable}><div className="site-background" aria-hidden="true"><i/><i/><i/></div>{children}<SupportLink /><Toaster /></body>
+      <body className={geist.variable}><SiteBackground/>{children}<SupportLink /><Toaster /></body>
     </html>
   );
 }

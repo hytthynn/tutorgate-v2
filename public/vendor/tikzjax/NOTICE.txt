@@ -1,0 +1,16 @@
+TutorGate browser renderer vendor snapshot, 2026-09-10.
+
+Upstream: https://github.com/kisonecat/tikzjax
+Published bundle: https://tikzjax.com/v1/tikzjax.js
+WASM/core: https://s3.us-east-2.amazonaws.com/tikzjax.com/
+Fonts: https://tikzjax.com/bakoma/ttf/ (BaKoMa font collection)
+
+The upstream JS bundle is distributed as tikzjax-local.js, modified only to
+replace its hardcoded S3 asset root with self.location.origin + /vendor/tikzjax.
+worker.js is TutorGate's separate worker adapter; it does not execute SVG in a DOM.
+All resources are served locally. No user code is sent to TikZJax or a third party.
+Upstream LPPL license: LICENSE.md. Font terms: fonts/LICENSE.txt.
+The upstream source repository and original bundle remain available at URLs above.
+No application npm dependency versions or lockfiles were changed.
+Additional local change: a compile-phase message was added immediately before
+WASM execution, separating the asset download timeout from the CPU timeout.

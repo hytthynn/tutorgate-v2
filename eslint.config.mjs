@@ -10,5 +10,6 @@ export default defineConfig([
     "next-env.d.ts",
     "test-results/**",
     "artifacts/**",
+    "public/vendor/tikzjax/tikzjax-local.js",
   ]),
 ]);

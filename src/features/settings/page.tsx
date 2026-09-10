@@ -77,7 +77,7 @@ export async function SettingsPage() {
         </section>
         </div>
       </div>
-      <LatexForm initial={latexConfigSchema.safeParse(latex.data).success?latex.data:defaultLatexConfig} connected={!!process.env.LATEX_RENDER_URL&&!!process.env.LATEX_RENDER_TOKEN}/>
+      <LatexForm initial={latexConfigSchema.safeParse(latex.data).success?latex.data:defaultLatexConfig}/>
     </>
   );
 }

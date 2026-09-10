@@ -1,0 +1,34 @@
+type Point=[number,number];
+const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]!));
+function split(value:string,separator:string){let depth=0,quoted=false,part="";const parts:string[]=[];for(let i=0;i<value.length;i++){const c=value[i];if(c==='"'&&value[i-1]!=="\\")quoted=!quoted;if(!quoted){if("([{".includes(c))depth++;if(")]}".includes(c))depth--;if(depth<0||depth>32)throw new Error("Несогласованные скобки.");}if(!quoted&&!depth&&value.startsWith(separator,i)){parts.push(part.trim());part="";i+=separator.length-1;}else part+=c;}if(quoted||depth)throw new Error("Незавершённая строка или скобки.");if(part.trim())parts.push(part.trim());return parts;}
+/** Deliberately bounded 2D grammar. No eval, JavaScript execution, imports or silent omissions. */
+export function asymptoteToSvg(input:string):string{
+ const source=input.replace(/^\s*\\begin\{asy\}\s*/,"").replace(/\s*\\end\{asy\}\s*$/,"").replace(/\/\*[^]*?\*\//g,"").replace(/\/\/[^\n]*/g,"");
+ const points=new Map<string,Point>(),numbers=new Map<string,number>([["pi",Math.PI]]),bounds:Point[]=[],shapes:string[]=[],labels:string[]=[];let width=420;
+ function number(text:string):number{
+  const tokens=text.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z_]\w*|[()+*/^-]/g)??[];
+  if(tokens.join("")!==text.replace(/\s/g,"")||tokens.length>100)throw new Error("Неподдерживаемое выражение: "+text);
+  let i=0;function atom():number{const token=tokens[i++];if(token==="-"||token==="+")return (token==="-"?-1:1)*atom();if(token==="("){const n=sum();if(tokens[i++]!==")")throw new Error("Ожидается скобка.");return n;}if(["sqrt","sin","cos","tan","abs"].includes(token)){if(tokens[i++]!=="(")throw new Error("Ожидается аргумент.");const n=sum();if(tokens[i++]!==")")throw new Error("Ожидается скобка.");return ({sqrt:Math.sqrt,sin:Math.sin,cos:Math.cos,tan:Math.tan,abs:Math.abs}[token]!)(n);}if(numbers.has(token))return numbers.get(token)!;if(!token||!/^\d|^\./.test(token))throw new Error("Неизвестное число: "+token);return Number(token);}
+  function power():number{let n=atom();if(tokens[i]==="^"){i++;n=n**power();}return n;}
+  function product():number{let n=power();while(tokens[i]==="*"||tokens[i]==="/"){const op=tokens[i++],v=power();n=op==="*"?n*v:n/v;}return n;}
+  function sum():number{let n=product();while(tokens[i]==="+"||tokens[i]==="-"){const op=tokens[i++],v=product();n=op==="+"?n+v:n-v;}return n;}
+  const n=sum();if(i!==tokens.length||!Number.isFinite(n)||Math.abs(n)>10000)throw new Error("Некорректное или слишком большое число.");return n;
+ }
+ function point(text:string):Point{if(points.has(text.trim()))return points.get(text.trim())!;const m=text.trim().match(/^\((.*)\)$/);if(!m)throw new Error("Ожидается 2D-точка: "+text);const xy=split(m[1],",");if(xy.length!==2)throw new Error("Поддерживаются только 2D-точки.");return [number(xy[0]),number(xy[1])];}
+ function path(text:string){if(text==="unitsquare")text="(0,0)--(1,0)--(1,1)--(0,1)--cycle";if(text==="unitcircle")text="circle((0,0),1)";const circle=text.match(/^circle\((.*)\)$/);if(circle){const args=split(circle[1],","),[x,y]=point(args[0]),r=number(args[1]);if(args.length!==2||r<=0)throw new Error("Некорректная окружность.");bounds.push([x-r,y-r],[x+r,y+r]);return `<circle cx="${x}" cy="${y}" r="${r}"`;}
+  const parts=split(text,"--"),closed=parts.at(-1)==="cycle";if(closed)parts.pop();const pts=parts.map(point);if(pts.length<2)throw new Error("Линия требует две точки.");bounds.push(...pts);return `<path d="M${pts.map(p=>p.join(",")).join(" L")}${closed?" Z":""}"`;
+ }
+ function pen(text=""){let color="#34271e",weight=1.5,dash=false,arrow=false;for(const p of split(text,"+")){if(["black","white","red","blue","green","orange","gray","purple","brown","yellow"].includes(p))color=p;else if(p==="dashed")dash=true;else if(p==="Arrow")arrow=true;else if(/^linewidth\(.*\)$/.test(p))weight=Math.max(.2,Math.min(8,number(p.slice(10,-1))));else throw new Error("Не поддерживается перо: "+p);}return {color,weight,dash,arrow};}
+ const commands=split(source,";");if(commands.length>300)throw new Error("Не более 300 команд в рисунке.");
+ for(const command of commands){const declaration=command.match(/^(pair|real|int)\s+(.+)$/s);if(declaration){for(const item of split(declaration[2],",")){const assignment=item.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/s);if(!assignment)throw new Error("Некорректная переменная.");if(declaration[1]==="pair")points.set(assignment[1],point(assignment[2]));else numbers.set(assignment[1],number(assignment[2]));}continue;}
+  const call=command.match(/^(\w+)\((.*)\)$/s);if(!call)throw new Error("Браузер поддерживает size, pair/real, draw, fill, filldraw, dot и label; эта команда не поддерживается: "+command.slice(0,80));
+  const [,name,body]=call,args=split(body,",");if(name==="size"){if(args.length!==1)throw new Error("size принимает одно число.");width=Math.max(64,Math.min(900,number(args[0])));continue;}
+  if(["draw","fill","filldraw"].includes(name)){if(args.length>(name==="filldraw"?3:2))throw new Error("Слишком много аргументов.");const fill=pen(args[1]),style=pen(name==="filldraw"?(args[2]??args[1]):args[1]);shapes.push(path(args[0])+` fill="${name==="draw"?"none":fill.color}" stroke="${style.color}" stroke-width="${style.weight}" vector-effect="non-scaling-stroke"${style.dash?' stroke-dasharray="4 3"':""}${style.arrow?' marker-end="url(#arrow)"':""}/>`);continue;}
+  if(name==="dot"){if(args.length>2)throw new Error("dot: точка и цвет.");const [x,y]=point(args[0]),style=pen(args[1]);bounds.push([x,y]);shapes.push(`<circle cx="${x}" cy="${y}" r="0.025" fill="${style.color}"/>`);continue;}
+  if(name==="label"){if(args.length!==2||!/^"(?:[^"\\]|\\.)*"$/.test(args[0]))throw new Error("label: строка и точка; направления и TeX-метки не поддерживаются.");const text=args[0].slice(1,-1);if(/[\\$]/.test(text))throw new Error("В label поддерживается обычный русский и английский текст.");const [x,y]=point(args[1]);bounds.push([x,y]);labels.push(`<text x="${x}" y="${-y}" text-anchor="middle" fill="#34271e" font-size="0.16">${escape(text)}</text>`);continue;}
+  throw new Error("Команда Asymptote пока не поддерживается: "+name);
+ }
+ if(!bounds.length)throw new Error("В коде нет рисунка.");
+ const xs=bounds.map(p=>p[0]),ys=bounds.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),pad=Math.max(maxX-minX,maxY-minY,1)*.18,w=Math.max(.1,maxX-minX)+2*pad,h=Math.max(.1,maxY-minY)+2*pad;
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX-pad} ${-maxY-pad} ${w} ${h}" width="${width}" height="${Math.min(900,width*h/w)}"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs><g transform="scale(1,-1)">${shapes.join("")}</g>${labels.join("")}</svg>`;
+}
