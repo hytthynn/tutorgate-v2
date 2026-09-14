@@ -52,6 +52,7 @@ jobs:
       - name: Build production image
         run: |
           docker build --build-arg NEXT_PUBLIC_SUPABASE_URL --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY -t "tutorgate:$GITHUB_SHA" .
+          docker run --rm --entrypoint node "tutorgate:$GITHUB_SHA" -e "require('@supabase/supabase-js'); console.log('Maintenance runtime ready')"
           docker save "tutorgate:$GITHUB_SHA" | gzip > .deploy/image.tar.gz
       - name: Transfer and deploy
         shell: bash
