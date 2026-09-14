@@ -1,0 +1,84 @@
+name: Deploy Linux
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:docs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Prepare runtime configuration
+        run: node scripts/deploy-config.mjs
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          APP_URL: ${{ secrets.APP_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          AUTH_ALIAS_DOMAIN: ${{ secrets.AUTH_ALIAS_DOMAIN }}
+          LATEX_RENDER_URL: ${{ secrets.LATEX_RENDER_URL }}
+          LATEX_RENDER_TOKEN: ${{ secrets.LATEX_RENDER_TOKEN }}
+      - name: Build production image
+        run: |
+          docker build --build-arg NEXT_PUBLIC_SUPABASE_URL --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY -t "tutorgate:$GITHUB_SHA" .
+          docker save "tutorgate:$GITHUB_SHA" | gzip > .deploy/image.tar.gz
+      - name: Transfer and deploy
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          [[ "$SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$SSH_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          SSH_PORT=${SSH_PORT:-22}
+          [[ "$SSH_PORT" =~ ^[0-9]+$ ]]
+          test -n "$SSH_PRIVATE_KEY"
+          test -n "$SSH_KNOWN_HOSTS"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          opts=(-i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+          release="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$GITHUB_SHA"
+          target="$SSH_USER@$SSH_HOST"
+          ssh "${opts[@]}" -p "$SSH_PORT" "$target" "umask 077; mkdir -p tutorgate/releases/$release"
+          scp "${opts[@]}" -P "$SSH_PORT" .deploy/runtime.env .deploy/deploy.env .deploy/image.tar.gz deploy/compose.yml deploy/Caddyfile deploy/deploy.sh "$target:tutorgate/releases/$release/"
+          ssh "${opts[@]}" -p "$SSH_PORT" "$target" "bash tutorgate/releases/$release/deploy.sh $release"
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -rf .deploy ~/.ssh/deploy_key ~/.ssh/known_hosts
