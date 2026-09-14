@@ -33,3 +33,10 @@ test("deployment rejects missing credentials, env injection and unsafe origins",
     { LATEX_RENDER_URL: "http://latex.example.org/render", LATEX_RENDER_TOKEN: "a".repeat(32) },
   ]) assert.throws(() => deploymentConfig({ ...config, ...override }));
 });
+
+test("deployment supports HTTPS on an IPv4 address without weakening session security", () => {
+  const result = deploymentConfig({ ...config, APP_URL: "https://2.26.3.180" });
+  assert.ok(result.compose.includes("APP_DOMAIN=2.26.3.180\n"));
+  assert.ok(result.runtime.includes("APP_URL=https://2.26.3.180\n"));
+  assert.throws(() => deploymentConfig({ ...config, APP_URL: "http://2.26.3.180" }));
+});

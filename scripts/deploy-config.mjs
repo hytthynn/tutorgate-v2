@@ -13,7 +13,7 @@ export function deploymentConfig(env) {
     if (value) values[key] = value;
   }
   const url = new URL(values.APP_URL);
-  if (url.protocol !== "https:" || url.port || url.username || url.password || url.pathname !== "/" || url.search || url.hash || !/^[a-z0-9.-]+$/.test(url.hostname)) throw new Error("APP_URL must be an HTTPS origin with a DNS hostname and no custom port");
+  if (url.protocol !== "https:" || url.port || url.username || url.password || url.pathname !== "/" || url.search || url.hash || !/^[a-z0-9.-]+$/.test(url.hostname)) throw new Error("APP_URL must be an HTTPS origin with a DNS hostname or IPv4 address and no custom port");
   if (!/^[A-Za-z0-9_-]{1,256}$/.test(values.TELEGRAM_WEBHOOK_SECRET)) throw new Error("Invalid TELEGRAM_WEBHOOK_SECRET");
   if (Boolean(values.LATEX_RENDER_URL) !== Boolean(values.LATEX_RENDER_TOKEN)) throw new Error("Set both LATEX_RENDER_URL and LATEX_RENDER_TOKEN");
   if (values.LATEX_RENDER_URL && (new URL(values.LATEX_RENDER_URL).protocol !== "https:" || values.LATEX_RENDER_TOKEN.length < 32)) throw new Error("LaTeX requires HTTPS and a token of at least 32 characters");

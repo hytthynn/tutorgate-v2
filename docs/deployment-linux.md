@@ -7,7 +7,7 @@ Push в `main` запускает `.github/workflows/deploy.yml`: lint, TypeScri
 1. Установить [Docker Engine и Compose plugin](https://docs.docker.com/engine/install/). Нужен Compose **2.30+**: секреты читаются через [env_file format: raw](https://docs.docker.com/reference/compose-file/services/#format), без подстановки `$` и обработки кавычек. Также нужны Bash, curl, gzip и flock (util-linux).
 2. Создать отдельного SSH-пользователя, например `deploy`, с домашней папкой и доступом к Docker без sudo. Членство в группе docker даёт административный доступ к хосту. Проверить из новой сессии: `docker info` и `docker compose version`.
 3. Добавить публичную часть выделенного SSH-ключа в `~deploy/.ssh/authorized_keys`. Приватную часть сохранить только в GitHub Secrets. Пользователь должен иметь право записывать в `$HOME/tutorgate`.
-4. Направить DNS A (и AAAA, если используется IPv6) домена на сервер. Открыть TCP 80/443 и SSH-порт, при необходимости UDP 443. Порты 80/443 должны быть свободны. Порт приложения 3000 наружу не публикуется.
+4. Использовать публичный IPv4 сервера или направить DNS A домена на сервер. Открыть TCP 80/443 и SSH-порт, при необходимости UDP 443. Порты 80/443 должны быть свободны. Порт приложения 3000 наружу не публикуется.
 5. Проверить fingerprint SSH host key через консоль провайдера. Сохранить проверенную строку known_hosts. Для нестандартного порта формат имени — `[hostname]:port`. Не доверять результату ssh-keyscan без сверки fingerprint.
 
 ## GitHub Secrets
@@ -21,7 +21,7 @@ Push в `main` запускает `.github/workflows/deploy.yml`: lint, TypeScri
 | `SSH_PORT` | Необязательно, по умолчанию `22` |
 | `SSH_PRIVATE_KEY` | Полный приватный OpenSSH-ключ без passphrase для выделенного deploy-пользователя |
 | `SSH_KNOWN_HOSTS` | Проверенная строка known_hosts для сервера |
-| `APP_URL` | Например `https://tutor.example.org`, без пути и нестандартного порта |
+| `APP_URL` | Например `https://2.26.3.180` или `https://tutor.example.org`, без пути и нестандартного порта |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL проекта Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Публичный publishable/anon ключ, доступный браузеру |
 | `SUPABASE_SECRET_KEY` | Серверный secret/service_role ключ |
@@ -33,6 +33,8 @@ Push в `main` запускает `.github/workflows/deploy.yml`: lint, TypeScri
 | `LATEX_RENDER_TOKEN` | Вместе с URL; минимум 32 символа |
 
 Все значения приложения однострочные, без внешних кавычек. Приватный SSH-ключ и known_hosts могут быть многострочными. Серверные секреты не передаются Docker build, не включаются в образ и не сохраняются в Actions artifacts. Два `NEXT_PUBLIC_*` значения фиксируются при сборке и доступны браузеру. После изменения любых Secrets запустить workflow заново.
+
+Доступ по IP использует HTTPS: Caddy явно запрашивает сертификат Let’s Encrypt с профилем `shortlived`. [Сертификаты для IP](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability) действуют около шести дней и автоматически обновляются Caddy; его постоянный volume и открытые порты 80/443 нужны для продления. Требуется Caddy с поддержкой ACME profiles (на сервере проверен 2.11.4). HTTP перенаправляется на HTTPS, production-cookie остаётся Secure. При переходе на домен поменять APP_URL в GitHub Secrets и повторить деплой и настройку Telegram webhook.
 
 ## Первый запуск и эксплуатация
 

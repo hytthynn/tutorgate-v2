@@ -1,4 +1,10 @@
 {$APP_DOMAIN} {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile shortlived
+        }
+    }
     encode zstd gzip
     reverse_proxy app:3000
 }
